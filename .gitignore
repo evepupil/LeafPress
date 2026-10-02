@@ -1,0 +1,17 @@
+# 派活任务书
+.fleet/
+
+# 本地配置与密钥
+.env
+.env.*
+!.env.example
+
+# 依赖与构建产物
+node_modules/
+dist/
+.venv/
+__pycache__/
+
+# 系统文件
+.DS_Store
+Thumbs.db
