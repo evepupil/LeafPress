@@ -1,6 +1,6 @@
 # 记录库 · SQLite 存储
 
-> 模块定位：LeafPress 全部数据的落盘与查询 · 对应代码：`src/store/` · 所属里程碑：[M0 地基](../roadmap.md#m0-地基) · 状态：开发中 · 最近更新：2026-10-05
+> 模块定位：LeafPress 全部数据的落盘与查询 · 对应代码：`src/store/` · 所属里程碑：[M0 地基](../roadmap.md#m0-地基) · 状态：已完成 · 最近更新：2026-10-05
 
 ## 职责与边界
 
@@ -89,6 +89,7 @@ CREATE TABLE publications (
   url TEXT,
   platform_content_id TEXT,
   published_at TEXT NOT NULL,
+  note TEXT,
   raw TEXT
 );
 CREATE INDEX idx_publications_variant ON publications (variant_id);
@@ -128,7 +129,7 @@ CREATE TABLE run_steps (
 ### 升级规则
 
 - 版本号存在 `PRAGMA user_version`。打开时比较当前版本和升级脚本的最大版本。
-- 有待执行的升级、而且数据库文件在打开前就已存在、当前版本大于 0 时：先用 `VACUUM INTO '<备份路径>'` 生成备份，备份路径为 `<库文件>.bak-v<当前版本>-<YYYYMMDDHHmmss>`，写进 `migration.backupPath`。路径里的单引号要转义成两个单引号。**不要用「检查点 + 复制文件」的办法**：评审实测过，有别的连接在读时检查点会失败，复制出来的文件会漏掉 WAL 里已提交的数据；`VACUUM INTO` 由 SQLite 自己读一份一致的快照写出去，不受影响。备份失败就抛 `MIGRATION_FAILED`，不执行升级。
+- 有待执行的升级、而且数据库文件在打开前就已存在、当前版本大于 0 时：先用 `VACUUM INTO '<备份路径>'` 生成备份，备份路径为 `<库文件>.bak-v<当前版本>-<YYYYMMDDHHmmssSSS>-<进程号>`，写进 `migration.backupPath`。几个进程同时升级时每个进程都会留一份备份，其中抢到写锁的那个进程的备份一定早于升级，多出来的只占空间。路径里的单引号要转义成两个单引号。**不要用「检查点 + 复制文件」的办法**：评审实测过，有别的连接在读时检查点会失败，复制出来的文件会漏掉 WAL 里已提交的数据；`VACUUM INTO` 由 SQLite 自己读一份一致的快照写出去，不受影响。备份失败就抛 `MIGRATION_FAILED`，不执行升级。
 - 每个升级脚本连同 `user_version` 的更新放在同一个事务里执行；任何一个失败就抛 `MIGRATION_FAILED`，hint 写明备份文件路径。
 - 升级脚本的版本号必须从 1 开始连续递增，否则抛 `MIGRATION_FAILED`（防止写错）。
 - 数据库版本比代码认识的最大版本还高（用旧代码打开新库）时，抛 `MIGRATION_FAILED`，提示升级 LeafPress。
@@ -157,11 +158,17 @@ recordManual ──► published（作者手动发完回填链接）
 - `publicationOverview`：返回给定原稿下的全部版本，左连接发布记录，按原稿编号、平台、形态、目标、版本创建时间、发布时间排序。传入空数组时直接返回空数组，不拼出 `IN ()` 这种非法语句。
 - `transaction`：`BEGIN IMMEDIATE` … `COMMIT`，出错 `ROLLBACK` 后原样抛出；正在事务中又调用 `transaction` 时抛 `STORE_FAILED`。Repo 内部自己需要事务的方法，在外层事务里被调用时要能正常工作（检测到已在事务中就不再开新事务）。
 - `runs`（RunStore）：完全照 `src/workflows/types.ts` 的注释实现。
-  - `acquireRun`、`renewLease`、`releaseRun`、`transitionRun` 都是一条带条件的 UPDATE（条件写在 `WHERE` 里，包括状态、租约持有者、租约到期时间的比较），按受影响行数判断成功与否；成功时同时把 `updated_at` 改成当前时间。时间都是同一格式的 ISO 字符串，可以直接按字符串比较大小。
+  - `acquireRun`、`renewLease`、`releaseRun`、`transitionRun` 都是一条带条件的 UPDATE，按受影响行数判断成功与否；成功时同时把 `updated_at` 改成当前时间。只有 `acquireRun` 的「接管过期运行」分支比较到期时间（用调用方传入的 `now`，不用存储自己的时钟）；`renewLease`、`releaseRun` 只看状态为 running 且持有者匹配，**不比较到期时间**。时间都是同一格式的 ISO 字符串，可以直接按字符串比较大小。
   - `releaseRun` 和 `transitionRun`（目标状态不是 running 时）把 `lease_owner`、`lease_expires_at` 置为 NULL。
   - `completeStep` 在一个事务里更新步骤和运行的游标。
   - `updateRun`、`updateStep` 里值为 `null` 的字段写成 SQL NULL，值为 `undefined` 的字段不改。
-- **只读查看** `inspectStore(dbFile): StoreInspection`（放在 `src/store/inspect.ts`）：库文件不存在返回 `{ exists: false, expectedVersion }`；存在则用 `new DatabaseSync(dbFile, { readOnly: true })` 打开，读 `PRAGMA user_version` 后立即关闭。不建目录、不建库、不升级。体检命令用它。
+- **只读查看** `inspectStore(dbFile): StoreInspection`（放在 `src/store/inspect.ts`）：库文件不存在返回 `{ exists: false, expectedVersion }`。存在时分两种情况：
+  - 旁边有非空的 `<库文件>-wal`（别的进程正开着库，或上次被强杀留下未并回的日志）：新提交的版本号可能还在日志里，用 SQLite 只读打开读 `PRAGMA user_version`。这种情况下 SQLite 会改动或新建 `<库文件>-shm`（它用来协调多个连接的共享内存文件，不存数据），库文件和 `-wal` 不会被改动。这是有意接受的取舍：要完全不碰 `-shm` 就得自己解析日志格式，复杂且容易出错，而这种情况只在进程被强杀或别的进程正开着库时出现。
+  - 否则**不经过 SQLite**，直接读文件头前 100 字节：0 字节的文件按「存在、版本 0」返回（和 `openStore` 会直接初始化它保持一致）；否则前 16 字节必须是 `SQLite format 3\0`，不是就视为损坏抛 `STORE_FAILED`；第 60～63 字节（大端序 32 位整数）就是 `user_version`。原因：评审实测用 SQLite 只读打开正常关闭的 WAL 库，仍会在旁边建出 `-shm`、`-wal` 文件，目录不可写时还会直接失败。
+  - 不建目录、不建任何新文件、不升级。体检命令用它。
+- **并发打开与升级**：`busy_timeout` 必须最先设置，再切 WAL；升级时先在事务外做备份（备份文件名带毫秒和进程号，避免同一秒撞名），再 `BEGIN IMMEDIATE`，**在事务里重新读一次 `user_version`**，别的进程已经升完就跳过，没升完才执行升级脚本。这样两个进程同时首次建库或同时升级都能成功，不会因为后到而误报错。
+- **事务的边界**：`BEGIN IMMEDIATE` 本身失败（比如等锁超时）也要包成 `STORE_FAILED`；`transaction` 的回调返回了 Promise（写成了异步函数）时，回滚同步部分的写入并抛 `STORE_FAILED`（「事务回调不能是异步函数」），让这种误用尽早报错。注意：已经开始执行的异步函数没法从外面取消，它在第一个 await 之后的写入不在事务里，所以事务回调必须写成同步函数。
+- `variants.listBySource` 按创建时间、再按插入顺序（rowid）排序，同一毫秒创建的版本也保持创建顺序。
 
 ## 关键决策
 
@@ -173,7 +180,24 @@ recordManual ──► published（作者手动发完回填链接）
 
 ## 当前实现
 
-待实现。
+| 文件 | 内容 |
+|---|---|
+| `open.ts` | 打开库：先设等锁时间，再切 WAL（遇忙重试），执行升级，组装各 Repo |
+| `migrations.ts` | 升级脚本列表与升级逻辑：事务外 `VACUUM INTO` 备份，进写锁后重读版本号 |
+| `sql.ts` | 事务（嵌套检测、开事务失败包装、拒绝异步回调）、JSON 列与空值转换 |
+| `works.ts`、`sources.ts`、`variants.ts` | 作品、原稿（按平台和 ref 增改）、版本 |
+| `publications.ts`、`publication-mapping.ts` | 发布记录的「意图 → 结果」流程与查重 |
+| `overview.ts` | 发布状态总览查询 |
+| `runs.ts`、`run-mapping.ts`、`run-sql-helpers.ts` | 工作流存储（租约方法都是带条件的单条 UPDATE） |
+| `inspect.ts` | 体检用的只读查看：有未并回的日志时用 SQLite 只读打开，否则直接读文件头 |
+
+单测 55 个，全部用真实的 `openStore` 环境；包括多个子进程同时首次建库、同时升级、同时登记发布的测试。
+
+经两轮独立评审（Sonnet）：防重复发布 4 进程 × 100 轮实测每轮恰好一个成功；故意改坏实现的实验里，绝大多数改坏都能被测试抓住。
+
+已知情况：
+- `node:sqlite` 默认就开着外键约束，代码里仍显式打开。
+- 多个进程同时升级时每个进程都会留一份备份，只占空间。
 
 ## 验证方式
 
@@ -207,3 +231,5 @@ recordManual ──► published（作者手动发完回填链接）
 |---|---|
 | 2026-10-05 | 写出规格，接口定在 `src/store/types.ts` |
 | 2026-10-05 | 按规格评审修改：备份改用 `VACUUM INTO`；发布记录改为「意图 → 结果」流程并强制已发布带链接；运行表加租约；加 `completeStep`、`inspectStore` |
+| 2026-10-05 | 发布记录加 `note` 列存「待核实」原因 |
+| 2026-10-05 | 按实现评审修改：续约和交还不比较到期时间；只读查看改为直接读文件头；并发打开与升级的规则；事务边界；版本排序；测试必须用真实的 `openStore` 环境和多连接验证核心保证 |
