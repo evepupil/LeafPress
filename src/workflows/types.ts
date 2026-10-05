@@ -88,6 +88,11 @@ export interface StepContext<P extends WorkflowParams = WorkflowParams> {
   readonly resume?: ResumeInput;
   /** 当前时间，测试时可以注入 */
   now(): Date;
+  /**
+   * 续约：耗时长的步骤（比如上传大视频）要隔几分钟调一次，告诉引擎「我还活着」。
+   * 执行权已被别的进程接管时抛 LeafPressError("RUN_STATE_CONFLICT")，步骤应立即停止。
+   */
+  heartbeat(): void;
 }
 
 export interface StepDefinition<P extends WorkflowParams = WorkflowParams> {
@@ -97,8 +102,9 @@ export interface StepDefinition<P extends WorkflowParams = WorkflowParams> {
   /** 中文名，比如「改写」 */
   readonly title: string;
   /**
-   * 本步骤依赖的输入文件（绝对路径）。步骤完成时引擎记下它们的哈希；
-   * 恢复时任何一个变了或消失了，就从本步骤起往后全部作废重跑。
+   * 本步骤依赖的输入文件（绝对路径），只能是上游产出或外部文件，不能是本步骤自己的产出。
+   * 引擎在步骤每次开始执行前给它们拍快照（记哈希）；执行结束时、以及之后每次恢复时，
+   * 只要有一个文件和快照对不上（变了或消失了），就从本步骤起往后全部作废重跑。
    */
   inputFiles(ctx: StepContext<P>): readonly string[];
   run(ctx: StepContext<P>): Promise<StepOutcome>;
@@ -121,6 +127,10 @@ export interface RunRecord {
   /** 当前（或下一个要跑的）步骤序号，从 0 开始 */
   readonly cursor: number;
   readonly error?: string;
+  /** 当前持有执行权的进程令牌；只有 running 时有 */
+  readonly leaseOwner?: string;
+  /** 执行权的租约到期时间；持有者要在到期前续约，过期视为上次异常退出 */
+  readonly leaseExpiresAt?: IsoDateTime;
   readonly createdAt: IsoDateTime;
   readonly updatedAt: IsoDateTime;
 }
@@ -130,7 +140,7 @@ export interface StepRecord {
   readonly stepId: string;
   readonly index: number;
   readonly status: StepStatus;
-  /** 完成时记下的输入文件哈希：绝对路径 → sha256（缺失为 "absent"） */
+  /** 最近一次开始执行时拍下的输入文件快照：绝对路径 → sha256（缺失为 "absent"） */
   readonly inputHashes: Readonly<Record<string, string>>;
   readonly outputs?: Readonly<Record<string, unknown>>;
   readonly wait?: WaitRequest;
@@ -160,19 +170,58 @@ export interface StepPatch {
   readonly finishedAt?: IsoDateTime | null;
 }
 
+export interface AcquireRunOptions {
+  /** 允许从这些状态取得执行权，通常是 waiting、failed */
+  readonly from: readonly RunState[];
+  /** 本进程的令牌 */
+  readonly owner: string;
+  readonly leaseExpiresAt: IsoDateTime;
+  /** 当前时间，用来判断别人的租约是否已过期 */
+  readonly now: IsoDateTime;
+  /** 为 true 时，状态为 running 且租约已过期（leaseExpiresAt 早于 now）的运行也可以被取得（作者确认上次异常退出后的接管） */
+  readonly takeOverExpired: boolean;
+  readonly patch?: Omit<RunPatch, "state">;
+}
+
 /**
  * 工作流引擎依赖的存储。记录库提供 SQLite 实现，单测用内存实现。
  * 所有方法同步执行（node:sqlite 本身是同步的）。
+ *
+ * 执行权靠「租约」保证同一时刻只有一个进程在推进一次运行：
+ * 取得（acquireRun）→ 推进中定期续约（renewLease）→ 停下时交还（releaseRun）。
+ * 以下标明「原子」的方法，实现必须在一条带条件的语句或一个事务里完成判断和修改。
  */
 export interface RunStore {
+  /** 新建运行（通常直接以 running 状态、带上本进程的租约创建）和全部步骤记录 */
   createRun(run: RunRecord, steps: readonly StepRecord[]): void;
   getRun(runId: string): RunRecord | undefined;
   /** 按创建时间倒序 */
   listRuns(filter?: { readonly states?: readonly RunState[] }): RunRecord[];
   /**
-   * 比较并交换：只有当前状态在 from 里时才改成 to，并同时应用 patch。
-   * 返回 false 表示当前状态不在 from 里（比如另一个进程正在跑这次运行），调用方必须放弃。
-   * 这是防止两个进程同时恢复同一次运行的唯一手段，实现必须是原子的。
+   * 原子：满足条件时把状态改成 running，写入租约持有者和到期时间，应用 patch，返回 true。
+   * 条件：当前状态在 from 里；或 takeOverExpired 为 true 且状态为 running、租约已过期。
+   * 返回 false 表示没取到（比如另一个进程正持有），调用方必须放弃，什么都不能改。
+   */
+  acquireRun(runId: string, options: AcquireRunOptions): boolean;
+  /** 原子：只有状态为 running 且持有者是 owner 时，才把租约到期时间改成 leaseExpiresAt */
+  renewLease(
+    runId: string,
+    owner: string,
+    leaseExpiresAt: IsoDateTime,
+  ): boolean;
+  /**
+   * 原子：只有持有者是 owner 时，才把状态改成 to（waiting、completed、failed、cancelled），
+   * 清空租约，应用 patch。
+   */
+  releaseRun(
+    runId: string,
+    owner: string,
+    to: Exclude<RunState, "running">,
+    patch?: Omit<RunPatch, "state">,
+  ): boolean;
+  /**
+   * 原子比较并交换状态，不看租约（取消等待中、失败的运行时用）：当前状态在 from 里才改成 to，
+   * 应用 patch；to 不是 running 时清空租约。
    */
   transitionRun(
     runId: string,
@@ -180,10 +229,18 @@ export interface RunStore {
     to: RunState,
     patch?: Omit<RunPatch, "state">,
   ): boolean;
+  /** 直接修改（持有执行权时用，比如回退时改游标） */
   updateRun(runId: string, patch: RunPatch): void;
   /** 按 index 升序 */
   getSteps(runId: string): StepRecord[];
   updateStep(runId: string, stepId: string, patch: StepPatch): void;
+  /** 原子：在同一个事务里更新这一步的记录，并把运行的游标设为 nextCursor（防止「这步已完成、游标却没前进」） */
+  completeStep(
+    runId: string,
+    stepId: string,
+    patch: StepPatch,
+    nextCursor: number,
+  ): void;
 }
 
 /** 引擎每次 start / resume / cancel 之后的结果，skill 读它决定下一步 */

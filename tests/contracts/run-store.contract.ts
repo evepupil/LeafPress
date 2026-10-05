@@ -224,5 +224,172 @@ export function describeRunStoreContract(
         "done",
       ]);
     });
+
+    it("从等待中取得执行权：写入租约；另一个进程随后取不到", async () => {
+      const store = await createStore();
+      store.createRun(
+        makeRun("r1", { state: "waiting", error: "旧错误" }),
+        makeSteps("r1"),
+      );
+
+      const first = store.acquireRun("r1", {
+        from: ["waiting", "failed"],
+        owner: "A",
+        leaseExpiresAt: "2026-10-05T01:00:00.000Z",
+        now: "2026-10-05T00:50:00.000Z",
+        takeOverExpired: false,
+        patch: { error: null },
+      });
+      const second = store.acquireRun("r1", {
+        from: ["waiting", "failed"],
+        owner: "B",
+        leaseExpiresAt: "2026-10-05T01:00:00.000Z",
+        now: "2026-10-05T00:50:00.000Z",
+        takeOverExpired: true,
+      });
+
+      expect(first).toBe(true);
+      expect(second).toBe(false);
+      const run = store.getRun("r1");
+      expect(run?.state).toBe("running");
+      expect(run?.leaseOwner).toBe("A");
+      expect(run?.leaseExpiresAt).toBe("2026-10-05T01:00:00.000Z");
+      expect(run?.error).toBeUndefined();
+    });
+
+    it("运行中的租约没过期时，就算允许接管也取不到；过期后允许接管才能取到", async () => {
+      const store = await createStore();
+      store.createRun(
+        makeRun("r1", {
+          state: "running",
+          leaseOwner: "A",
+          leaseExpiresAt: "2026-10-05T01:00:00.000Z",
+        }),
+        makeSteps("r1"),
+      );
+      const base = {
+        from: ["waiting", "failed"] as const,
+        owner: "B",
+        leaseExpiresAt: "2026-10-05T02:00:00.000Z",
+      };
+
+      expect(
+        store.acquireRun("r1", {
+          ...base,
+          now: "2026-10-05T00:59:00.000Z",
+          takeOverExpired: true,
+        }),
+      ).toBe(false);
+      expect(
+        store.acquireRun("r1", {
+          ...base,
+          now: "2026-10-05T01:01:00.000Z",
+          takeOverExpired: false,
+        }),
+      ).toBe(false);
+      expect(store.getRun("r1")?.leaseOwner).toBe("A");
+
+      expect(
+        store.acquireRun("r1", {
+          ...base,
+          now: "2026-10-05T01:01:00.000Z",
+          takeOverExpired: true,
+        }),
+      ).toBe(true);
+      expect(store.getRun("r1")?.leaseOwner).toBe("B");
+      expect(store.getRun("r1")?.leaseExpiresAt).toBe(
+        "2026-10-05T02:00:00.000Z",
+      );
+    });
+
+    it("续约只对持有者有效", async () => {
+      const store = await createStore();
+      store.createRun(
+        makeRun("r1", {
+          leaseOwner: "A",
+          leaseExpiresAt: "2026-10-05T01:00:00.000Z",
+        }),
+        makeSteps("r1"),
+      );
+
+      expect(store.renewLease("r1", "B", "2026-10-05T03:00:00.000Z")).toBe(
+        false,
+      );
+      expect(store.renewLease("r1", "A", "2026-10-05T02:00:00.000Z")).toBe(
+        true,
+      );
+      expect(store.getRun("r1")?.leaseExpiresAt).toBe(
+        "2026-10-05T02:00:00.000Z",
+      );
+      expect(store.renewLease("missing", "A", "2026-10-05T02:00:00.000Z")).toBe(
+        false,
+      );
+    });
+
+    it("交还执行权只对持有者有效，交还后租约清空、不能再续约", async () => {
+      const store = await createStore();
+      store.createRun(
+        makeRun("r1", {
+          leaseOwner: "A",
+          leaseExpiresAt: "2026-10-05T01:00:00.000Z",
+        }),
+        makeSteps("r1"),
+      );
+
+      expect(store.releaseRun("r1", "B", "waiting")).toBe(false);
+      expect(store.getRun("r1")?.state).toBe("running");
+
+      expect(store.releaseRun("r1", "A", "waiting", { cursor: 1 })).toBe(true);
+      const run = store.getRun("r1");
+      expect(run?.state).toBe("waiting");
+      expect(run?.cursor).toBe(1);
+      expect(run?.leaseOwner).toBeUndefined();
+      expect(run?.leaseExpiresAt).toBeUndefined();
+      expect(store.renewLease("r1", "A", "2026-10-05T02:00:00.000Z")).toBe(
+        false,
+      );
+    });
+
+    it("比较并交换到非运行状态时清空租约", async () => {
+      const store = await createStore();
+      store.createRun(
+        makeRun("r1", {
+          leaseOwner: "A",
+          leaseExpiresAt: "2026-10-05T01:00:00.000Z",
+        }),
+        makeSteps("r1"),
+      );
+
+      expect(store.transitionRun("r1", ["running"], "cancelled")).toBe(true);
+      const run = store.getRun("r1");
+      expect(run?.state).toBe("cancelled");
+      expect(run?.leaseOwner).toBeUndefined();
+      expect(run?.leaseExpiresAt).toBeUndefined();
+    });
+
+    it("完成一步时，步骤记录和游标一起更新", async () => {
+      const store = await createStore();
+      store.createRun(makeRun("r1"), makeSteps("r1"));
+
+      store.completeStep(
+        "r1",
+        "first",
+        {
+          status: "done",
+          outputs: { draftPath: "C:\\runs\\r1\\first\\draft.md" },
+          inputHashes: { "C:\\blog\\zh\\hello.mdx": "abc" },
+          finishedAt: "2026-10-05T00:10:00.000Z",
+        },
+        1,
+      );
+
+      const step = store.getSteps("r1")[0];
+      expect(step?.status).toBe("done");
+      expect(step?.outputs).toEqual({
+        draftPath: "C:\\runs\\r1\\first\\draft.md",
+      });
+      expect(step?.inputHashes).toEqual({ "C:\\blog\\zh\\hello.mdx": "abc" });
+      expect(store.getRun("r1")?.cursor).toBe(1);
+    });
   });
 }

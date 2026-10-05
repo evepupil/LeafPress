@@ -108,8 +108,14 @@ export interface Variant {
 export type PublishMode =
   "skill-handoff" | "manual" | "git" | "external-cli" | "api" | "browser";
 
-/** published：拿到了平台链接；unverified：结果说不清（比如超时），等作者核实 */
-export type PublicationStatus = "published" | "unverified";
+/**
+ * 发布记录的状态：
+ * - pending：发布意图。调平台之前先登记，调完再改成下面两种之一；进程在中途崩溃时它会留下来，
+ *   提醒「上次结果未知」，从而挡住自动重发
+ * - published：拿到了平台链接（这个状态必须有 url）
+ * - unverified：结果说不清（比如超时），等作者核实
+ */
+export type PublicationStatus = "pending" | "published" | "unverified";
 
 export interface Publication {
   readonly id: string;

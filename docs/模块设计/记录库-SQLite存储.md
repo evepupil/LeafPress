@@ -100,6 +100,8 @@ CREATE TABLE runs (
   state TEXT NOT NULL,
   cursor INTEGER NOT NULL,
   error TEXT,
+  lease_owner TEXT,
+  lease_expires_at TEXT,
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL
 );
@@ -126,7 +128,7 @@ CREATE TABLE run_steps (
 ### 升级规则
 
 - 版本号存在 `PRAGMA user_version`。打开时比较当前版本和升级脚本的最大版本。
-- 有待执行的升级、而且数据库文件在打开前就已存在、当前版本大于 0 时：先执行 `PRAGMA wal_checkpoint(TRUNCATE)`，再把数据库文件复制成 `<库文件>.bak-v<当前版本>-<YYYYMMDDHHmmss>`，把路径写进 `migration.backupPath`。
+- 有待执行的升级、而且数据库文件在打开前就已存在、当前版本大于 0 时：先用 `VACUUM INTO '<备份路径>'` 生成备份，备份路径为 `<库文件>.bak-v<当前版本>-<YYYYMMDDHHmmss>`，写进 `migration.backupPath`。路径里的单引号要转义成两个单引号。**不要用「检查点 + 复制文件」的办法**：评审实测过，有别的连接在读时检查点会失败，复制出来的文件会漏掉 WAL 里已提交的数据；`VACUUM INTO` 由 SQLite 自己读一份一致的快照写出去，不受影响。备份失败就抛 `MIGRATION_FAILED`，不执行升级。
 - 每个升级脚本连同 `user_version` 的更新放在同一个事务里执行；任何一个失败就抛 `MIGRATION_FAILED`，hint 写明备份文件路径。
 - 升级脚本的版本号必须从 1 开始连续递增，否则抛 `MIGRATION_FAILED`（防止写错）。
 - 数据库版本比代码认识的最大版本还高（用旧代码打开新库）时，抛 `MIGRATION_FAILED`，提示升级 LeafPress。
@@ -137,17 +139,37 @@ CREATE TABLE run_steps (
 
 - `sources.upsert`：在一个事务里完成「查找 → 新建作品和原稿，或更新原稿」。新建时作品标题取原稿标题。只有字段真的变了才更新 `updated_at` 并返回 `changed: true`。
 - `variants.update`：`updated_at` 每次都更新。
-- `publications.record` 和 `publications.confirm`：用 `BEGIN IMMEDIATE` 开写事务，先查重再写，保证两个进程同时登记同一目标时只有一个成功。`ALREADY_PUBLISHED` 的 message 写明平台、形态和已有链接。平台和形态从版本上复制，不信任调用方。
+- **发布记录**（`publications`，接口注释见 `src/store/types.ts`）。流程是「先登记意图，再调平台，最后补结果」，这样平台已经发出去、本地还没来得及登记时进程崩了，留下的 pending 记录会挡住自动重发：
+
+```
+begin ──► pending ──complete──► published（带链接，版本同时改成 published）
+                 ├─complete──► unverified ──confirm──► published
+                 │                          └─discard──► 删除（可以重新发）
+                 └─abort────► 删除（确定没发出去）
+recordManual ──► published（作者手动发完回填链接）
+```
+
+  - 目标 =（原稿, 平台, 形态, targetKey），通过版本表关联出来；平台和形态一律从版本上取。
+  - 「占位」= 目标上存在 published、pending 或 unverified 记录。`begin` 和 `recordManual` 遇到 published 抛 `ALREADY_PUBLISHED`（message 写明平台、形态、已有链接），遇到 pending 或 unverified 抛 `PUBLISH_IN_DOUBT`（hint：先核实上次的发布结果）。
+  - 所有写方法都用 `BEGIN IMMEDIATE` 开写事务，先查再写，两个进程同时操作同一目标时只有一个成功。
+  - published 状态的记录必须有非空链接：`complete` 的 published 结果、`recordManual`、`confirm` 的链接为空串时抛 `STORE_FAILED`。
+  - 状态不符合前置条件（比如对 published 调 `complete`）抛 `STORE_FAILED`。
 - `publicationOverview`：返回给定原稿下的全部版本，左连接发布记录，按原稿编号、平台、形态、目标、版本创建时间、发布时间排序。传入空数组时直接返回空数组，不拼出 `IN ()` 这种非法语句。
 - `transaction`：`BEGIN IMMEDIATE` … `COMMIT`，出错 `ROLLBACK` 后原样抛出；正在事务中又调用 `transaction` 时抛 `STORE_FAILED`。Repo 内部自己需要事务的方法，在外层事务里被调用时要能正常工作（检测到已在事务中就不再开新事务）。
-- `runs`（RunStore）：完全照 `src/workflows/types.ts` 的注释实现。`transitionRun` 必须是一条带 `WHERE id = ? AND state IN (...)` 条件的 UPDATE，按受影响行数判断成功与否，同时把 `updated_at` 改成当前时间；`updateRun`、`updateStep` 里值为 `null` 的字段写成 SQL NULL，值为 `undefined` 的字段不改。
+- `runs`（RunStore）：完全照 `src/workflows/types.ts` 的注释实现。
+  - `acquireRun`、`renewLease`、`releaseRun`、`transitionRun` 都是一条带条件的 UPDATE（条件写在 `WHERE` 里，包括状态、租约持有者、租约到期时间的比较），按受影响行数判断成功与否；成功时同时把 `updated_at` 改成当前时间。时间都是同一格式的 ISO 字符串，可以直接按字符串比较大小。
+  - `releaseRun` 和 `transitionRun`（目标状态不是 running 时）把 `lease_owner`、`lease_expires_at` 置为 NULL。
+  - `completeStep` 在一个事务里更新步骤和运行的游标。
+  - `updateRun`、`updateStep` 里值为 `null` 的字段写成 SQL NULL，值为 `undefined` 的字段不改。
+- **只读查看** `inspectStore(dbFile): StoreInspection`（放在 `src/store/inspect.ts`）：库文件不存在返回 `{ exists: false, expectedVersion }`；存在则用 `new DatabaseSync(dbFile, { readOnly: true })` 打开，读 `PRAGMA user_version` 后立即关闭。不建目录、不建库、不升级。体检命令用它。
 
 ## 关键决策
 
 1. 用 Node 自带的 SQLite：Windows 上不用编译原生模块，测量过打开内存库只要 1 毫秒，没有警告输出。
-2. 防重复发布放在记录库里用写事务保证，不依赖调用方先查。
-3. 升级前自动备份，升级失败时有退路。
-4. 读回统一用 undefined 表示空，和 TypeScript 的可选字段一致，避免 null 和 undefined 混用。
+2. 防重复发布放在记录库里用写事务保证，不依赖调用方先查；发布前先登记意图，进程在「平台已发、本地未登记」时崩溃也不会自动重发。
+3. 升级前用 `VACUUM INTO` 做一致性备份，升级失败时有退路。
+4. 工作流的执行权用租约表示（持有者 + 到期时间），长步骤靠续约保持，过期才能被接管。
+5. 读回统一用 undefined 表示空，和 TypeScript 的可选字段一致，避免 null 和 undefined 混用。
 
 ## 当前实现
 
@@ -163,11 +185,13 @@ CREATE TABLE run_steps (
 4. 版本号不连续的升级脚本列表被拒绝；数据库版本高于代码时被拒绝。
 5. `sources.upsert`：新建（同时建作品）、无变化、有变化三种情况的返回值。
 6. `variants`：创建默认值、更新、按原稿列出、原稿不存在时报错。
-7. `publications.record`：首次成功并把版本改为 published；同一目标再次登记抛 `ALREADY_PUBLISHED` 且不写入；不同 targetKey（回答两个不同问题）都能成功；unverified 不触发查重；`confirm` 把待核实改成已发布并查重。
+7. 发布记录：`begin` → `complete(published)` 后版本变为 published；之后同一目标 `begin` 或 `recordManual` 抛 `ALREADY_PUBLISHED` 且不写入；有 pending 时再 `begin` 抛 `PUBLISH_IN_DOUBT`；`complete(unverified)` 后再 `begin` 也抛 `PUBLISH_IN_DOUBT`，`confirm` 后变为 published，`discard` 后可以重新 `begin`；`abort` 删除 pending；不同 targetKey（回答两个不同问题）互不影响；published 缺链接被拒绝；前置状态不对抛 `STORE_FAILED`。
 8. `publicationOverview`：多原稿、多版本、有无发布记录混合；空数组输入。
 9. `transaction`：成功提交、抛错回滚、嵌套调用报错。
 10. JSON 列往返：嵌套对象、中文、Windows 路径里的反斜杠。
 11. **工作流存储约定**：新建 `tests/store/run-store.test.ts`，调用 `tests/contracts/run-store.contract.ts` 里的 `describeRunStoreContract("SQLite 存储", 工厂)`，全部通过。约定测试文件不许改。
+12. `inspectStore`：文件不存在时不会建出文件；存在时返回版本且文件内容不变（比较前后哈希）。
+13. 升级备份的一致性：用第二个连接开着读事务时执行带升级的打开，备份文件里包含全部已提交的数据。
 
 `pnpm gate` 全部通过。
 
@@ -182,3 +206,4 @@ CREATE TABLE run_steps (
 | 日期 | 改动 |
 |---|---|
 | 2026-10-05 | 写出规格，接口定在 `src/store/types.ts` |
+| 2026-10-05 | 按规格评审修改：备份改用 `VACUUM INTO`；发布记录改为「意图 → 结果」流程并强制已发布带链接；运行表加租约；加 `completeStep`、`inspectStore` |

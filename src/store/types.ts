@@ -80,41 +80,82 @@ export interface VariantRepo {
   update(id: string, patch: VariantPatch): Variant;
 }
 
+/** 作者手动发布后登记用 */
 export interface PublicationRecordInput {
   readonly variantId: string;
-  readonly mode: PublishMode;
-  readonly status: PublicationStatus;
-  readonly url?: string;
+  /** 平台上的链接，必填 */
+  readonly url: string;
   readonly platformContentId?: string;
   /** 缺省为当前时间 */
   readonly publishedAt?: IsoDateTime;
   readonly raw?: Record<string, unknown>;
 }
 
+/** 体检用：只读查看记录库，不建目录、不建库、不升级 */
+export interface StoreInspection {
+  /** 库文件是否存在 */
+  readonly exists: boolean;
+  /** 库里的表结构版本；文件不存在时没有 */
+  readonly version?: number;
+  /** 当前代码认识的最新版本 */
+  readonly expectedVersion: number;
+}
+
+/** 发布完成后的结果：拿到链接算已发布，结果说不清算待核实 */
+export type PublicationResult =
+  | {
+      readonly status: "published";
+      readonly url: string;
+      readonly platformContentId?: string;
+      /** 缺省为当前时间 */
+      readonly publishedAt?: IsoDateTime;
+      readonly raw?: Record<string, unknown>;
+    }
+  | {
+      readonly status: "unverified";
+      /** 为什么说不清，中文 */
+      readonly reason: string;
+      readonly raw?: Record<string, unknown>;
+    };
+
+/**
+ * 发布记录。防重复发布的「目标」=（原稿, 平台, 形态, targetKey），平台和形态一律从版本上取，不信任调用方。
+ * 一个目标上「占位」的记录是 published、pending、unverified 三种之一；有占位记录时不能再发。
+ * 所有写方法都在 BEGIN IMMEDIATE 写事务里先查再写，两个进程同时操作同一目标时只有一个成功。
+ */
 export interface PublicationRepo {
   /**
-   * 登记一次发布（在一个写事务里完成）：
-   * - status 为 published 时，若同一（原稿, 平台, 形态, 目标）已有 published 记录，
-   *   抛 LeafPressError("ALREADY_PUBLISHED")，什么都不写；
-   * - 写入成功且 status 为 published 时，把版本状态改成 published。
+   * 调平台之前登记发布意图（状态 pending）。查重：
+   * - 目标上已有 published → 抛 ALREADY_PUBLISHED（message 写明平台、形态、已有链接）
+   * - 目标上已有 pending 或 unverified → 抛 PUBLISH_IN_DOUBT（上次结果还没核实，不能自动再发）
    */
-  record(input: PublicationRecordInput): Publication;
+  begin(input: {
+    readonly variantId: string;
+    readonly mode: PublishMode;
+  }): Publication;
+  /** pending → published（必须带链接，同时把版本状态改成 published）或 unverified；记录不是 pending 抛 STORE_FAILED */
+  complete(id: string, result: PublicationResult): Publication;
+  /** 确定没有发出去（比如还没调平台就失败了）：删除这条 pending 记录；不是 pending 抛 STORE_FAILED */
+  abort(id: string): void;
+  /** 作者手动发布后直接登记为已发布（必须带链接，发布方式记为 manual），查重规则同 begin */
+  recordManual(input: PublicationRecordInput): Publication;
+  /** 作者核实发出去了：unverified → published（必须带链接，同时把版本状态改成 published）；不是 unverified 抛 STORE_FAILED */
+  confirm(
+    id: string,
+    patch: { readonly url: string; readonly platformContentId?: string },
+  ): Publication;
+  /** 作者核实没发出去：删除这条 unverified 记录，之后可以重新发布；不是 unverified 抛 STORE_FAILED */
+  discard(id: string): void;
+  get(id: string): Publication | undefined;
   /** 按发布时间升序 */
   listByVariant(variantId: string): Publication[];
-  findPublished(
+  /** 目标上的占位记录；有 published 时优先返回它 */
+  findBlocking(
     sourceId: string,
     platform: PlatformId,
     format: FormatId,
     targetKey: string,
   ): Publication | undefined;
-  /**
-   * 待核实 → 已发布（作者核实后），可补链接和平台编号。
-   * 记录不是 unverified 时抛 STORE_FAILED；会造成重复发布时抛 ALREADY_PUBLISHED。
-   */
-  confirm(
-    id: string,
-    patch?: { readonly url?: string; readonly platformContentId?: string },
-  ): Publication;
 }
 
 /** 发布状态总览的一行：一个版本，以及它的一条发布记录（没有发布记录时发布相关字段不存在） */
