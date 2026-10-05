@@ -173,7 +173,7 @@ export interface StepPatch {
 export interface AcquireRunOptions {
   /** 允许从这些状态取得执行权，通常是 waiting、failed */
   readonly from: readonly RunState[];
-  /** 本进程的令牌 */
+  /** 本次调用（start / resume / cancel）的令牌，每次调用新生成 */
   readonly owner: string;
   readonly leaseExpiresAt: IsoDateTime;
   /** 当前时间，用来判断别人的租约是否已过期 */
@@ -203,15 +203,19 @@ export interface RunStore {
    * 返回 false 表示没取到（比如另一个进程正持有），调用方必须放弃，什么都不能改。
    */
   acquireRun(runId: string, options: AcquireRunOptions): boolean;
-  /** 原子：只有状态为 running 且持有者是 owner 时，才把租约到期时间改成 leaseExpiresAt */
+  /**
+   * 原子：只有状态为 running 且持有者是 owner 时，才把租约到期时间改成 leaseExpiresAt。
+   * 不看到期时间：租约过期但还没人接管时续约照样成功（步骤跑得久、电脑睡眠过都属于这种情况）；
+   * 一旦有人接管，持有者就变了，续约自然失败。
+   */
   renewLease(
     runId: string,
     owner: string,
     leaseExpiresAt: IsoDateTime,
   ): boolean;
   /**
-   * 原子：只有持有者是 owner 时，才把状态改成 to（waiting、completed、failed、cancelled），
-   * 清空租约，应用 patch。
+   * 原子：只有状态为 running 且持有者是 owner 时，才把状态改成 to（waiting、completed、failed、cancelled），
+   * 清空租约，应用 patch。和续约一样不看到期时间。
    */
   releaseRun(
     runId: string,

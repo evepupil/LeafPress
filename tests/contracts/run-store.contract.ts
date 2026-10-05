@@ -350,6 +350,38 @@ export function describeRunStoreContract(
       );
     });
 
+    it("租约过期但没人接管时，持有者照样能续约和交还", async () => {
+      const store = await createStore();
+      store.createRun(
+        makeRun("r1", {
+          leaseOwner: "A",
+          leaseExpiresAt: "2000-01-01T00:00:00.000Z",
+        }),
+        makeSteps("r1"),
+      );
+
+      expect(store.renewLease("r1", "A", "2000-01-01T00:10:00.000Z")).toBe(
+        true,
+      );
+      expect(store.releaseRun("r1", "A", "waiting")).toBe(true);
+      expect(store.getRun("r1")?.state).toBe("waiting");
+    });
+
+    it("交还要求状态仍是运行中", async () => {
+      const store = await createStore();
+      store.createRun(
+        makeRun("r1", {
+          state: "waiting",
+          leaseOwner: "A",
+          leaseExpiresAt: "2026-10-05T01:00:00.000Z",
+        }),
+        makeSteps("r1"),
+      );
+
+      expect(store.releaseRun("r1", "A", "completed")).toBe(false);
+      expect(store.getRun("r1")?.state).toBe("waiting");
+    });
+
     it("比较并交换到非运行状态时清空租约", async () => {
       const store = await createStore();
       store.createRun(

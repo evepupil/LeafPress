@@ -128,6 +128,8 @@ export interface Publication {
   /** 平台上的内容编号，比如知乎文章的 content_token */
   platformContentId?: string;
   readonly publishedAt: IsoDateTime;
+  /** 给作者看的备注，比如「待核实」的原因（请求超时、返回内容看不懂……） */
+  note?: string;
   /** 发布工具返回的原始结果，去掉密钥后保存，便于排查 */
   raw?: Record<string, unknown>;
 }
