@@ -1,124 +1,110 @@
 "use client"
 
 import { cn } from "cn"
-import { Ellipsis } from "lucide-react"
-import Link from "next/link"
-import { toast } from "sonner"
+import { ArrowRight } from "lucide-react"
+import { useState } from "react"
 
 import { AccountTag } from "@/components/base/account-tag"
-import { IconButton } from "@/components/base/icon-button"
-import { LabelChip } from "@/components/base/label-chip"
-import { ColorDot } from "@/components/base/marks"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import { accountById, columnOf } from "@/data/accounts"
-import { IDEA_SOURCE_LABEL, IDEA_STATUS_LABEL } from "@/data/labels"
-import type { Idea, IdeaStatus } from "@/data/types"
-import { WORKS } from "@/data/works"
+import { IDEA_DRAG, endCardDrag, startCardDrag } from "@/components/base/board-dnd"
+import { WorkChip } from "@/components/base/work-chip"
+import { Button } from "@/components/ui/button"
+import { accountById } from "@/data/accounts"
+import { IDEA_SOURCE_LABEL } from "@/data/labels"
+import type { Idea, Work } from "@/data/types"
 import { formatRelative } from "@/lib/format"
-import { shortTitle } from "@/lib/metrics"
 import { focusRing } from "@/lib/styles"
-import { useIdeas } from "@/state/ideas"
-import { IdeaSourceIcon, IdeaStatusIcon } from "./board-icons"
+import { sourceDetailOf } from "./board-model"
+import { HOVER_REVEAL, IdeaMenu } from "./board-menu"
 
-/** 菜单里能把灵感挪去的地方，顺序固定；灵感现在所在的那一项不出现 */
-const MOVE_ITEMS: { status: IdeaStatus; label: string }[] = [
-  { status: "inbox", label: "移到收件箱" },
-  { status: "promising", label: "移到值得写" },
-  { status: "scheduled", label: "移到已排期" },
-  { status: "shelved", label: "搁置" },
-]
-
-/** 看板上的一张灵感卡：文字、来源、账号和栏目、记下的时间，右上角是操作菜单 */
-export function IdeaCard({ idea }: { idea: Idea }) {
-  const move = useIdeas((state) => state.move)
-  const convert = useIdeas((state) => state.convert)
-
+/**
+ * 灵感卡片：来源和记下的时间、一句话、细节、账号和转出去的作品。
+ * 整张卡点了打开编辑抽屉；没转过的可以拖到别的列，转过的不能拖。
+ */
+export function IdeaCard({
+  idea,
+  works,
+  onOpen,
+  onConvert,
+  onDelete,
+}: {
+  idea: Idea
+  /** 转出去的作品里还存在的 */
+  works: Work[]
+  onOpen(id: string): void
+  onConvert(idea: Idea): void
+  onDelete(idea: Idea): void
+}) {
+  const [dragging, setDragging] = useState(false)
+  const converted = idea.status === "converted"
   const account = idea.accountId ? accountById(idea.accountId) : undefined
-  const column = idea.accountId && idea.columnId ? columnOf(idea.accountId, idea.columnId) : undefined
-  // 新转出来的作品还没进作品表，找不到时只显示文字、不给链接
-  const work = idea.workId ? WORKS.find((item) => item.id === idea.workId) : undefined
-
-  // 已转成作品的灵感只能搁置，不能再挪回前面的列
-  const isConverted = idea.status === "converted"
-  const moveItems = isConverted
-    ? MOVE_ITEMS.filter((item) => item.status === "shelved")
-    : MOVE_ITEMS.filter((item) => item.status !== idea.status)
-
-  function moveTo(status: IdeaStatus) {
-    move(idea.id, status)
-    toast.success(`已移到「${IDEA_STATUS_LABEL[status]}」`)
-  }
-
-  function convertToWork() {
-    convert(idea.id)
-    toast.success("已转成作品")
-  }
+  const detail = sourceDetailOf(idea)
 
   return (
     <div
+      data-drag-id={idea.id}
       data-idea-card={idea.id}
-      data-status={idea.status}
-      className="flex min-w-0 flex-col gap-1.5 rounded-lg border border-line bg-card px-3 py-2.5 shadow-sm"
+      draggable={!converted}
+      onDragStart={(event) => {
+        startCardDrag(event, IDEA_DRAG, idea.id)
+        setDragging(true)
+      }}
+      onDragEnd={() => {
+        endCardDrag()
+        setDragging(false)
+      }}
+      onClick={() => onOpen(idea.id)}
+      className={cn(
+        "group flex w-full min-w-0 cursor-pointer flex-col gap-1.5 rounded-lg border border-line bg-card px-3 py-2.5 text-left shadow-sm transition-[border-color,box-shadow,opacity] duration-(--dur-fast) hover:border-line-3",
+        !converted && "active:cursor-grabbing",
+        dragging && "opacity-50",
+      )}
     >
-      <div className="flex items-start gap-2">
-        <p className="min-w-0 flex-1 text-sm line-clamp-3 break-words">{idea.text}</p>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <IconButton label="操作" size="icon-xs" data-idea-menu>
-              <Ellipsis />
-            </IconButton>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            {moveItems.map((item) => (
-              <DropdownMenuItem key={item.status} onSelect={() => moveTo(item.status)}>
-                <IdeaStatusIcon status={item.status} />
-                {item.label}
-              </DropdownMenuItem>
-            ))}
-            {!isConverted && (
-              <>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem data-idea-convert onSelect={convertToWork}>
-                  <IdeaStatusIcon status="converted" />
-                  转成作品
-                </DropdownMenuItem>
-              </>
-            )}
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
-
-      <div className="flex flex-wrap items-center gap-1 text-xs text-fg-2">
-        <LabelChip icon={<IdeaSourceIcon source={idea.source} className="size-3 text-fg-3" />} title={idea.sourceDetail}>
-          {IDEA_SOURCE_LABEL[idea.source]}
-        </LabelChip>
-        {account && <AccountTag account={account} />}
-        {column && (
-          <span className="inline-flex min-w-0 items-center gap-1">
-            <ColorDot color={column.color} />
-            <span className="truncate">{column.name}</span>
+      <div className="flex h-[18px] min-w-0 items-center gap-2 text-xs text-fg-2">
+        <span className="shrink-0">{IDEA_SOURCE_LABEL[idea.source]}</span>
+        {detail && (
+          <span className="min-w-0 truncate" title={detail}>
+            · {detail}
           </span>
         )}
-        <span className="ml-auto shrink-0 tabular">{formatRelative(idea.createdAt)}</span>
+        <span className="ml-auto flex shrink-0 items-center gap-1">
+          <IdeaMenu idea={idea} onConvert={onConvert} onDelete={onDelete} />
+          <span className="tabular">{formatRelative(idea.createdAt)}</span>
+        </span>
       </div>
-
-      {isConverted &&
-        (work ? (
-          <Link
-            href={`/works/?open=${work.id}`}
-            className={cn("max-w-full self-start truncate text-xs text-fg-2 hover:text-fg", focusRing)}
-          >
-            → {shortTitle(work.title)}
-          </Link>
-        ) : (
-          <span className="truncate text-xs text-fg-2">→ 新作品</span>
-        ))}
+      <button
+        type="button"
+        onClick={(event) => {
+          event.stopPropagation()
+          onOpen(idea.id)
+        }}
+        className={cn("line-clamp-3 min-w-0 text-left text-sm wrap-break-word", focusRing)}
+      >
+        {idea.text}
+      </button>
+      {idea.detail && <p className="line-clamp-2 text-xs wrap-break-word text-fg-2">{idea.detail}</p>}
+      {(account || works.length > 0 || !converted) && (
+        <div className="flex min-w-0 flex-wrap items-center gap-1">
+          {account && <AccountTag account={account} />}
+          {works.map((work) => (
+            <WorkChip key={work.id} work={work} />
+          ))}
+          {!converted && (
+            <Button
+              size="xs"
+              variant="outline"
+              className={cn("ml-auto", HOVER_REVEAL)}
+              data-idea-convert
+              onClick={(event) => {
+                event.stopPropagation()
+                onConvert(idea)
+              }}
+            >
+              <ArrowRight />
+              转作品
+            </Button>
+          )}
+        </div>
+      )}
     </div>
   )
 }
