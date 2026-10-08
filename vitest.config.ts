@@ -12,5 +12,6 @@ export default defineConfig({
   test: {
     include: ["tests/**/*.test.ts"],
     environment: "node",
+    env: { TZ: "Asia/Shanghai" },
   },
 });
