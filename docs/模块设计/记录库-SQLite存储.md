@@ -1,229 +1,368 @@
 # 记录库 · SQLite 存储
 
-> 模块定位：LeafPress 全部数据的落盘与查询 · 对应代码：`src/store/` · 所属里程碑：[M0 地基](../roadmap.md#m0-地基) · 状态：已完成 · 最近更新：2026-10-05
+> 模块定位：LeafPress 全部业务数据的落盘与查询：账号、配置项、灵感、作品（含记录、反馈、租约令牌）、数据快照、拉取记录、复盘笔记、变更序号 · 对应代码：`src/store/` · 所属里程碑：[M0 地基](../roadmap.md#m0-地基)（打开与升级）、[M1 底座](../roadmap.md#m1-底座)（新模型） · 状态：进行中（M1 换新模型） · 最近更新：2026-10-08
 
 ## 职责与边界
 
-- 管：数据库文件的打开、表结构建立与升级（升级前备份）、作品 / 原稿 / 版本 / 发布记录 / 工作流运行的读写、防重复发布、发布状态总览查询。
-- 不管：业务判断（该不该发、发到哪），这些在工作流和平台接入里。
+- 管：数据库文件的打开、表结构的建立与升级（升级前备份）、各张表的读写、事务、变更序号、编号序号、体检用的只读查看。
+- 不管：业务判断（状态能不能这样变、拉数据该不该跳过），这些在共享规则和用例里；账号档案和任务文件夹（文件，在 `src/files/`）；密钥（凭证文件，在 `src/config/`）。
+- 命令行（agent）和本机服务（网页）两个进程会同时读写同一个库：写操作一律在 `BEGIN IMMEDIATE` 事务里，读写不互相卡（WAL）。
 
 ## 结构与数据流
 
-对外接口已经定死在 `src/store/types.ts`（`Store`、各个 Repo、`OpenStoreOptions`），实现必须完全符合，不得改这个文件。
+对外接口定死在 `src/store/types.ts`（内容见下面「接口」，照抄，不得改）。
 
 | 文件 | 内容 |
 |---|---|
-| `src/store/open.ts` | `openStore(dbFile: string, options?: OpenStoreOptions): Store`：打开库、设置参数、执行升级、组装各 Repo |
-| `src/store/migrations.ts` | `MIGRATIONS: readonly Migration[]` 正式升级脚本；`migrate(db, dbFile, migrations)` 升级逻辑 |
-| `src/store/sql.ts` | JSON 列的读写、null 与 undefined 互转、行对象到类型的映射等公共件 |
-| `src/store/works.ts`、`sources.ts`、`variants.ts`、`publications.ts`、`overview.ts` | 各 Repo 的实现，每个文件一个工厂函数，接收 db 和公共依赖 |
-| `src/store/runs.ts` | `RunStore` 的 SQLite 实现（接口见 `src/workflows/types.ts`） |
+| `open.ts` | `openStore(dbFile, options?)`：打开库、设参数、执行升级、组装各 Repo |
+| `migrations.ts` | `MIGRATIONS`（第 1 版 = 第一阶段的旧表，原样保留；第 2 版 = 删旧表、建新表）、`migrate(...)` 升级逻辑 |
+| `sql.ts` | 事务、JSON 列、空值转换等公共件（第一阶段已有，沿用） |
+| `inspect.ts` | 体检用的只读查看（第一阶段已有，沿用；预期版本由调用方传 `MIGRATIONS.length`） |
+| `meta.ts`、`accounts.ts`、`settings.ts`、`ideas.ts`、`works.ts`、`works-mapping.ts`、`snapshots.ts`、`pulls.ts`、`notes.ts` | 各 Repo 的实现，一个文件一个工厂函数 |
 
-### 打开数据库
+### 打开与升级（沿用第一阶段）
 
-- 用 `node:sqlite` 的 `DatabaseSync`。打开后依次执行 `PRAGMA foreign_keys = ON`、`PRAGMA journal_mode = WAL`、`PRAGMA busy_timeout = 5000`。
-- 数据库文件所在目录不存在就先建。
-- 编号缺省用 `crypto.randomUUID()`，时间缺省用 `new Date().toISOString()`，两者都可注入。
+- 第一阶段的 `open.ts`、`migrations.ts` 在 M1 地基时删掉了，**从 git 历史恢复**（提交 `a7c517c` 里的 `src/store/open.ts`、`src/store/migrations.ts`），升级的做法一字不改：先设 `busy_timeout = 5000` 再切 WAL（遇忙重试）、`foreign_keys = ON`；有待升级且库原来就有数据时，事务外用 `VACUUM INTO` 备份到 `<库文件所在目录>/backups/<库文件名>.bak-v<版本>-<时间到毫秒>-<进程号>`（M1 起放进 backups，和架构设计一致；目录不存在先建）；`BEGIN IMMEDIATE` 后重读 `user_version`，别的进程已经升完就跳过；每个脚本连同 `user_version` 在同一个事务里；版本号必须从 1 连续；库的版本比代码高时报 `MIGRATION_FAILED`。
+- 升级脚本的形状沿用：`{ version: number; name: string; sql: string }`。
 
-### 表结构（升级脚本第 1 版）
+### 表结构（升级脚本第 2 版）
+
+第 2 版先删掉第一阶段的七张表（`run_steps`、`runs`、`publications`、`variants`、`assets`、`sources`、`works`，按这个顺序 `DROP TABLE IF EXISTS`），再建：
 
 ```sql
+CREATE TABLE meta (
+  key TEXT PRIMARY KEY,
+  value INTEGER NOT NULL
+);
+INSERT INTO meta (key, value) VALUES
+  ('seq', 0), ('snapshot_seq', 0), ('serial_work', 0), ('serial_idea', 0), ('serial_account', 0);
+
+CREATE TABLE accounts (
+  id TEXT PRIMARY KEY,
+  platform TEXT NOT NULL,
+  name TEXT NOT NULL,
+  handle TEXT,
+  url TEXT,
+  stage TEXT NOT NULL,
+  since TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+
+CREATE TABLE account_settings (
+  account_id TEXT NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+  key TEXT NOT NULL,
+  value TEXT,
+  expired_reason TEXT,
+  updated_at TEXT NOT NULL,
+  PRIMARY KEY (account_id, key)
+);
+
+CREATE TABLE ideas (
+  id TEXT PRIMARY KEY,
+  text TEXT NOT NULL,
+  detail TEXT NOT NULL DEFAULT '',
+  status TEXT NOT NULL,
+  source TEXT NOT NULL,
+  source_detail TEXT,
+  account_id TEXT REFERENCES accounts(id) ON DELETE SET NULL,
+  ord INTEGER NOT NULL,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+
 CREATE TABLE works (
   id TEXT PRIMARY KEY,
   title TEXT NOT NULL,
-  created_at TEXT NOT NULL,
-  updated_at TEXT NOT NULL
-);
-
-CREATE TABLE sources (
-  id TEXT PRIMARY KEY,
-  work_id TEXT NOT NULL REFERENCES works(id),
-  kind TEXT NOT NULL,
-  platform TEXT NOT NULL,
-  ref TEXT NOT NULL,
-  title TEXT NOT NULL,
-  locale TEXT,
-  content_hash TEXT NOT NULL,
-  published_at TEXT,
-  created_at TEXT NOT NULL,
-  updated_at TEXT NOT NULL,
-  UNIQUE (platform, ref)
-);
-
-CREATE TABLE assets (
-  id TEXT PRIMARY KEY,
-  work_id TEXT NOT NULL REFERENCES works(id),
-  kind TEXT NOT NULL,
-  path TEXT NOT NULL,
-  content_hash TEXT NOT NULL,
-  mime TEXT,
-  width INTEGER,
-  height INTEGER,
-  duration_seconds REAL,
-  derived_from TEXT REFERENCES assets(id),
-  created_at TEXT NOT NULL
-);
-
-CREATE TABLE variants (
-  id TEXT PRIMARY KEY,
-  work_id TEXT NOT NULL REFERENCES works(id),
-  source_id TEXT NOT NULL REFERENCES sources(id),
-  platform TEXT NOT NULL,
-  format TEXT NOT NULL,
-  target_key TEXT NOT NULL DEFAULT '',
+  account_id TEXT NOT NULL REFERENCES accounts(id),
   status TEXT NOT NULL,
-  draft_path TEXT,
-  options TEXT NOT NULL DEFAULT '{}',
-  created_at TEXT NOT NULL,
-  updated_at TEXT NOT NULL
-);
-CREATE INDEX idx_variants_source ON variants (source_id, platform, format, target_key);
-
-CREATE TABLE publications (
-  id TEXT PRIMARY KEY,
-  variant_id TEXT NOT NULL REFERENCES variants(id),
-  platform TEXT NOT NULL,
-  format TEXT NOT NULL,
-  mode TEXT NOT NULL,
-  status TEXT NOT NULL,
-  url TEXT,
-  platform_content_id TEXT,
-  published_at TEXT NOT NULL,
-  note TEXT,
-  raw TEXT
-);
-CREATE INDEX idx_publications_variant ON publications (variant_id);
-
-CREATE TABLE runs (
-  id TEXT PRIMARY KEY,
+  brief TEXT NOT NULL DEFAULT '',
+  source_kind TEXT NOT NULL,
+  source_id TEXT,
   workflow_id TEXT NOT NULL,
-  params TEXT NOT NULL,
-  state TEXT NOT NULL,
-  cursor INTEGER NOT NULL,
-  error TEXT,
-  lease_owner TEXT,
+  step INTEGER NOT NULL,
+  ask TEXT,
+  feedback TEXT,
+  ord INTEGER NOT NULL,
+  url TEXT,
+  published_at TEXT,
+  totals TEXT,
+  totals_day TEXT,
+  question TEXT,
+  local_path TEXT,
+  source_ref TEXT,
+  tags TEXT NOT NULL DEFAULT '[]',
+  lease_token TEXT,
+  lease_since TEXT,
   lease_expires_at TEXT,
+  error TEXT,
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL
 );
-CREATE INDEX idx_runs_state ON runs (state, created_at);
+CREATE INDEX idx_works_status ON works (status, ord);
+CREATE INDEX idx_works_source ON works (source_kind, source_id);
 
-CREATE TABLE run_steps (
-  run_id TEXT NOT NULL REFERENCES runs(id) ON DELETE CASCADE,
-  step_id TEXT NOT NULL,
-  idx INTEGER NOT NULL,
+CREATE TABLE work_logs (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  work_id TEXT NOT NULL REFERENCES works(id) ON DELETE CASCADE,
+  at TEXT NOT NULL,
+  text TEXT NOT NULL
+);
+CREATE INDEX idx_work_logs ON work_logs (work_id, id);
+
+CREATE TABLE work_feedback (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  work_id TEXT NOT NULL REFERENCES works(id) ON DELETE CASCADE,
+  at TEXT NOT NULL,
+  step INTEGER NOT NULL,
+  step_name TEXT NOT NULL,
+  text TEXT NOT NULL
+);
+CREATE INDEX idx_work_feedback ON work_feedback (work_id, id);
+
+CREATE TABLE account_days (
+  account_id TEXT NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+  day TEXT NOT NULL,
+  followers INTEGER,
+  reads INTEGER,
+  interactions INTEGER,
+  PRIMARY KEY (account_id, day)
+);
+
+CREATE TABLE work_snapshots (
+  work_id TEXT NOT NULL REFERENCES works(id) ON DELETE CASCADE,
+  day TEXT NOT NULL,
+  totals TEXT NOT NULL,
+  PRIMARY KEY (work_id, day)
+);
+
+CREATE TABLE pulls (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  account_id TEXT NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+  at TEXT NOT NULL,
   status TEXT NOT NULL,
-  input_hashes TEXT NOT NULL DEFAULT '{}',
-  outputs TEXT,
-  wait TEXT,
-  error TEXT,
-  attempts INTEGER NOT NULL DEFAULT 0,
-  started_at TEXT,
-  finished_at TEXT,
-  PRIMARY KEY (run_id, step_id)
+  reason TEXT,
+  fix_hint TEXT,
+  note TEXT
+);
+CREATE INDEX idx_pulls ON pulls (account_id, id);
+
+CREATE TABLE weekly_notes (
+  week TEXT PRIMARY KEY,
+  wins TEXT NOT NULL DEFAULT '',
+  improve TEXT NOT NULL DEFAULT '',
+  next TEXT NOT NULL DEFAULT '',
+  updated_at TEXT NOT NULL
 );
 ```
 
-`params`、`options`、`input_hashes`、`outputs`、`wait`、`raw` 存 JSON 文本；读回时解析，解析失败抛 `STORE_FAILED`（说明是哪张表哪一列）。读回时 SQL 的 NULL 一律变成「字段不存在」。
+列和类型的对应：
 
-### 升级规则
+- `works.source_kind` / `source_id` ↔ `Work.source`（idea 带 ideaId、work 带 workId、import 和 none 不带）。
+- `works.totals`、`work_snapshots.totals`、`works.tags` 存 JSON 文本；`ord` ↔ `order`。
+- `works.lease_since`、`lease_expires_at` ↔ `Work.lease`（两个都有值才有 lease）；`lease_token` 不进 `Work`，只经 `leaseToken()` 读。
+- 读回时 SQL 的 NULL 一律变成「字段不存在」（沿用第一阶段的约定）；`Work.log`、`feedbackHistory`、`tags` 没有内容时是空数组。
 
-- 版本号存在 `PRAGMA user_version`。打开时比较当前版本和升级脚本的最大版本。
-- 有待执行的升级、而且数据库文件在打开前就已存在、当前版本大于 0 时：先用 `VACUUM INTO '<备份路径>'` 生成备份，备份路径为 `<库文件>.bak-v<当前版本>-<YYYYMMDDHHmmssSSS>-<进程号>`，写进 `migration.backupPath`。几个进程同时升级时每个进程都会留一份备份，其中抢到写锁的那个进程的备份一定早于升级，多出来的只占空间。路径里的单引号要转义成两个单引号。**不要用「检查点 + 复制文件」的办法**：评审实测过，有别的连接在读时检查点会失败，复制出来的文件会漏掉 WAL 里已提交的数据；`VACUUM INTO` 由 SQLite 自己读一份一致的快照写出去，不受影响。备份失败就抛 `MIGRATION_FAILED`，不执行升级。
-- 每个升级脚本连同 `user_version` 的更新放在同一个事务里执行；任何一个失败就抛 `MIGRATION_FAILED`，hint 写明备份文件路径。
-- 升级脚本的版本号必须从 1 开始连续递增，否则抛 `MIGRATION_FAILED`（防止写错）。
-- 数据库版本比代码认识的最大版本还高（用旧代码打开新库）时，抛 `MIGRATION_FAILED`，提示升级 LeafPress。
+### 接口（`src/store/types.ts`，照抄）
 
-### 各 Repo 的规则
+```ts
+import type {
+  AccountDayRecord,
+  AccountStage,
+  DayKey,
+  Idea,
+  IsoTime,
+  PlatformId,
+  PullRecord,
+  WeeklyNote,
+  Work,
+  WorkSnapshotRecord,
+} from "@leafpress/core";
 
-接口和注释见 `src/store/types.ts`，补充：
+/** 记录库里的账号。档案在文件里，配置项在 SettingsRepo，用例把它们拼成 Account */
+export interface AccountRow {
+  id: string;
+  platform: PlatformId;
+  name: string;
+  handle?: string;
+  url?: string;
+  stage: AccountStage;
+  since: DayKey;
+  createdAt: IsoTime;
+  updatedAt: IsoTime;
+}
 
-- `sources.upsert`：在一个事务里完成「查找 → 新建作品和原稿，或更新原稿」。新建时作品标题取原稿标题。只有字段真的变了才更新 `updated_at` 并返回 `changed: true`。
-- `variants.update`：`updated_at` 每次都更新。
-- **发布记录**（`publications`，接口注释见 `src/store/types.ts`）。流程是「先登记意图，再调平台，最后补结果」，这样平台已经发出去、本地还没来得及登记时进程崩了，留下的 pending 记录会挡住自动重发：
+export interface AccountsRepo {
+  /** 按 created_at、再按 id */
+  list(): AccountRow[];
+  get(id: string): AccountRow | undefined;
+  /** 编号已存在抛 STORE_FAILED */
+  insert(row: AccountRow): void;
+  /** 不存在抛 STORE_FAILED */
+  update(row: AccountRow): void;
+}
 
+/** 账号配置项：只存普通配置的值和「过期」标记；密钥的值在凭证文件里 */
+export interface SettingsRepo {
+  /** 普通配置的值（只含值不为空的键） */
+  values(accountId: string): Record<string, string>;
+  /** 标了过期的键和原因 */
+  expired(accountId: string): Record<string, string>;
+  /** 写一个配置项：value 为 undefined 表示密钥项（值在凭证文件，这里只留一行、值为 NULL）；同时清掉过期标记 */
+  set(accountId: string, key: string, value: string | undefined, at: IsoTime): void;
+  /** 删掉这一行（值和过期标记一起） */
+  clear(accountId: string, key: string): void;
+  /** 标成过期；这一行不存在就新建一行（值为 NULL） */
+  markExpired(accountId: string, key: string, reason: string, at: IsoTime): void;
+}
+
+export interface IdeasRepo {
+  /** 全部灵感；workIds = 来源是这条灵感的作品编号，按作品 created_at、再按编号 */
+  list(): Idea[];
+  get(id: string): Idea | undefined;
+  /** 忽略 idea.workIds */
+  insert(idea: Idea): void;
+  /** 忽略 idea.workIds；不存在抛 STORE_FAILED */
+  update(idea: Idea): void;
+  remove(id: string): void;
+}
+
+export interface WorksRepo {
+  /** 全部作品，带记录和反馈历史（各自按写入先后） */
+  list(): Work[];
+  get(id: string): Work | undefined;
+  /** 新建：写作品行，再写 work.log、work.feedbackHistory 的全部条目；lease 给了就写令牌 */
+  insert(work: Work, lease?: { token: string }): void;
+  /**
+   * 整行更新作品的字段（不存在抛 STORE_FAILED）。
+   * work.log、work.feedbackHistory 只追加记录库里还没有的部分：库里已有 n 条，就写第 n 条以后的。
+   * 令牌：lease 为 undefined 不动；null 清掉；{ token } 换成它。work.lease 为 undefined 时，令牌和租约时间一律清掉。
+   */
+  update(work: Work, lease?: { token: string } | null): void;
+  /** 当前租约的令牌；没有返回 undefined */
+  leaseToken(id: string): string | undefined;
+  /** 连带记录、反馈、快照一起删 */
+  remove(id: string): void;
+}
+
+export interface SnapshotsRepo {
+  /** day 在 [from, to] 的账号每天的数 */
+  accountDays(from: DayKey, to: DayKey): AccountDayRecord[];
+  /** day 在 [from, to] 的作品快照，外加每个作品在 from 之前的最后一条（当起点）；按作品、日期排 */
+  workSnapshots(from: DayKey, to: DayKey): WorkSnapshotRecord[];
+  /** 按（账号, 天）覆盖写 */
+  putAccountDay(record: AccountDayRecord): void;
+  /** 按（作品, 天）覆盖写；这天不早于作品现在的 totals_day（或作品还没有 totals）时，同时把作品的 totals、totals_day 改成这条 */
+  putWorkSnapshot(record: WorkSnapshotRecord): void;
+}
+
+export interface PullsRepo {
+  add(record: PullRecord): void;
+  /** 每个账号最近的一条（按写入先后） */
+  latest(): PullRecord[];
+}
+
+export interface NotesRepo {
+  /** 按 week 新的在前 */
+  list(): WeeklyNote[];
+  /** 按 week 覆盖写；updatedAt 必须有 */
+  save(note: WeeklyNote): void;
+}
+
+export interface StoreVersion {
+  /** 任何写操作都加一 */
+  seq: number;
+  /** 数据快照写操作加一 */
+  snapshotSeq: number;
+}
+
+export interface MetaRepo {
+  version(): StoreVersion;
+  /** 取下一个序号（从 1 开始），原子地加一 */
+  nextSerial(name: "work" | "idea" | "account"): number;
+}
+
+export interface Migration {
+  /** 从 1 开始连续递增 */
+  readonly version: number;
+  readonly name: string;
+  readonly sql: string;
+}
+
+export interface MigrationReport {
+  /** 打开前的表结构版本，新建的库为 0 */
+  readonly from: number;
+  readonly to: number;
+  /** 升级前做的备份；没有升级或新建的库没有 */
+  readonly backupPath?: string;
+}
+
+export interface OpenStoreOptions {
+  /** 测试注入升级脚本，缺省用 MIGRATIONS */
+  readonly migrations?: readonly Migration[];
+}
+
+export interface Store {
+  readonly accounts: AccountsRepo;
+  readonly settings: SettingsRepo;
+  readonly ideas: IdeasRepo;
+  readonly works: WorksRepo;
+  readonly snapshots: SnapshotsRepo;
+  readonly pulls: PullsRepo;
+  readonly notes: NotesRepo;
+  readonly meta: MetaRepo;
+  readonly migration: MigrationReport;
+  /** BEGIN IMMEDIATE 写事务；回调必须是同步函数；在事务里再调用就直接在外层事务里执行 */
+  transaction<T>(fn: () => T): T;
+  /** 用 VACUUM INTO 把整库一致地复制到 target（导出备份用） */
+  backupTo(target: string): void;
+  close(): void;
+}
 ```
-begin ──► pending ──complete──► published（带链接，版本同时改成 published）
-                 ├─complete──► unverified ──confirm──► published
-                 │                          └─discard──► 删除（可以重新发）
-                 └─abort────► 删除（确定没发出去）
-recordManual ──► published（作者手动发完回填链接）
-```
 
-  - 目标 =（原稿, 平台, 形态, targetKey），通过版本表关联出来；平台和形态一律从版本上取。
-  - 「占位」= 目标上存在 published、pending 或 unverified 记录。`begin` 和 `recordManual` 遇到 published 抛 `ALREADY_PUBLISHED`（message 写明平台、形态、已有链接），遇到 pending 或 unverified 抛 `PUBLISH_IN_DOUBT`（hint：先核实上次的发布结果）。
-  - 所有写方法都用 `BEGIN IMMEDIATE` 开写事务，先查再写，两个进程同时操作同一目标时只有一个成功。
-  - published 状态的记录必须有非空链接：`complete` 的 published 结果、`recordManual`、`confirm` 的链接为空串时抛 `STORE_FAILED`。
-  - 状态不符合前置条件（比如对 published 调 `complete`）抛 `STORE_FAILED`。
-- `publicationOverview`：返回给定原稿下的全部版本，左连接发布记录，按原稿编号、平台、形态、目标、版本创建时间、发布时间排序。传入空数组时直接返回空数组，不拼出 `IN ()` 这种非法语句。
-- `transaction`：`BEGIN IMMEDIATE` … `COMMIT`，出错 `ROLLBACK` 后原样抛出；正在事务中又调用 `transaction` 时抛 `STORE_FAILED`。Repo 内部自己需要事务的方法，在外层事务里被调用时要能正常工作（检测到已在事务中就不再开新事务）。
-- `runs`（RunStore）：完全照 `src/workflows/types.ts` 的注释实现。
-  - `acquireRun`、`renewLease`、`releaseRun`、`transitionRun` 都是一条带条件的 UPDATE，按受影响行数判断成功与否；成功时同时把 `updated_at` 改成当前时间。只有 `acquireRun` 的「接管过期运行」分支比较到期时间（用调用方传入的 `now`，不用存储自己的时钟）；`renewLease`、`releaseRun` 只看状态为 running 且持有者匹配，**不比较到期时间**。时间都是同一格式的 ISO 字符串，可以直接按字符串比较大小。
-  - `releaseRun` 和 `transitionRun`（目标状态不是 running 时）把 `lease_owner`、`lease_expires_at` 置为 NULL。
-  - `completeStep` 在一个事务里更新步骤和运行的游标。
-  - `updateRun`、`updateStep` 里值为 `null` 的字段写成 SQL NULL，值为 `undefined` 的字段不改。
-- **只读查看** `inspectStore(dbFile): StoreInspection`（放在 `src/store/inspect.ts`）：库文件不存在返回 `{ exists: false, expectedVersion }`。存在时分两种情况：
-  - 旁边有非空的 `<库文件>-wal`（别的进程正开着库，或上次被强杀留下未并回的日志）：新提交的版本号可能还在日志里，用 SQLite 只读打开读 `PRAGMA user_version`。这种情况下 SQLite 会改动或新建 `<库文件>-shm`（它用来协调多个连接的共享内存文件，不存数据），库文件和 `-wal` 不会被改动。这是有意接受的取舍：要完全不碰 `-shm` 就得自己解析日志格式，复杂且容易出错，而这种情况只在进程被强杀或别的进程正开着库时出现。
-  - 否则**不经过 SQLite**，直接读文件头前 100 字节：0 字节的文件按「存在、版本 0」返回（和 `openStore` 会直接初始化它保持一致）；否则前 16 字节必须是 `SQLite format 3\0`，不是就视为损坏抛 `STORE_FAILED`；第 60～63 字节（大端序 32 位整数）就是 `user_version`。原因：评审实测用 SQLite 只读打开正常关闭的 WAL 库，仍会在旁边建出 `-shm`、`-wal` 文件，目录不可写时还会直接失败。
-  - 不建目录、不建任何新文件、不升级。体检命令用它。
-- **并发打开与升级**：`busy_timeout` 必须最先设置，再切 WAL；升级时先在事务外做备份（备份文件名带毫秒和进程号，避免同一秒撞名），再 `BEGIN IMMEDIATE`，**在事务里重新读一次 `user_version`**，别的进程已经升完就跳过，没升完才执行升级脚本。这样两个进程同时首次建库或同时升级都能成功，不会因为后到而误报错。
-- **事务的边界**：`BEGIN IMMEDIATE` 本身失败（比如等锁超时）也要包成 `STORE_FAILED`；`transaction` 的回调返回了 Promise（写成了异步函数）时，回滚同步部分的写入并抛 `STORE_FAILED`（「事务回调不能是异步函数」），让这种误用尽早报错。注意：已经开始执行的异步函数没法从外面取消，它在第一个 await 之后的写入不在事务里，所以事务回调必须写成同步函数。
-- `variants.listBySource` 按创建时间、再按插入顺序（rowid）排序，同一毫秒创建的版本也保持创建顺序。
+### 规则
+
+- **变更序号**：任何 Repo 的写方法（insert、update、remove、set、clear、markExpired、put*、add、save）都在同一个事务里把 `meta.seq` 加一；`putAccountDay`、`putWorkSnapshot` 还要把 `snapshot_seq` 加一。不在外层事务里被调用时，写和加一要包在一个事务里（用 `sql.ts` 的 `withTransaction`）。
+- **序号**：`nextSerial` 在事务里读 `serial_<name>`、加一、写回、返回新值；两个进程同时取也不会重复。
+- **作品**：`update` 追加记录时先 `SELECT COUNT(*)` 再插入多出来的部分，必须和行更新在同一个事务里。`list` 一次查出全部记录和反馈再按作品分组，不要每个作品查一次。
+- **快照**：`workSnapshots` 的「起点」用一条 SQL 取每个作品 from 之前 day 最大的一条。
+- **复盘**：`save` 写入的 `updatedAt` 原样保存。
+- **错误**：SQL 出错、JSON 解析失败一律包成 `LeafPressError("STORE_FAILED")`，message 说明是哪张表哪一列，不带值。
 
 ## 关键决策
 
-1. 用 Node 自带的 SQLite：Windows 上不用编译原生模块，测量过打开内存库只要 1 毫秒，没有警告输出。
-2. 防重复发布放在记录库里用写事务保证，不依赖调用方先查；发布前先登记意图，进程在「平台已发、本地未登记」时崩溃也不会自动重发。
-3. 升级前用 `VACUUM INTO` 做一致性备份，升级失败时有退路。
-4. 工作流的执行权用租约表示（持有者 + 到期时间），长步骤靠续约保持，过期才能被接管。
-5. 读回统一用 undefined 表示空，和 TypeScript 的可选字段一致，避免 null 和 undefined 混用。
+1. **第 1 版脚本原样保留，第 2 版删旧建新**：版本号从 1 连续是升级逻辑的前提；作者机器上已有第一阶段的库（只有导入过的博客原稿，没有业务数据），升级前会自动备份。
+2. **写事务一律 BEGIN IMMEDIATE**：命令行和本机服务同时写同一个作品时，后到的等前一个提交后再读，用例里的「读 → 按规则算 → 写」不会丢更新。租约令牌的比对也在这个事务里做。
+3. **记录和反馈只追加**：用例把规则算出来的整个作品交给 `update`，记录库按条数补写新的；规则层不用关心哪些是新加的。
+4. **快照存累计数**：每天存「到这天为止的总数」，新增在整理数据集时算；漏拉一天不会丢数，只会把两天的新增算在后一天。
+5. **账号档案和密钥不进库**：档案是文件（agent 直接读），密钥在凭证文件；库里只有普通配置值和「过期」标记。
 
 ## 当前实现
 
-| 文件 | 内容 |
-|---|---|
-| `open.ts` | 打开库：先设等锁时间，再切 WAL（遇忙重试），执行升级，组装各 Repo |
-| `migrations.ts` | 升级脚本列表与升级逻辑：事务外 `VACUUM INTO` 备份，进写锁后重读版本号 |
-| `sql.ts` | 事务（嵌套检测、开事务失败包装、拒绝异步回调）、JSON 列与空值转换 |
-| `works.ts`、`sources.ts`、`variants.ts` | 作品、原稿（按平台和 ref 增改）、版本 |
-| `publications.ts`、`publication-mapping.ts` | 发布记录的「意图 → 结果」流程与查重 |
-| `overview.ts` | 发布状态总览查询 |
-| `runs.ts`、`run-mapping.ts`、`run-sql-helpers.ts` | 工作流存储（租约方法都是带条件的单条 UPDATE） |
-| `inspect.ts` | 体检用的只读查看：有未并回的日志时用 SQLite 只读打开，否则直接读文件头 |
-
-单测 55 个，全部用真实的 `openStore` 环境；包括多个子进程同时首次建库、同时升级、同时登记发布的测试。
-
-经两轮独立评审（Sonnet）：防重复发布 4 进程 × 100 轮实测每轮恰好一个成功；故意改坏实现的实验里，绝大多数改坏都能被测试抓住。
-
-已知情况：
-- `node:sqlite` 默认就开着外键约束，代码里仍显式打开。
-- 多个进程同时升级时每个进程都会留一份备份，只占空间。
+第一阶段的打开、升级、事务公共件、只读查看已完成（见改动历史）；M1 的新表和 Repo 待实现。
 
 ## 验证方式
 
-单测放在 `tests/store/`，每个用例用 `fs.mkdtemp` 建临时目录放库文件，用完关闭并删除。必须覆盖：
+单测在 `tests/store/`，每个用例用 `fs.mkdtemp` 建临时目录、用真实的 `openStore`，用完关闭并删除。必须覆盖：
 
-1. 新库：表都建好，`user_version` 为 1，`migration` 为 `{ from: 0, to: 1 }` 且没有备份。
-2. 再次打开同一个库：不重复升级，`from` 和 `to` 都是 1。
-3. 用注入的两版升级脚本模拟从 1 升到 2：生成备份文件，内容是升级前的库；第 2 版脚本故意写错时抛 `MIGRATION_FAILED`、版本仍是 1、数据没丢。
-4. 版本号不连续的升级脚本列表被拒绝；数据库版本高于代码时被拒绝。
-5. `sources.upsert`：新建（同时建作品）、无变化、有变化三种情况的返回值。
-6. `variants`：创建默认值、更新、按原稿列出、原稿不存在时报错。
-7. 发布记录：`begin` → `complete(published)` 后版本变为 published；之后同一目标 `begin` 或 `recordManual` 抛 `ALREADY_PUBLISHED` 且不写入；有 pending 时再 `begin` 抛 `PUBLISH_IN_DOUBT`；`complete(unverified)` 后再 `begin` 也抛 `PUBLISH_IN_DOUBT`，`confirm` 后变为 published，`discard` 后可以重新 `begin`；`abort` 删除 pending；不同 targetKey（回答两个不同问题）互不影响；published 缺链接被拒绝；前置状态不对抛 `STORE_FAILED`。
-8. `publicationOverview`：多原稿、多版本、有无发布记录混合；空数组输入。
-9. `transaction`：成功提交、抛错回滚、嵌套调用报错。
-10. JSON 列往返：嵌套对象、中文、Windows 路径里的反斜杠。
-11. **工作流存储约定**：新建 `tests/store/run-store.test.ts`，调用 `tests/contracts/run-store.contract.ts` 里的 `describeRunStoreContract("SQLite 存储", 工厂)`，全部通过。约定测试文件不许改。
-12. `inspectStore`：文件不存在时不会建出文件；存在时返回版本且文件内容不变（比较前后哈希）。
-13. 升级备份的一致性：用第二个连接开着读事务时执行带升级的打开，备份文件里包含全部已提交的数据。
+1. 新库：升到第 2 版，新表都在、旧表都不在，meta 五行都是 0，`migration` 为 `{ from: 0, to: 2 }` 且没有备份。
+2. **从第 1 版升级**：用第 1 版脚本建一个库并插几行旧数据，关闭后用正式的 `openStore` 打开：在 `backups/` 里生成备份（备份里有旧表和旧数据），升到第 2 版，旧表没了。
+3. 第一阶段已有的升级测试（注入脚本模拟升级、脚本写错回滚、版本不连续、库比代码新）恢复并通过。
+4. 每个 Repo 的增删改查，往返后字段一致：可选字段不存在 vs 有值、中文、Windows 路径的反斜杠、totals 的 JSON。
+5. 作品：`update` 只追加新记录和新反馈；令牌三种写法；`work.lease` 为空时令牌被清掉；`remove` 连带删记录、反馈、快照。
+6. 灵感：`workIds` 按来源算出来、按作品创建时间排；删作品后跟着少。
+7. 快照：`workSnapshots` 带上起点；`putWorkSnapshot` 只在日期不早于 totals_day 时更新作品的 totals。
+8. 拉取记录：`latest` 每个账号一条、是最近的。
+9. 变更序号：每个写方法都让 seq 加一；快照写让 snapshot_seq 也加一；读方法不变。
+10. 事务：抛错回滚（seq 也回滚）；异步回调被拒绝；嵌套调用在外层事务里执行。
+11. **两个进程同时写**（用子进程，第一阶段的集成测试有现成做法可参考 git 历史里的 `tests/integration/`）：两个进程各取 50 次 `nextSerial("work")`，100 个值互不相同；两个进程各对同一个作品做 50 次「事务里 get → log 加一条 → update」，最后记录正好 100 条。
+12. `inspectStore` 的已有测试按新的预期版本通过；`backupTo` 生成的文件能打开、数据一致。
 
 `pnpm gate` 全部通过。
 
 ## 待扩展项
 
-- M1：资产上传缓存表（资产哈希 → 平台媒体编号）。
-- M3：素材、题目表。
-- M5：数据快照表。
+- M2：博客导入时作品带 `local_path`、`source_ref`；数据工具写快照。
 
 ## 改动历史
 
@@ -233,3 +372,4 @@ recordManual ──► published（作者手动发完回填链接）
 | 2026-10-05 | 按规格评审修改：备份改用 `VACUUM INTO`；发布记录改为「意图 → 结果」流程并强制已发布带链接；运行表加租约；加 `completeStep`、`inspectStore` |
 | 2026-10-05 | 发布记录加 `note` 列存「待核实」原因 |
 | 2026-10-05 | 按实现评审修改：续约和交还不比较到期时间；只读查看改为直接读文件头；并发打开与升级的规则；事务边界；版本排序；测试必须用真实的 `openStore` 环境和多连接验证核心保证 |
+| 2026-10-08 | M1：换成新模型（账号、配置项、灵感、作品与记录、快照、拉取记录、复盘、变更序号）；第一阶段的原稿、版本、发布记录、运行表删除；升级脚本第 2 版删旧建新 |
