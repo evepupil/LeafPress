@@ -37,7 +37,7 @@ export function waitForSigint(
       void server.close().then(
         () => {
           target.removeListener("SIGINT", onSignal);
-          setExitCode(130);
+          setExitCode(0);
           resolve();
         },
         (error: unknown) => {
@@ -52,7 +52,7 @@ export function waitForSigint(
 
 export async function executeServe(
   context: CliContext,
-  options: { port: string; open: boolean; dev: boolean },
+  options: { port?: string; open: boolean; dev: boolean },
   dependencies: {
     readonly start?: (
       options: StartServerOptions,
@@ -65,11 +65,19 @@ export async function executeServe(
     readonly exec?: ExecFn;
   } = {},
 ): Promise<{ server: RunningServer; url: string }> {
-  const port = Number(options.port);
-  if (!Number.isSafeInteger(port) || port < 0 || port > 65535) {
+  const port =
+    options.port === undefined
+      ? (await context.getConfig()).server.port
+      : /^[0-9]+$/.test(options.port)
+        ? Number(options.port)
+        : Number.NaN;
+  if (
+    !Number.isSafeInteger(port) ||
+    (port !== 0 && (port < 1024 || port > 65535))
+  ) {
     throw new LeafPressError(
       "USAGE",
-      `端口必须是 0 到 65535 之间的整数：${options.port}`,
+      `端口必须是 0（系统分配）或 1024 到 65535 之间的十进制整数：${options.port ?? port}`,
     );
   }
   const startServer =
@@ -107,6 +115,10 @@ export async function executeServe(
   return { server, url: server.url };
 }
 
+export function renderServeJson(url: string): string {
+  return `${JSON.stringify({ ok: true, url })}\n`;
+}
+
 export function renderServe(url: string): string {
   return `LeafPress 已启动：${url}（按 Ctrl+C 停止）`;
 }
@@ -117,10 +129,14 @@ export async function run(
 ): Promise<void> {
   const options = commandOptions(args);
   const result = await executeServe(context, {
-    port: typeof options["port"] === "string" ? options["port"] : "3210",
+    ...(typeof options["port"] === "string" ? { port: options["port"] } : {}),
     open: options["open"] === true,
     dev: options["dev"] === true,
   });
-  emitSuccess(context, { url: result.url }, renderServe(result.url));
+  if (context.globalOptions.json) {
+    process.stdout.write(renderServeJson(result.url));
+  } else {
+    emitSuccess(context, { url: result.url }, renderServe(result.url));
+  }
   await waitForSigint(result.server);
 }

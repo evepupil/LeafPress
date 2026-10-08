@@ -171,7 +171,7 @@ export function buildProgram(options: BuildProgramOptions = {}): Command {
 
   const serve = program.command("serve").description("启动本机工作台");
   serve
-    .option("--port <端口>", "监听端口", "3210")
+    .option("--port <端口>", "监听端口")
     .option("--open", "启动后打开浏览器")
     .option("--dev", "使用开发模式");
   addAction(serve, () => import("./commands/serve.js"), undefined, getContext);
@@ -226,7 +226,7 @@ export function buildProgram(options: BuildProgramOptions = {}): Command {
     getContext,
   );
   addAction(
-    work.command("feedback <作品> <文字…>").description("提交作者反馈"),
+    work.command("feedback <作品> <文字...>").description("提交作者反馈"),
     () => import("./commands/work-agent.js"),
     "feedback",
     getContext,
@@ -262,7 +262,7 @@ export function buildProgram(options: BuildProgramOptions = {}): Command {
     .option("--status <状态,…>", "按状态筛选");
   addAction(ideas, () => import("./commands/ideas.js"), "list", getContext);
   const addIdea = ideas
-    .command("add [一句话]")
+    .command("add [一句话...]")
     .description("添加灵感")
     .option("--stdin", "从标准输入读取 JSON 数组")
     .option("--detail <细节>", "补充细节")
@@ -357,6 +357,14 @@ function commanderUsageMessage(error: CommanderError): string {
   return `命令行参数不正确：${detail}`;
 }
 
+function acceptsFreeText(argv: readonly string[]): boolean {
+  return argv.some(
+    (part, index) =>
+      (part === "work" && argv[index + 1] === "feedback") ||
+      (part === "ideas" && argv[index + 1] === "add"),
+  );
+}
+
 export async function main(
   argv: readonly string[] = process.argv.slice(2),
   options: BuildProgramOptions = {},
@@ -378,6 +386,10 @@ export async function main(
     await program.parseAsync([...argv], { from: "user" });
     if (context !== undefined) process.exitCode = context.exitCode;
   } catch (error) {
+    if (error instanceof CommanderError && error.exitCode === 0) {
+      process.exitCode = 0;
+      return;
+    }
     if (error instanceof CommanderError && error.code === "commander.help") {
       if (argv.includes("--help") || argv.includes("-h")) return;
       const normalized = {
@@ -396,13 +408,15 @@ export async function main(
       process.exitCode = 2;
       return;
     }
-    if (error instanceof CommanderError && error.exitCode === 0) return;
     const usage = error instanceof CommanderError;
     const normalized = usage
       ? {
           code: "USAGE",
           message: commanderUsageMessage(error),
-          hint: "运行 leafpress --help 查看用法。",
+          hint:
+            error.code === "commander.unknownOption" && acceptsFreeText(argv)
+              ? "运行 leafpress --help 查看用法。文字以 - 开头时，在前面加 --"
+              : "运行 leafpress --help 查看用法。",
           name: "LeafPressError",
         }
       : error;

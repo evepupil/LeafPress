@@ -124,6 +124,38 @@ describe("请求校验", () => {
     expect(usecases.createWorks).not.toHaveBeenCalled();
   });
 
+  it("GBK 编码的 JSON 请求体按非法 UTF-8 拒绝", async () => {
+    const usecases = createFakeUseCases();
+    const app = createServerApp({ usecases, port: 3210 });
+    const prefix = new TextEncoder().encode('{"text":"');
+    const gbkText = new Uint8Array([0xd6, 0xd0, 0xce, 0xc4]);
+    const suffix = new TextEncoder().encode('","source":"quick"}');
+    const bytes = new Uint8Array(
+      prefix.length + gbkText.length + suffix.length,
+    );
+    bytes.set(prefix);
+    bytes.set(gbkText, prefix.length);
+    bytes.set(suffix, prefix.length + gbkText.length);
+
+    const response = await app.request(
+      new Request("http://127.0.0.1:3210/api/ideas", {
+        method: "POST",
+        headers: {
+          Host: "127.0.0.1:3210",
+          "Content-Type": "application/json",
+        },
+        body: bytes.buffer,
+      }),
+    );
+
+    expect(response.status).toBe(400);
+    expect(await response.json()).toEqual({
+      ok: false,
+      error: { code: "USAGE", message: "请求体不是 UTF-8 编码" },
+    });
+    expect(usecases.addIdeas).not.toHaveBeenCalled();
+  });
+
   it("拒绝非 JSON 请求体和非法编号", async () => {
     const usecases = createFakeUseCases();
     const app = createServerApp({ usecases, port: 3210 });

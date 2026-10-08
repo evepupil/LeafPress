@@ -8,6 +8,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { defaultWebRoot, serveStatic } from "../../src/server/static.js";
 
 let tempDir: string | undefined;
+const nextSegment = "!KHdvcmtiZW5jaCk";
 
 afterEach(async () => {
   if (tempDir !== undefined) {
@@ -22,6 +23,10 @@ async function createWebRoot(): Promise<string> {
   await mkdir(join(root, "accounts"), { recursive: true });
   await mkdir(join(root, "docs"), { recursive: true });
   await mkdir(join(root, "_next", "static"), { recursive: true });
+  await mkdir(join(root, "accounts", `__next.${nextSegment}`, "accounts"), {
+    recursive: true,
+  });
+  await mkdir(join(root, `__next.${nextSegment}`), { recursive: true });
   await writeFile(join(root, "index.html"), "root page");
   await writeFile(join(root, "accounts", "index.html"), "accounts index");
   await writeFile(join(root, "about.html"), "about html");
@@ -32,6 +37,16 @@ async function createWebRoot(): Promise<string> {
     "export const asset = 1;",
   );
   await writeFile(join(root, "404.html"), "not found page");
+  await writeFile(
+    join(root, "accounts", `__next.${nextSegment}`, "accounts", "__PAGE__.txt"),
+    "accounts prefetch",
+  );
+  await writeFile(
+    join(root, `__next.${nextSegment}`, "__PAGE__.txt"),
+    "root prefetch",
+  );
+  await writeFile(join(root, "__next._full.txt"), "full state");
+  await writeFile(join(root, "__next._tree.txt"), "tree state");
   await writeFile(join(tempDir, "secret.txt"), "outside secret");
   return root;
 }
@@ -94,6 +109,43 @@ describe("静态网页托管", () => {
       "public, max-age=31536000, immutable",
     );
     expect(script.headers.get("Cache-Control")).toBe("no-cache");
+  });
+
+  it("将 Next 分段预取 URL 映射到嵌套文件并直接提供状态文件", async () => {
+    const root = await createWebRoot();
+    const responses = await Promise.all(
+      [
+        `/accounts/__next.${nextSegment}.accounts.__PAGE__.txt`,
+        `/__next.${nextSegment}.__PAGE__.txt`,
+        "/__next._full.txt",
+        "/__next._tree.txt",
+      ].map((path) =>
+        serveStatic(new Request(`http://localhost${path}`), root),
+      ),
+    );
+
+    expect(responses.map((response) => response.status)).toEqual([
+      200, 200, 200, 200,
+    ]);
+    expect(
+      await Promise.all(responses.map((response) => response.text())),
+    ).toEqual([
+      "accounts prefetch",
+      "root prefetch",
+      "full state",
+      "tree state",
+    ]);
+  });
+
+  it("缺失 favicon 返回 204", async () => {
+    const root = await createWebRoot();
+    const favicon = await serveStatic(
+      new Request("http://localhost/favicon.ico"),
+      root,
+    );
+
+    expect(favicon.status).toBe(204);
+    expect(await favicon.text()).toBe("");
   });
 
   it("缺失文件返回 404.html，目录外文件不可读", async () => {

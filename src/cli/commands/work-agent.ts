@@ -6,6 +6,7 @@ import {
   csvValues,
   emitSuccess,
   positionalArgs,
+  positionalText,
   requiredString,
 } from "./shared.js";
 
@@ -181,16 +182,7 @@ export async function run(
     return;
   }
   if (operation === "feedback") {
-    const text = values
-      .slice(1)
-      .flatMap((part) =>
-        typeof part === "string"
-          ? [part]
-          : Array.isArray(part)
-            ? part.filter((value): value is string => typeof value === "string")
-            : [],
-      )
-      .join(" ");
+    const text = positionalText(args.slice(2));
     if (text.trim().length === 0)
       throw new LeafPressError("USAGE", "缺少反馈文字。");
     const result = executeFeedback(usecases, id, text);

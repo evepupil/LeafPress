@@ -83,6 +83,11 @@ export function truncateByWidth(value: string, maxWidth: number): string {
   return `${result}${ellipsis}`;
 }
 
+/** 把表格单元格规整为单行，并按终端显示宽度截断。 */
+export function tableCell(value: string, maxWidth: number): string {
+  return truncateByWidth(value.replace(/\s+/gu, " ").trim(), maxWidth);
+}
+
 /** 生成按显示宽度对齐的纯文本表格。 */
 export function renderTable(
   headers: readonly string[],

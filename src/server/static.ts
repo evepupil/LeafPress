@@ -58,13 +58,38 @@ function responseForFile(
   });
 }
 
+function nextSegmentPath(relativePath: string): string | undefined {
+  const separator = relativePath.lastIndexOf("/");
+  const directory =
+    separator === -1 ? "" : relativePath.slice(0, separator + 1);
+  const filename = relativePath.slice(separator + 1);
+  if (!filename.startsWith("__next.") || !filename.endsWith(".txt"))
+    return undefined;
+
+  const segments = filename.slice(0, -".txt".length).split(".");
+  const routeSegments = segments.slice(2);
+  if (
+    segments.length < 3 ||
+    segments[0] !== "__next" ||
+    segments[1] === "" ||
+    routeSegments.some((segment) => segment === "")
+  ) {
+    return undefined;
+  }
+
+  return `${directory}${segments[0]}.${segments[1]}/${routeSegments.join("/")}.txt`;
+}
+
 function candidatePaths(pathname: string): string[] {
   const decoded = decodeURIComponent(pathname).replaceAll("\\", "/");
   const normalized = decoded.startsWith("/") ? decoded : `/${decoded}`;
   const trimmed = normalized.replace(/^\/+/, "");
   if (normalized === "/") return ["index.html"];
   if (normalized.endsWith("/")) return [`${trimmed}index.html`];
-  if (extname(trimmed) !== "") return [trimmed];
+  if (extname(trimmed) !== "") {
+    const nextPath = nextSegmentPath(trimmed);
+    return nextPath === undefined ? [trimmed] : [trimmed, nextPath];
+  }
   return [`${trimmed}.html`, `${trimmed}/index.html`];
 }
 
@@ -134,6 +159,8 @@ export async function serveStatic(
       );
     }
   }
+
+  if (paths[0] === "favicon.ico") return new Response(null, { status: 204 });
 
   const fallback = await readContainedFile(root, "404.html");
   if (fallback === undefined) return new Response("Not Found", { status: 404 });

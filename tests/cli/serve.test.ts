@@ -1,4 +1,7 @@
 import { EventEmitter } from "node:events";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import type { RunningServer } from "../../src/server/serve.js";
 import type { ExecFn } from "../../src/shared/exec.js";
 import { createCliContext } from "../../src/cli/context.js";
@@ -6,6 +9,7 @@ import {
   executeServe,
   openBrowser,
   renderServe,
+  renderServeJson,
   waitForSigint,
 } from "../../src/cli/commands/serve.js";
 import { describe, expect, it, vi } from "vitest";
@@ -60,7 +64,7 @@ describe("serve", () => {
     ]);
   });
 
-  it("SIGINT 等待服务关闭后才设退出码 130", async () => {
+  it("SIGINT 等待服务关闭后以正常退出码结束", async () => {
     const emitter = new EventEmitter();
     const order: string[] = [];
     const close = vi.fn(() => {
@@ -73,18 +77,98 @@ describe("serve", () => {
     emitter.emit("SIGINT");
     await waiting;
     expect(close).toHaveBeenCalledOnce();
-    expect(order).toEqual(["close", "exit-130"]);
+    expect(order).toEqual(["close", "exit-0"]);
     expect(emitter.listenerCount("SIGINT")).toBe(0);
   });
 
-  it("拒绝无效端口", async () => {
+  it("未指定端口时使用默认或配置的服务端口", async () => {
+    const temp = await mkdtemp(join(tmpdir(), "leafpress-cli-serve-port-"));
+    try {
+      const defaultContext = createCliContext(
+        { home: join(temp, "default") },
+        { env: {}, homedir: temp },
+      );
+      const defaultStart = vi.fn(() =>
+        Promise.resolve(
+          cast<RunningServer>({
+            url: "http://127.0.0.1:3210/",
+            close: vi.fn(() => Promise.resolve()),
+          }),
+        ),
+      );
+      await executeServe(
+        defaultContext,
+        { dev: false, open: false },
+        { start: defaultStart },
+      );
+      expect(defaultStart).toHaveBeenCalledWith(
+        expect.objectContaining({ port: 3210 }),
+        expect.any(Function),
+      );
+
+      const configuredHome = join(temp, "configured");
+      await mkdir(configuredHome, { recursive: true });
+      await writeFile(
+        join(configuredHome, "config.json"),
+        JSON.stringify({ version: 2, server: { port: 4321 } }),
+        "utf8",
+      );
+      const configuredContext = createCliContext(
+        { home: configuredHome },
+        { env: {}, homedir: temp },
+      );
+      const configuredStart = vi.fn(() =>
+        Promise.resolve(
+          cast<RunningServer>({
+            url: "http://127.0.0.1:4321/",
+            close: vi.fn(() => Promise.resolve()),
+          }),
+        ),
+      );
+      await executeServe(
+        configuredContext,
+        { dev: false, open: false },
+        { start: configuredStart },
+      );
+      expect(configuredStart).toHaveBeenCalledWith(
+        expect.objectContaining({ port: 4321 }),
+        expect.any(Function),
+      );
+    } finally {
+      await rm(temp, { recursive: true, force: true });
+    }
+  });
+
+  it("serve JSON 是单行输出", () => {
+    expect(renderServeJson("http://127.0.0.1:3210/")).toBe(
+      '{"ok":true,"url":"http://127.0.0.1:3210/"}\n',
+    );
+  });
+
+  it("严格校验端口十进制格式和范围，同时允许系统分配端口", async () => {
     const context = createCliContext({}, { env: {}, homedir: "." });
-    await expect(
-      executeServe(
-        context,
-        { port: "65536", dev: false, open: false },
-        { start: vi.fn() },
+    const start = vi.fn(() =>
+      Promise.resolve(
+        cast<RunningServer>({
+          url: "http://127.0.0.1:0/",
+          close: vi.fn(() => Promise.resolve()),
+        }),
       ),
-    ).rejects.toMatchObject({ code: "USAGE" });
+    );
+    for (const port of ["1e3", "+3210", " 3210", "1023", "65536", "-1"]) {
+      await expect(
+        executeServe(context, { port, dev: false, open: false }, { start }),
+      ).rejects.toMatchObject({ code: "USAGE" });
+    }
+    const result = await executeServe(
+      context,
+      { port: "0", dev: false, open: false },
+      { start },
+    );
+    expect(result.server).toBeDefined();
+    expect(start).toHaveBeenCalledWith(
+      { home: context.home, port: 0, dev: false },
+      expect.any(Function),
+    );
   });
 });

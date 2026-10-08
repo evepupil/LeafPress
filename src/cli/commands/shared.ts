@@ -25,6 +25,18 @@ export function positionalArgs(args: readonly unknown[]): unknown[] {
   );
 }
 
+export function positionalText(args: readonly unknown[]): string {
+  return positionalArgs(args)
+    .flatMap((value) =>
+      typeof value === "string"
+        ? [value]
+        : Array.isArray(value)
+          ? value.filter((part): part is string => typeof part === "string")
+          : [],
+    )
+    .join(" ");
+}
+
 export function requiredString(value: unknown, name: string): string {
   if (typeof value !== "string" || value.trim().length === 0) {
     throw new LeafPressError("USAGE", `缺少${name}。`, {

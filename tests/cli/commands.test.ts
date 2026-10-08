@@ -107,10 +107,11 @@ const idea = cast<Idea>({
 describe("命令执行与呈现", () => {
   it("作品筛选用逗号列表映射成 UseCases 参数，分组并输出进度", async () => {
     const listWorks = vi.fn(() => [work]);
+    const showWork = vi.fn(() => detail);
     const fake = fakeUseCases({
       listWorks,
       listAccounts: vi.fn(() => [account]),
-      showWork: vi.fn(() => detail),
+      showWork,
     });
     const context = createCliContext(
       {},
@@ -124,11 +125,22 @@ describe("命令执行与呈现", () => {
       status: ["todo", "waiting"],
       accountId: "zhihu-1",
     });
-    expect(renderWorks(result)).toContain("待实现（1）");
-    expect(renderWorks(result)).toContain("一叶之桐");
-    expect(
-      renderWorks({ works: [], accounts: new Map(), details: new Map() }),
-    ).toBe("没有作品");
+    const lines = renderWorks(result).split("\n");
+    expect(lines[0]).toBe("待实现（1）");
+    expect(lines[1]?.trim().split(/\s{2,}/u)).toEqual([
+      "编号",
+      "账号",
+      "标题",
+      "进度",
+    ]);
+    expect(lines[2]?.trim().split(/\s{2,}/u)).toEqual([
+      "w-1",
+      "一叶之桐",
+      "测试作品",
+      "第 2/3 步 · 你去发布",
+    ]);
+    expect(showWork).not.toHaveBeenCalled();
+    expect(renderWorks({ works: [], accounts: new Map() })).toBe("没有作品");
   });
 
   it("work show、next、start 保留原文、令牌、上下文和空队列语义", () => {
@@ -246,7 +258,19 @@ describe("命令执行与呈现", () => {
     const fake = fakeUseCases({ listIdeas, addIdeas });
     expect(executeIdeas(fake, "inbox")).toEqual([idea]);
     expect(listIdeas).toHaveBeenCalledWith({ status: ["inbox"] });
-    expect(renderIdeas([idea])).toContain("测试灵感");
+    const ideaLines = renderIdeas([idea]).split("\n");
+    expect(ideaLines[0]?.trim().split(/\s{2,}/u)).toEqual([
+      "编号",
+      "状态",
+      "一句话",
+      "来源",
+    ]);
+    expect(ideaLines[1]?.trim().split(/\s{2,}/u)).toEqual([
+      "i-1",
+      "inbox",
+      "测试灵感",
+      "quick",
+    ]);
     expect(
       executeAddIdeas(fake, [{ text: "批量", source: "batch" }])[0]?.source,
     ).toBe("batch");
@@ -255,6 +279,9 @@ describe("命令执行与呈现", () => {
     ).toEqual([
       { text: "a", source: "batch" },
       { text: "b", source: "quick" },
+    ]);
+    expect(parseIdeaBatch('\uFEFF[{"text":"带 BOM"}]')).toEqual([
+      { text: "带 BOM", source: "batch" },
     ]);
     expect(renderAddedIdeas([idea])).toBe("已加 i-1：测试灵感");
     expect(() => parseIdeaBatch('{"text":"not array"}')).toThrow(

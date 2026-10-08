@@ -23,51 +23,104 @@ function isDirectory(path: string): boolean {
   }
 }
 
-function isNotDirectoryError(error: unknown): boolean {
-  return (
-    typeof error === "object" &&
-    error !== null &&
-    "code" in error &&
-    error.code === "ENOTDIR"
-  );
+export interface InitDependencies {
+  readonly createDirectory?: (directory: string) => void;
+  readonly writeConfig?: (
+    home: string,
+    config: typeof DEFAULT_CONFIG,
+  ) => unknown;
 }
 
-export async function executeInit(context: CliContext): Promise<InitResult> {
+function systemCode(error: unknown): string | undefined {
+  return typeof error === "object" &&
+    error !== null &&
+    "code" in error &&
+    typeof error.code === "string"
+    ? error.code
+    : undefined;
+}
+
+function errorPath(error: unknown): string | undefined {
+  if (typeof error !== "object" || error === null) return undefined;
+  if ("path" in error && typeof error.path === "string") return error.path;
+  if ("cause" in error) {
+    const causePath = errorPath(error.cause);
+    if (causePath !== undefined) return causePath;
+  }
+  if (error instanceof LeafPressError && error.code === "STORE_FAILED") {
+    const separator = error.message.lastIndexOf("：");
+    if (separator >= 0) return error.message.slice(separator + 1);
+  }
+  return undefined;
+}
+
+function initFilesystemError(
+  error: unknown,
+  fallbackPath: string,
+): LeafPressError {
+  if (
+    !(error instanceof LeafPressError && error.code === "STORE_FAILED") &&
+    systemCode(error) === undefined
+  ) {
+    throw error;
+  }
+  const path = errorPath(error) ?? fallbackPath;
+  return new LeafPressError("STORE_FAILED", `无法写入路径：${path}`, {
+    hint: "检查这个目录的权限",
+    cause: error,
+  });
+}
+
+export async function executeInit(
+  context: CliContext,
+  dependencies: InitDependencies = {},
+): Promise<InitResult> {
   if (existsSync(context.home) && !isDirectory(context.home)) {
     throw new LeafPressError("USAGE", `数据目录路径不是目录：${context.home}`, {
       hint: "请为 --home 指定一个目录路径。",
     });
   }
-  try {
-    for (const directory of [
-      context.home,
-      context.paths.accountsDir,
-      context.paths.tasksDir,
-      context.paths.backupsDir,
-      context.paths.logsDir,
-    ]) {
-      mkdirSync(directory, { recursive: true });
+  const createDirectory =
+    dependencies.createDirectory ??
+    ((directory: string) => mkdirSync(directory, { recursive: true }));
+  for (const directory of [
+    context.home,
+    context.paths.accountsDir,
+    context.paths.tasksDir,
+    context.paths.backupsDir,
+    context.paths.logsDir,
+  ]) {
+    try {
+      createDirectory(directory);
+    } catch (error) {
+      throw initFilesystemError(error, directory);
     }
-  } catch (error) {
-    if (isNotDirectoryError(error)) {
-      throw new LeafPressError(
-        "USAGE",
-        `数据目录路径中的中间部分不是目录：${context.home}`,
-        {
-          hint: "请检查 --home 路径中的每一层是否都是目录。",
-          cause: error,
-        },
-      );
-    }
-    throw error;
   }
 
-  const configUpgraded = upgradeLegacyConfig(context.home);
-  if (!existsSync(context.paths.configFile))
-    writeConfigIfAbsent(context.home, DEFAULT_CONFIG);
+  let configUpgraded: ReturnType<typeof upgradeLegacyConfig>;
+  try {
+    configUpgraded = upgradeLegacyConfig(context.home);
+  } catch (error) {
+    throw initFilesystemError(error, context.paths.configFile);
+  }
+  if (!existsSync(context.paths.configFile)) {
+    try {
+      (dependencies.writeConfig ?? writeConfigIfAbsent)(
+        context.home,
+        DEFAULT_CONFIG,
+      );
+    } catch (error) {
+      throw initFilesystemError(error, context.paths.configFile);
+    }
+  }
 
   const { openApp, closeApp } = await import("../../usecases/index.js");
-  const app = openApp({ home: context.home });
+  let app: ReturnType<typeof openApp>;
+  try {
+    app = openApp({ home: context.home });
+  } catch (error) {
+    throw initFilesystemError(error, context.paths.dbFile);
+  }
   const migration = app.store.migration;
   closeApp(app);
   return {

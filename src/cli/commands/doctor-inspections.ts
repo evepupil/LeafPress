@@ -19,6 +19,7 @@ export interface DoctorDependencies {
   readonly nodeVersion?: string;
   readonly repoRoot?: string;
   readonly edgeLocator?: (configuredPath?: string) => string | undefined;
+  readonly canWriteDirectory?: (directory: string) => boolean;
 }
 
 export function doctorCheck(

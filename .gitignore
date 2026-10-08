@@ -5,6 +5,8 @@
 .env
 .env.*
 !.env.example
+# 网页开发时指到本机服务的地址，没有密钥，进仓库
+!web/.env.development
 
 # 依赖与构建产物
 node_modules/

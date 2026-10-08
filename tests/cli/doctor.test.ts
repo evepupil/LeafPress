@@ -70,9 +70,9 @@ describe("doctor", () => {
       "ok",
     ]);
     expect(result.ok).toBe(true);
-    const rendered = renderDoctor(result);
-    expect(rendered).toContain("检查项");
-    expect(rendered).toContain("全部正常");
+    const renderedLines = renderDoctor(result).split("\n");
+    expect(renderedLines[0]).toContain("检查项");
+    expect(renderedLines.at(-1)).toBe("全部正常");
   });
 
   it("数据目录和记录库不存在时只告警且绝不创建", async () => {
@@ -157,6 +157,65 @@ describe("doctor", () => {
       level: "error",
       detail: "数据目录路径不是目录。",
     });
+  });
+
+  it("凭证和第 1 版配置里的秘密不会进入 doctor 输出", async () => {
+    tempDir = await mkdtemp(join(tmpdir(), "leafpress-cli-doctor-secrets-"));
+    const home = join(tempDir, "data");
+    await mkdir(home, { recursive: true });
+    const credentialSecret = "credential-secret-7f2c1a";
+    const configSecret = "config-secret-3b8e91";
+    await writeFile(
+      join(home, "credentials.json"),
+      JSON.stringify({
+        version: 1,
+        accounts: { "zhihu-1": { token: credentialSecret } },
+      }),
+      "utf8",
+    );
+    await writeFile(
+      join(home, "config.json"),
+      JSON.stringify({ version: 1, browser: { executablePath: configSecret } }),
+      "utf8",
+    );
+    const result = await executeDoctor(context(home, join(tempDir, "user")), {
+      nodeVersion: "24.2.0",
+      repoRoot: tempDir,
+      edgeLocator: () => undefined,
+    });
+    const output = `${JSON.stringify(result)}\n${renderDoctor(result)}`;
+    expect(output).not.toContain(credentialSecret);
+    expect(output).not.toContain(configSecret);
+    expect(result.checks.find((item) => item.id === "config")?.level).toBe(
+      "warn",
+    );
+  });
+
+  it("第 2 版配置正常且不可写目录报告错误", async () => {
+    tempDir = await mkdtemp(join(tmpdir(), "leafpress-cli-doctor-write-"));
+    const home = join(tempDir, "data");
+    await mkdir(home, { recursive: true });
+    await writeFile(
+      join(home, "config.json"),
+      JSON.stringify({ version: 2, server: { port: 4321 } }),
+      "utf8",
+    );
+    const result = await executeDoctor(context(home, join(tempDir, "user")), {
+      nodeVersion: "24.2.0",
+      repoRoot: tempDir,
+      edgeLocator: () => undefined,
+      canWriteDirectory: () => false,
+    });
+    expect(result.checks.find((item) => item.id === "config")).toMatchObject({
+      level: "ok",
+      detail: `配置文件：${join(home, "config.json")}`,
+    });
+    expect(result.checks.find((item) => item.id === "home")).toMatchObject({
+      level: "error",
+      detail: `数据目录不可写：${home}`,
+      hint: "检查这个目录的权限。",
+    });
+    expect(result.ok).toBe(false);
   });
 
   it("单项浏览器异常不会阻断其余检查，也不输出凭证值", async () => {

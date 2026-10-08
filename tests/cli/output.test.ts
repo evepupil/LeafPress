@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   displayWidth,
   renderTable,
+  tableCell,
   truncateByWidth,
 } from "../../src/cli/output.js";
 
@@ -30,6 +31,13 @@ describe("命令行文本输出", () => {
     const value = truncateByWidth("LeafPress 命令行入口", 12);
     expect(value.endsWith("…")).toBe(true);
     expect(displayWidth(value)).toBeLessThanOrEqual(12);
+  });
+
+  it("把表格单元格压成单行并按显示宽度截断", () => {
+    expect(tableCell("第一行\n第二行", 40)).toBe("第一行 第二行");
+    const value = tableCell("中".repeat(25), 40);
+    expect(displayWidth(value)).toBeLessThanOrEqual(40);
+    expect(value.endsWith("…")).toBe(true);
   });
 
   it("按显示宽度对齐表格列", () => {

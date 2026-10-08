@@ -1,12 +1,12 @@
 import type { AddIdeaInput, Idea, IdeaStatus, UseCases } from "@leafpress/core";
 import type { CliContext } from "../context.js";
-import { renderTable } from "../output.js";
+import { renderTable, tableCell } from "../output.js";
 import { LeafPressError } from "../../shared/errors.js";
 import {
   commandOptions,
   emitSuccess,
   enumValues,
-  positionalArgs,
+  positionalText,
   requiredString,
 } from "./shared.js";
 
@@ -40,10 +40,10 @@ export function renderIdeas(ideas: readonly Idea[]): string {
   return renderTable(
     ["编号", "状态", "一句话", "来源"],
     ideas.map((idea) => [
-      idea.id,
-      idea.status,
-      idea.text,
-      idea.sourceDetail ?? idea.source,
+      tableCell(idea.id, 18),
+      tableCell(idea.status, 12),
+      tableCell(idea.text, 40),
+      tableCell(idea.sourceDetail ?? idea.source, 24),
     ]),
   );
 }
@@ -51,7 +51,7 @@ export function renderIdeas(ideas: readonly Idea[]): string {
 export function parseIdeaBatch(raw: string): AddIdeaInput[] {
   let parsed: unknown;
   try {
-    parsed = JSON.parse(raw) as unknown;
+    parsed = JSON.parse(raw.replace(/^\uFEFF/, "")) as unknown;
   } catch {
     throw new LeafPressError("USAGE", "--stdin 需要合法的 JSON 数组。");
   }
@@ -155,7 +155,7 @@ export async function run(
   if (options["stdin"] === true) {
     inputs = parseIdeaBatch(await readStdin());
   } else {
-    const text = requiredString(positionalArgs(args.slice(1))[0], "灵感内容");
+    const text = requiredString(positionalText(args.slice(1)), "灵感内容");
     const source =
       typeof options["source"] === "string" ? options["source"] : "quick";
     if (!IDEA_SOURCES.includes(source as (typeof IDEA_SOURCES)[number])) {

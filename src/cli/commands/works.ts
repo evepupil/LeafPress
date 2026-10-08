@@ -1,6 +1,11 @@
-import { WORK_STATUS_LABEL, type WorkStatus } from "@leafpress/core";
+import {
+  progressText,
+  workflowById,
+  WORK_STATUS_LABEL,
+  type WorkStatus,
+} from "@leafpress/core";
 import type { CliContext } from "../context.js";
-import { renderTable } from "../output.js";
+import { renderTable, tableCell } from "../output.js";
 import { commandOptions, emitSuccess, enumValues } from "./shared.js";
 
 const WORK_STATUSES: readonly WorkStatus[] = [
@@ -23,10 +28,7 @@ export async function executeWorks(
   const accounts = new Map(
     usecases.listAccounts().map((account) => [account.id, account.name]),
   );
-  const details = new Map(
-    works.map((work) => [work.id, usecases.showWork(work.id)]),
-  );
-  return { works, accounts, details };
+  return { works, accounts };
 }
 
 export function renderWorks(
@@ -38,13 +40,16 @@ export function renderWorks(
     const items = result.works.filter((work) => work.status === status);
     if (items.length === 0) continue;
     const rows = items.map((work) => {
-      const detail = result.details.get(work.id);
       const account = result.accounts.get(work.accountId) ?? work.accountId;
+      const workflow = workflowById(work.workflowId);
       return [
-        work.id,
-        account,
-        work.title,
-        `${work.step}/${detail?.workflow.steps.length ?? 0}`,
+        tableCell(work.id, 18),
+        tableCell(account, 24),
+        tableCell(work.title, 40),
+        tableCell(
+          workflow === undefined ? "未知工作流" : progressText(work, workflow),
+          40,
+        ),
       ];
     });
     groups.push(

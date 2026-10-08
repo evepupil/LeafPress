@@ -1,9 +1,26 @@
-import { readFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
+import type {
+  Account,
+  AddIdeaInput,
+  Idea,
+  RunResult,
+  UseCases,
+  Work,
+  WorkDetail,
+} from "@leafpress/core";
 import { describe, expect, it, vi } from "vitest";
+import { createCliContext } from "../../src/cli/context.js";
 import { buildProgram, formatCommandError, main } from "../../src/cli/main.js";
 import { LeafPressError } from "../../src/shared/errors.js";
+
+function cast<T>(value: unknown): T {
+  return value as T;
+}
+
+function fakeUseCases(value: object): UseCases {
+  return cast<UseCases>(value);
+}
 
 async function capture(run: () => Promise<void>) {
   const stdoutWrite = process.stdout.write.bind(process.stdout);
@@ -64,19 +81,221 @@ describe("CLI 入口", () => {
       throw new Error("不该建上下文");
     });
     const output = await capture(() => main(["--version"], { createContext }));
-    expect(output.stdout.trim()).toMatch(/^\d+\.\d+\.\d+/);
+    expect(output.stdout.trim()).toMatch(/^\d+\.\d+\.\d+/u);
     expect(output.stderr).toBe("");
     expect(createContext).not.toHaveBeenCalled();
     process.exitCode = previous;
+  });
 
-    const source = readFileSync(
-      fileURLToPath(new URL("../../src/cli/main.ts", import.meta.url)),
-      "utf8",
+  it("help 子命令正常退出且 JSON 模式不输出错误壳", async () => {
+    const previous = process.exitCode;
+    for (const args of [
+      ["help"],
+      ["help", "work"],
+      ["--json", "help", "work"],
+    ]) {
+      const output = await capture(() => main(args));
+      expect(process.exitCode).toBe(0);
+      expect(output.stdout).toContain("Usage:");
+      expect(output.stdout).not.toContain('"ok": false');
+      expect(output.stderr).toBe("");
+    }
+    process.exitCode = previous;
+  });
+
+  it("通过命令行解析自由文字、逗号列表和用法错误", async () => {
+    const previous = process.exitCode;
+    const feedback = vi.fn(() => cast<Work>({ id: "w-1" }));
+    const addIdeas = vi.fn((inputs: AddIdeaInput[]) =>
+      inputs.map((input, index) =>
+        cast<Idea>({ id: `i-${index + 1}`, ...input, status: "inbox" }),
+      ),
     );
-    expect(source).not.toMatch(
-      /import\s+.*(?:zod|node:sqlite|hono|usecases|store)/,
+    const account = cast<Account>({
+      id: "zhihu-1",
+      platform: "zhihu",
+      name: "知乎账号",
+      profile: "",
+    });
+    const secondAccount = cast<Account>({
+      id: "blog-1",
+      platform: "blog",
+      name: "博客账号",
+      profile: "",
+    });
+    const baseWork = cast<Work>({
+      id: "w-1",
+      accountId: account.id,
+      title: "测试",
+      status: "todo",
+      step: 0,
+      workflowId: "general-write",
+    });
+    const baseDetail = cast<WorkDetail>({
+      work: baseWork,
+      context: "上下文",
+      account,
+      platform: { id: "zhihu", name: "知乎" },
+      workflow: { id: "general-write", name: "通用写稿" },
+    });
+    const createWorks = vi.fn((input: { accountIds: string[] }) =>
+      input.accountIds.map((accountId, index) =>
+        cast<Work>({ ...baseWork, id: `w-${index + 1}`, accountId }),
+      ),
     );
-    expect(source).toContain('import("./commands/');
+    const context = createCliContext(
+      { json: true },
+      {
+        env: {},
+        homedir: ".",
+        useCases: fakeUseCases({
+          submitFeedback: feedback,
+          addIdeas,
+          listIdeas: vi.fn(() => [cast<Idea>({ id: "i-1", text: "源灵感" })]),
+          createWorks,
+          listAccounts: vi.fn(() => [account, secondAccount]),
+          showWork: vi.fn((id: string) => ({
+            ...baseDetail,
+            work: { ...baseWork, id },
+          })),
+        }),
+      },
+    );
+    const createContext = vi.fn(() => context);
+    try {
+      process.exitCode = 0;
+      const feedbackOutput = await capture(() =>
+        main(["--json", "work", "feedback", "w-1", "已发布", "链接如下"], {
+          createContext,
+        }),
+      );
+      expect(JSON.parse(feedbackOutput.stdout)).toMatchObject({ ok: true });
+      expect(feedback).toHaveBeenLastCalledWith("w-1", "已发布 链接如下");
+
+      await capture(() =>
+        main(["--json", "work", "feedback", "w-1", "--", "- 把第二段删掉"], {
+          createContext,
+        }),
+      );
+      expect(feedback).toHaveBeenLastCalledWith("w-1", "- 把第二段删掉");
+
+      await capture(() =>
+        main(["--json", "ideas", "add", "--", "-3度的冬天"], {
+          createContext,
+        }),
+      );
+      expect(addIdeas).toHaveBeenLastCalledWith([
+        expect.objectContaining({ text: "-3度的冬天", source: "quick" }),
+      ]);
+
+      const badOption = await capture(() =>
+        main(["--json", "ideas", "add", "-3度的冬天"], { createContext }),
+      );
+      expect(process.exitCode).toBe(2);
+      const badOptionResult = JSON.parse(badOption.stdout) as {
+        ok: boolean;
+        error?: { code?: string; hint?: string };
+      };
+      expect(badOptionResult.ok).toBe(false);
+      expect(badOptionResult.error?.code).toBe("USAGE");
+      expect(badOptionResult.error?.hint).toContain(
+        "文字以 - 开头时，在前面加 --",
+      );
+
+      await capture(() =>
+        main(["--json", "convert", "i-1", "--to", "zhihu-1,blog-1"], {
+          createContext,
+        }),
+      );
+      expect(createWorks.mock.calls.at(-1)?.[0].accountIds).toEqual([
+        "zhihu-1",
+        "blog-1",
+      ]);
+
+      await capture(() =>
+        main(
+          [
+            "--json",
+            "work",
+            "new",
+            "--account",
+            "zhihu-1,blog-1",
+            "--title",
+            "双账号作品",
+          ],
+          { createContext },
+        ),
+      );
+      expect(createWorks.mock.calls.at(-1)?.[0].accountIds).toEqual([
+        "zhihu-1",
+        "blog-1",
+      ]);
+
+      const invalidSource = await capture(() =>
+        main(["--json", "ideas", "add", "文本", "--source", "invalid"], {
+          createContext,
+        }),
+      );
+      expect(process.exitCode).toBe(2);
+      const invalidSourceResult = JSON.parse(invalidSource.stdout) as {
+        ok: boolean;
+        error?: { code?: string; message?: string };
+      };
+      expect(invalidSourceResult.ok).toBe(false);
+      expect(invalidSourceResult.error?.code).toBe("USAGE");
+      expect(invalidSourceResult.error?.message).toContain("来源不合法");
+    } finally {
+      process.exitCode = previous;
+    }
+  });
+
+  it("work run 步骤失败时 JSON 仍是成功外壳、退出码为 1", async () => {
+    const previous = process.exitCode;
+    const failedRun = cast<RunResult>({
+      message: "出错了：归档服务不可用",
+      lease: { token: "lease", expiresAt: "2026-10-09T12:30:00.000Z" },
+      detail: cast<WorkDetail>({ work: { id: "w-1" } }),
+      outcome: { kind: "fail", error: "归档服务不可用" },
+    });
+    const context = createCliContext(
+      { json: true },
+      {
+        env: {},
+        homedir: ".",
+        useCases: fakeUseCases({
+          runWork: vi.fn(() => Promise.resolve(failedRun)),
+        }),
+      },
+    );
+    try {
+      process.exitCode = 0;
+      const output = await capture(() =>
+        main(["--json", "work", "run", "w-1", "--lease", "lease"], {
+          createContext: () => context,
+        }),
+      );
+      expect(process.exitCode).toBe(1);
+      expect(JSON.parse(output.stdout)).toMatchObject({
+        ok: true,
+        message: "出错了：归档服务不可用",
+        outcome: { kind: "fail", error: "归档服务不可用" },
+      });
+      const missingLease = await capture(() =>
+        main(["--json", "work", "run", "w-1"], {
+          createContext: () => context,
+        }),
+      );
+      expect(process.exitCode).toBe(2);
+      const missingLeaseResult = JSON.parse(missingLease.stdout) as {
+        ok: boolean;
+        error?: { code?: string; message?: string };
+      };
+      expect(missingLeaseResult.ok).toBe(false);
+      expect(missingLeaseResult.error?.code).toBe("USAGE");
+      expect(missingLeaseResult.error?.message).toContain("--lease");
+    } finally {
+      process.exitCode = previous;
+    }
   });
 
   it("翻译参数错误并保持正确退出码和 JSON 外壳", async () => {

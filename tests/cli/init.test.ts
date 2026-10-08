@@ -66,6 +66,51 @@ describe("init", () => {
     );
   });
 
+  it("系统拒绝创建目录时报告失败路径和权限提示", async () => {
+    tempDir = await mkdtemp(join(tmpdir(), "leafpress-cli-init-denied-dir-"));
+    const home = join(tempDir, "data");
+    const context = createCliContext({ home }, { env: {}, homedir: tempDir });
+    const failure = Object.assign(new Error("permission denied"), {
+      code: "EACCES",
+      path: home,
+    });
+    await expect(
+      executeInit(context, {
+        createDirectory: () => {
+          throw failure;
+        },
+      }),
+    ).rejects.toMatchObject({
+      name: "LeafPressError",
+      code: "STORE_FAILED",
+      message: `无法写入路径：${home}`,
+      hint: "检查这个目录的权限",
+    });
+  });
+
+  it("系统拒绝写配置文件时报告配置路径和权限提示", async () => {
+    tempDir = await mkdtemp(join(tmpdir(), "leafpress-cli-init-denied-file-"));
+    const home = join(tempDir, "data");
+    const context = createCliContext({ home }, { env: {}, homedir: tempDir });
+    const configFile = join(home, "config.json");
+    const failure = Object.assign(new Error("permission denied"), {
+      code: "EACCES",
+      path: configFile,
+    });
+    await expect(
+      executeInit(context, {
+        writeConfig: () => {
+          throw failure;
+        },
+      }),
+    ).rejects.toMatchObject({
+      name: "LeafPressError",
+      code: "STORE_FAILED",
+      message: `无法写入路径：${configFile}`,
+      hint: "检查这个目录的权限",
+    });
+  });
+
   it("拒绝把文件路径当数据目录", async () => {
     tempDir = await mkdtemp(join(tmpdir(), "leafpress-cli-init-file-"));
     const file = join(tempDir, "home-file");

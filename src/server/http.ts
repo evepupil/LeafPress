@@ -1,3 +1,4 @@
+import { TextDecoder } from "node:util";
 import type { output, ZodIssue, ZodType } from "zod";
 
 export function apiFailure(
@@ -21,9 +22,23 @@ export async function parseJson<S extends ZodType>(
   request: Request,
   schema: S,
 ): Promise<output<S> | Response> {
+  let bytes: ArrayBuffer;
+  try {
+    bytes = await request.arrayBuffer();
+  } catch {
+    return apiFailure(400, "USAGE", "请求体不是有效的 JSON。");
+  }
+
+  let text: string;
+  try {
+    text = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
+  } catch {
+    return apiFailure(400, "USAGE", "请求体不是 UTF-8 编码");
+  }
+
   let body: unknown;
   try {
-    body = await request.json();
+    body = JSON.parse(text);
   } catch {
     return apiFailure(400, "USAGE", "请求体不是有效的 JSON。");
   }

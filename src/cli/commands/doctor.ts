@@ -1,4 +1,5 @@
-import { accessSync, constants, existsSync, statSync } from "node:fs";
+import { randomUUID } from "node:crypto";
+import { closeSync, existsSync, openSync, statSync, unlinkSync } from "node:fs";
 import { homedir as osHomedir } from "node:os";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -122,7 +123,42 @@ async function checkStore(context: CliContext): Promise<DoctorCheck> {
   }
 }
 
-function checkHome(context: CliContext): DoctorCheck {
+function canWriteDirectory(directory: string): boolean {
+  const probe = join(directory, `.leafpress-doctor-${randomUUID()}`);
+  let descriptor: number | undefined;
+  let created = false;
+  let writable = false;
+  try {
+    descriptor = openSync(probe, "wx", 0o600);
+    created = true;
+    closeSync(descriptor);
+    descriptor = undefined;
+    writable = true;
+  } catch {
+    writable = false;
+  } finally {
+    if (descriptor !== undefined) {
+      try {
+        closeSync(descriptor);
+      } catch {
+        writable = false;
+      }
+    }
+    if (created) {
+      try {
+        unlinkSync(probe);
+      } catch {
+        writable = false;
+      }
+    }
+  }
+  return writable;
+}
+
+function checkHome(
+  context: CliContext,
+  dependencies: DoctorDependencies,
+): DoctorCheck {
   if (!existsSync(context.home))
     return doctorCheck(
       "home",
@@ -139,7 +175,14 @@ function checkHome(context: CliContext): DoctorCheck {
       "数据目录路径不是目录。",
       "请检查 --home 指定的路径。",
     );
-  accessSync(context.home, constants.W_OK);
+  if (!(dependencies.canWriteDirectory ?? canWriteDirectory)(context.home))
+    return doctorCheck(
+      "home",
+      "数据目录",
+      "error",
+      `数据目录不可写：${context.home}`,
+      "检查这个目录的权限。",
+    );
   return doctorCheck("home", "数据目录", "ok", `可写：${context.home}`);
 }
 
@@ -228,7 +271,7 @@ export async function executeDoctor(
     safeCheck(
       "home",
       "数据目录",
-      () => checkHome(context),
+      () => checkHome(context, dependencies),
       "error",
       "检查数据目录权限后重试。",
     ),
