@@ -1,18 +1,13 @@
+import { existsSync } from "node:fs";
+import { DatabaseSync } from "node:sqlite";
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-
 import { afterEach, describe, expect, it } from "vitest";
-
-import { writeConfigIfAbsent } from "../../src/config/load.js";
 import { createCliContext } from "../../src/cli/context.js";
-import { executeDoctor } from "../../src/cli/commands/doctor.js";
-import type { DoctorDependencies } from "../../src/cli/commands/doctor.js";
-import type { RepoStatus } from "../../src/platforms/blog/repo-status.js";
-import { execCommand } from "../../src/shared/exec.js";
+import { executeDoctor, renderDoctor } from "../../src/cli/commands/doctor.js";
 
 let tempDir: string | undefined;
-
 afterEach(async () => {
   if (tempDir !== undefined) {
     await rm(tempDir, { recursive: true, force: true });
@@ -20,197 +15,165 @@ afterEach(async () => {
   }
 });
 
-async function makeHealthyBlog(repoPath: string): Promise<void> {
-  await mkdir(join(repoPath, "content", "posts", "zh"), { recursive: true });
-  await writeFile(
-    join(repoPath, "content", "posts", "zh", "first.md"),
-    "---\ntitle: 第一篇\npublished: 2026-01-01\nlocale: zh-CN\n---\n\n正文。\n",
-    "utf8",
-  );
-  await execCommand("git", ["init", "-b", "main"], { cwd: repoPath });
-  await execCommand("git", ["add", "."], { cwd: repoPath });
-  await execCommand(
-    "git",
-    [
-      "-c",
-      "user.name=test",
-      "-c",
-      "user.email=test@example.com",
-      "commit",
-      "-m",
-      "initial",
-    ],
-    { cwd: repoPath },
-  );
+function context(home: string, userHome: string) {
+  return createCliContext({ home }, { env: {}, homedir: userHome });
 }
 
-async function writeConfig(
-  home: string,
-  repoPath: string,
-  siteUrl?: string,
-): Promise<void> {
-  await writeConfigIfAbsent(home, {
-    version: 1,
-    materials: { projects: [] },
-    zhihu: {},
-    browser: {},
-    blog: {
-      repoPath,
-      contentDir: "content/posts",
-      remote: "origin",
-      branch: "main",
-      primaryLocaleDir: "zh",
-      ...(siteUrl === undefined ? {} : { siteUrl }),
-    },
-  });
+function storeVersion(file: string, version: number): void {
+  const db = new DatabaseSync(file);
+  db.exec(`PRAGMA user_version = ${version}`);
+  db.close();
 }
 
-const healthyStatus: RepoStatus = {
-  isRepo: true,
-  branch: "main",
-  dirty: false,
-  hasUpstream: true,
-  ahead: 0,
-  behind: 0,
-};
-
-const fakeStatus: NonNullable<DoctorDependencies["repoStatus"]> = () =>
-  Promise.resolve(healthyStatus);
-
-describe("doctor 命令", () => {
-  it("配置缺失时报 error，不打开记录库", async () => {
-    tempDir = await mkdtemp(join(tmpdir(), "leafpress-cli-doctor-missing-"));
+describe("doctor", () => {
+  it("逐项返回七个检查并覆盖正常状态", async () => {
+    tempDir = await mkdtemp(join(tmpdir(), "leafpress-cli-doctor-ok-"));
     const home = join(tempDir, "data");
-    const context = createCliContext(
-      { home },
-      { env: {}, homedir: tempDir, edgeLocator: () => undefined },
-    );
-    const result = await executeDoctor(context);
-
-    expect(result.ok).toBe(false);
-    expect(result.checks.map((item) => item.id)).toEqual([
-      "node",
-      "config",
-      "browser",
-    ]);
-    expect(result.checks.find((item) => item.id === "config")).toMatchObject({
-      level: "error",
-      hint: "先运行 leafpress init",
-    });
-    expect(result.checks.some((item) => item.id === "store")).toBe(false);
-    expect(result.checks.some((item) => item.id === "blog-repo")).toBe(false);
-  });
-
-  it("Node 版本门槛为 24.2", async () => {
-    tempDir = await mkdtemp(join(tmpdir(), "leafpress-cli-doctor-node-"));
-    const context = createCliContext(
-      { home: join(tempDir, "data") },
-      { env: {}, homedir: tempDir },
-    );
-
-    for (const [version, level] of [
-      ["24.1.9", "error"],
-      ["24.2.0", "ok"],
-      ["25.0.0", "ok"],
-    ] as const) {
-      const result = await executeDoctor(context, { nodeVersion: version });
-      expect(result.checks.find((item) => item.id === "node")).toMatchObject({
-        level,
-      });
-    }
-  });
-
-  it("仅保留配置、博客仓库、博客网址和浏览器检查", async () => {
-    tempDir = await mkdtemp(join(tmpdir(), "leafpress-cli-doctor-checks-"));
-    const home = join(tempDir, "data");
-    const repoPath = join(tempDir, "blog");
-    await mkdir(repoPath);
-    await makeHealthyBlog(repoPath);
-    await writeConfig(home, repoPath, "https://example.test");
-
-    const context = createCliContext(
-      { home },
-      {
-        env: {},
-        homedir: tempDir,
-        edgeLocator: () => join(tempDir ?? "", "edge.exe"),
-      },
-    );
-    const received: unknown[] = [];
-    const repoStatus: NonNullable<DoctorDependencies["repoStatus"]> = (
-      exec,
-      repoPath,
-      remote,
-      branch,
-    ) => {
-      received.push(exec, repoPath, remote, branch);
-      return Promise.resolve(healthyStatus);
-    };
-    const result = await executeDoctor(context, { repoStatus });
-
-    expect(result.checks.map((item) => item.id)).toEqual([
-      "node",
-      "config",
-      "blog-repo",
-      "blog-site-url",
-      "browser",
-    ]);
-    expect(result.checks.every((item) => item.level === "ok")).toBe(true);
-    expect(received).toEqual([execCommand, repoPath, "origin", "main"]);
-  });
-
-  it("配置损坏时跳过博客检查，浏览器仍继续检查", async () => {
-    tempDir = await mkdtemp(join(tmpdir(), "leafpress-cli-doctor-config-"));
-    const home = join(tempDir, "data");
+    const userHome = join(tempDir, "user");
     await mkdir(home, { recursive: true });
-    await writeFile(join(home, "config.json"), "{", "utf8");
-    const context = createCliContext(
-      { home },
-      { env: {}, homedir: tempDir, edgeLocator: () => undefined },
+    await mkdir(join(tempDir, "repo", "web", "out"), { recursive: true });
+    await mkdir(join(userHome, ".claude", "skills", "leafpress"), {
+      recursive: true,
+    });
+    await writeFile(
+      join(tempDir, "repo", "web", "out", "index.html"),
+      "ok",
+      "utf8",
     );
-    const result = await executeDoctor(context);
-
+    await writeFile(
+      join(userHome, ".claude", "skills", "leafpress", "SKILL.md"),
+      "ok",
+      "utf8",
+    );
+    storeVersion(join(home, "leafpress.db"), 2);
+    const result = await executeDoctor(context(home, userHome), {
+      nodeVersion: "24.2.0",
+      repoRoot: join(tempDir, "repo"),
+      edgeLocator: () => "C:/Edge/msedge.exe",
+    });
     expect(result.checks.map((item) => item.id)).toEqual([
       "node",
       "config",
+      "store",
+      "home",
+      "web",
+      "skill",
       "browser",
     ]);
-    expect(result.checks.find((item) => item.id === "config")?.level).toBe(
-      "error",
+    expect(result.checks.map((item) => item.level)).toEqual([
+      "ok",
+      "ok",
+      "ok",
+      "ok",
+      "ok",
+      "ok",
+      "ok",
+    ]);
+    expect(result.ok).toBe(true);
+    const rendered = renderDoctor(result);
+    expect(rendered).toContain("检查项");
+    expect(rendered).toContain("全部正常");
+  });
+
+  it("数据目录和记录库不存在时只告警且绝不创建", async () => {
+    tempDir = await mkdtemp(join(tmpdir(), "leafpress-cli-doctor-missing-"));
+    const home = join(tempDir, "missing");
+    const userHome = join(tempDir, "user");
+    const result = await executeDoctor(context(home, userHome), {
+      nodeVersion: "24.2.0",
+      repoRoot: tempDir,
+      edgeLocator: () => undefined,
+    });
+    expect(result.checks.find((item) => item.id === "config")).toMatchObject({
+      level: "ok",
+      detail: "用默认配置。",
+    });
+    expect(result.checks.find((item) => item.id === "store")).toMatchObject({
+      level: "warn",
+      hint: "运行 leafpress init 创建记录库。",
+    });
+    expect(result.checks.find((item) => item.id === "home")?.level).toBe(
+      "warn",
+    );
+    expect(result.checks.find((item) => item.id === "web")?.level).toBe("warn");
+    expect(result.checks.find((item) => item.id === "skill")?.level).toBe(
+      "warn",
     );
     expect(result.checks.find((item) => item.id === "browser")?.level).toBe(
       "warn",
     );
+    expect(result.ok).toBe(true);
+    expect(existsSync(home)).toBe(false);
   });
 
-  it("单项检查异常时只降级该项，并且不再包含旧模型检查", async () => {
-    tempDir = await mkdtemp(join(tmpdir(), "leafpress-cli-doctor-fallback-"));
+  it("第 1 版配置和落后记录库给出升级告警", async () => {
+    tempDir = await mkdtemp(join(tmpdir(), "leafpress-cli-doctor-old-"));
     const home = join(tempDir, "data");
-    const repoPath = join(tempDir, "blog");
-    await writeConfig(home, repoPath, "https://example.test");
-    const context = createCliContext(
-      { home },
-      {
-        env: {},
-        homedir: tempDir,
-        edgeLocator: () => {
-          throw new Error("unexpected edge locator failure");
-        },
-      },
-    );
-    const result = await executeDoctor(context, { repoStatus: fakeStatus });
+    await mkdir(home);
+    await writeFile(join(home, "config.json"), '{"version":1}', "utf8");
+    storeVersion(join(home, "leafpress.db"), 1);
+    const result = await executeDoctor(context(home, join(tempDir, "user")), {
+      nodeVersion: "24.2.0",
+      repoRoot: tempDir,
+    });
+    expect(result.checks.find((item) => item.id === "config")).toMatchObject({
+      level: "warn",
+      hint: "运行 leafpress init 升级配置。",
+    });
+    expect(result.checks.find((item) => item.id === "store")).toMatchObject({
+      level: "warn",
+      hint: "下次运行会自动备份并升级。",
+    });
+  });
 
-    expect(result.ok).toBe(true);
-    expect(result.checks.map((item) => item.id)).toEqual([
-      "node",
-      "config",
-      "blog-repo",
-      "blog-site-url",
-      "browser",
-    ]);
+  it("分别报告 Node、损坏配置、未来记录库和非目录 home 错误", async () => {
+    tempDir = await mkdtemp(join(tmpdir(), "leafpress-cli-doctor-errors-"));
+    const home = join(tempDir, "data");
+    await mkdir(home);
+    await writeFile(join(home, "config.json"), "{", "utf8");
+    storeVersion(join(home, "leafpress.db"), 99);
+    const result = await executeDoctor(context(home, join(tempDir, "user")), {
+      nodeVersion: "24.1.9",
+      repoRoot: tempDir,
+    });
+    expect(result.ok).toBe(false);
+    expect(result.checks.find((item) => item.id === "node")?.level).toBe(
+      "error",
+    );
+    expect(result.checks.find((item) => item.id === "config")?.level).toBe(
+      "error",
+    );
+    expect(result.checks.find((item) => item.id === "store")?.level).toBe(
+      "error",
+    );
+
+    const fileHome = join(tempDir, "home-file");
+    await writeFile(fileHome, "x", "utf8");
+    const homeResult = await executeDoctor(
+      context(fileHome, join(tempDir, "user")),
+      { nodeVersion: "24.2.0", repoRoot: tempDir },
+    );
+    expect(homeResult.checks.find((item) => item.id === "home")).toMatchObject({
+      level: "error",
+      detail: "数据目录路径不是目录。",
+    });
+  });
+
+  it("单项浏览器异常不会阻断其余检查，也不输出凭证值", async () => {
+    tempDir = await mkdtemp(join(tmpdir(), "leafpress-cli-doctor-browser-"));
+    const home = join(tempDir, "data");
+    await mkdir(home);
+    const result = await executeDoctor(context(home, join(tempDir, "user")), {
+      nodeVersion: "24.2.0",
+      repoRoot: tempDir,
+      edgeLocator: () => {
+        throw new Error("browser lookup failed");
+      },
+    });
     expect(result.checks.find((item) => item.id === "browser")).toMatchObject({
       level: "warn",
-      detail: "检查失败：unexpected edge locator failure",
+      detail: "检查失败：browser lookup failed",
     });
+    expect(JSON.stringify(result)).not.toContain("secret");
   });
 });

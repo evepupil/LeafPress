@@ -1,21 +1,29 @@
-/** CLI 运行上下文：统一解析路径与配置。 */
+import { existsSync } from "node:fs";
 import { homedir as osHomedir } from "node:os";
-
-import { loadConfig } from "../config/load.js";
-import { homePaths, resolveHome } from "../config/home.js";
+import { join, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import type { LeafPressConfig } from "../config/schema.js";
-import { locateEdge, type LocateEdgeOptions } from "../assets/browser.js";
+import type { AppContext } from "../usecases/context.js";
+
+import type { UseCases } from "@leafpress/core";
+
+import { homePaths, resolveHome } from "../config/home.js";
+import type { HomePaths } from "../config/home.js";
+import { LeafPressError } from "../shared/errors.js";
+import type { ExecFn } from "../shared/exec.js";
 
 export interface CliGlobalOptions {
-  readonly home?: string | undefined;
-  readonly json?: boolean | undefined;
+  readonly home?: string;
+  readonly json?: boolean;
 }
 
 export interface CliContextDependencies {
-  readonly env?: NodeJS.ProcessEnv | undefined;
-  readonly homedir?: string | undefined;
-  readonly edgeLocator?:
-    ((options?: LocateEdgeOptions) => string | undefined) | undefined;
+  readonly env?: NodeJS.ProcessEnv;
+  readonly homedir?: string;
+  readonly useCases?: UseCases;
+  readonly exec?: ExecFn;
+  readonly platform?: NodeJS.Platform;
+  readonly skillSourceDir?: string;
 }
 
 export interface CliContext {
@@ -23,11 +31,19 @@ export interface CliContext {
   readonly env: NodeJS.ProcessEnv;
   readonly homedir: string;
   readonly home: string;
-  readonly paths: ReturnType<typeof homePaths>;
-  getConfig(): Promise<LeafPressConfig>;
-  findEdge(configuredPath?: string): string | undefined;
+  readonly paths: HomePaths;
+  readonly exec: ExecFn | undefined;
+  readonly platform: NodeJS.Platform;
+  readonly skillSourceDir: string;
   readonly exitCode: number;
+  getConfig(): Promise<LeafPressConfig>;
+  getUseCases(): Promise<UseCases>;
+  close(): Promise<void>;
   setExitCode(code: number): void;
+}
+
+function repositorySkillDirectory(): string {
+  return fileURLToPath(new URL("../../skills/leafpress/", import.meta.url));
 }
 
 export function createCliContext(
@@ -44,10 +60,12 @@ export function createCliContext(
     homedir,
   });
   const paths = homePaths(home);
-  const edgeLocator = dependencies.edgeLocator ?? locateEdge;
-
-  let configPromise: Promise<LeafPressConfig> | undefined;
+  const skillSourceDir =
+    dependencies.skillSourceDir ?? repositorySkillDirectory();
   let exitCode = 0;
+  let configPromise: Promise<LeafPressConfig> | undefined;
+  let useCases = dependencies.useCases;
+  let app: AppContext | undefined;
 
   return {
     globalOptions,
@@ -55,22 +73,51 @@ export function createCliContext(
     homedir,
     home,
     paths,
-    getConfig(): Promise<LeafPressConfig> {
-      configPromise ??= loadConfig(home);
-      return configPromise;
-    },
-    findEdge(configuredPath?: string): string | undefined {
-      return edgeLocator({
-        configuredPath,
-        env,
-        platform: process.platform,
-      });
-    },
-    get exitCode(): number {
+    exec: dependencies.exec,
+    platform: dependencies.platform ?? process.platform,
+    skillSourceDir,
+    get exitCode() {
       return exitCode;
     },
-    setExitCode(code: number): void {
+    getConfig() {
+      configPromise ??= import("../config/load.js").then(({ loadConfig }) =>
+        loadConfig(home),
+      );
+      return configPromise;
+    },
+    async getUseCases() {
+      if (useCases !== undefined) return useCases;
+      if (!existsSync(home) || !existsSync(paths.dbFile)) {
+        throw new LeafPressError("USAGE", "还没初始化", {
+          hint: "先运行 leafpress init",
+        });
+      }
+      const [{ openApp }, { createUseCases }] = await Promise.all([
+        import("../usecases/index.js"),
+        import("../usecases/create.js"),
+      ]);
+      app = openApp({
+        home,
+        warn: (message) => process.stderr.write(`注意：${message}\n`),
+      });
+      useCases = createUseCases(app);
+      return useCases;
+    },
+    async close() {
+      if (app === undefined) return;
+      const { closeApp } = await import("../usecases/index.js");
+      closeApp(app);
+      app = undefined;
+    },
+    setExitCode(code) {
       exitCode = code;
     },
   };
+}
+
+export function resolveCodexHome(context: CliContext): string {
+  const configured = context.env["CODEX_HOME"];
+  if (configured !== undefined && configured.trim().length > 0)
+    return resolve(configured);
+  return join(context.homedir, ".codex");
 }
