@@ -1,6 +1,6 @@
 # skill · LeafPress
 
-> 模块定位：教 agent（Claude Code、Codex）用 LeafPress 命令行接手作品、按工作流做、该停就停、读反馈接着做 · 对应代码：`skills/leafpress/`（`leafpress skill install` 装到用户的 skill 目录） · 所属里程碑：[M1 底座](../roadmap.md#m1-底座) · 状态：进行中 · 最近更新：2026-10-09
+> 模块定位：教 agent（Claude Code、Codex）用 LeafPress 命令行接手作品、按工作流做、该停就停、读反馈接着做 · 对应代码：`skills/leafpress/`（`leafpress skill install` 装到用户的 skill 目录） · 所属里程碑：[M1 底座](../roadmap.md#m1-底座) · 状态：已完成 · 最近更新：2026-10-09
 
 ## 职责与边界
 
@@ -43,7 +43,9 @@ skills/leafpress/
 
 ## 当前实现
 
-待实现。
+`SKILL.md`（41 行，6 件事都写了，命令示例一律带 `--json` 并写清从返回里取什么）、`reference.md`（命令速查）、`tests/skill/reference.test.ts`（速查里每条命令都在 `--help` 里，23 条）。
+
+验收：主控另起一个只读 skill 说明的 agent，在临时数据目录里只说「看看 LeafPress 有哪些待实现的作品，挑第一个做」，它接手、整份读档案、写了符合档案要求的稿子、停在「你去发布」并原文转告要你做的事；网页提交反馈后说「我发好了，继续」，它接着做完并归档链接。
 
 ## 验证方式
 
@@ -59,3 +61,4 @@ skills/leafpress/
 | 日期 | 改动 |
 |---|---|
 | 2026-10-09 | 写出规格 |
+| 2026-10-09 | 实现完成；端到端验收通过 |
