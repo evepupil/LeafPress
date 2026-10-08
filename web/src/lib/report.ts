@@ -4,32 +4,25 @@ import { WEEKLY_NOTES } from "@/data/notes"
 import { workDaily } from "@/data/series"
 import type { Account, DayKey, WeeklyNote, Work } from "@/data/types"
 import { formatCount, formatSigned, formatSignedPercent, weekdayLabel } from "./format"
-import {
-  type RankedWork,
-  accountLabel,
-  columnRows,
-  minDay,
-  publishedWorks,
-  rankedWork,
-  shortTitle,
-  sumFlow,
-  followersOn,
-  summaryOf,
-} from "./metrics"
+import { type RankedWork, accountLabel, followersOn, minDay, publishedWorks, rankedWork, shortTitle, sumFlow, summaryOf } from "./metrics"
 
-/** 周报：一周里每个账号的粉丝、发布、阅读，加几句小结和建议。读的是数据快照 */
+/**
+ * 周报：一周里每个账号的粉丝、发布、浏览，加几句客观的小结。读的是数据快照。
+ * 不设目标、不给建议：要分析就让 AI 拉数据自己分析。
+ */
 
 export interface WeekRow {
   account: Account
+  /** 这个号有没有数据（拿数据的工具还没做的号没有），没有时页面上的数字显示「—」 */
+  hasData: boolean
   followersStart: number
   followersEnd: number
   delta: number
   posts: number
-  /** 只有运营中的号算目标 */
-  target: number
+  /** 主数据合计：浏览 / 访问 / 播放 */
   reads: number
   interactions: number
-  /** 这一周阅读最多的作品和它这一周的阅读 */
+  /** 这一周主数据最多的作品和它这一周的主数据 */
   best: { item: RankedWork; weekReads: number } | null
 }
 
@@ -39,13 +32,12 @@ export interface WeekReport {
   end: DayKey
   complete: boolean
   rows: WeekRow[]
-  totals: { delta: number; posts: number; target: number; reads: number; interactions: number }
-  /** 阅读比上一周 */
+  totals: { delta: number; posts: number; reads: number; interactions: number }
+  /** 浏览比上一周 */
   readsChange: number | null
   /** 这一周发出的作品 */
   published: RankedWork[]
   digest: string[]
-  suggestions: string[]
   note: WeeklyNote | null
 }
 
@@ -70,11 +62,11 @@ function weekRows(week: DayKey, end: DayKey): WeekRow[] {
     }
     return {
       account,
+      hasData: summaryOf(account.id).hasData,
       followersStart: start,
       followersEnd: finish,
       delta: finish - start,
       posts: works.filter((work) => work.publishedAt && work.publishedAt >= week && work.publishedAt <= end).length,
-      target: account.stage === "active" ? account.goals.postsPerWeek : 0,
       reads: sumFlow(account.id, week, end, "reads"),
       interactions: sumFlow(account.id, week, end, "interactions"),
       best,
@@ -87,11 +79,10 @@ function sumRows(rows: WeekRow[]) {
     (sum, row) => ({
       delta: sum.delta + row.delta,
       posts: sum.posts + row.posts,
-      target: sum.target + row.target,
       reads: sum.reads + row.reads,
       interactions: sum.interactions + row.interactions,
     }),
-    { delta: 0, posts: 0, target: 0, reads: 0, interactions: 0 },
+    { delta: 0, posts: 0, reads: 0, interactions: 0 },
   )
 }
 
@@ -114,19 +105,15 @@ export function weekReport(week: DayKey): WeekReport {
     .map((row) => `${PLATFORMS[row.account.platform].name} ${row.posts} 篇`)
     .join("、")
   const lead = complete ? "这周" : `本周到${weekdayLabel(end)}`
-  digest.push(
-    totals.posts > 0
-      ? `${lead}发了 ${totals.posts} 篇，目标 ${totals.target} 篇：${breakdown}。`
-      : `${lead}还没有发布，目标 ${totals.target} 篇。`,
-  )
-  const gainer = [...rows].sort((a, b) => b.delta - a.delta)[0]
+  digest.push(totals.posts > 0 ? `${lead}发了 ${totals.posts} 篇：${breakdown}。` : `${lead}还没有发布。`)
+  const gainer = rows.filter((row) => row.hasData).sort((a, b) => b.delta - a.delta)[0]
   if (gainer) digest.push(`粉丝合计 ${formatSigned(totals.delta)}，其中${accountLabel(gainer.account)}${formatSigned(gainer.delta)}。`)
   const best = rows
     .map((row) => row.best)
     .filter((item): item is NonNullable<WeekRow["best"]> => item !== null)
     .sort((a, b) => b.weekReads - a.weekReads)[0]
   digest.push(
-    `阅读 ${formatCount(totals.reads)}，比上周 ${formatSignedPercent(readsChange)}` +
+    `浏览 ${formatCount(totals.reads)}，比上周 ${formatSignedPercent(readsChange)}` +
       (best ? `；《${shortTitle(best.item.work.title)}》最多（${formatCount(best.weekReads)}）。` : "。"),
   )
   for (const row of rows) {
@@ -135,22 +122,6 @@ export function weekReport(week: DayKey): WeekReport {
     const idle = diffDays(end, summary.lastPublishedAt)
     if (idle > 14) digest.push(`${row.account.name} 已经 ${idle} 天没更新，${row.account.audienceLabel} ${formatSigned(row.delta)}。`)
   }
-
-  const suggestions: string[] = []
-  if (complete) {
-    for (const row of rows) {
-      if (row.target > 0 && row.posts < row.target) {
-        suggestions.push(`${accountLabel(row.account)}发了 ${row.posts} 篇，比目标少 ${row.target - row.posts} 篇。`)
-      }
-    }
-  }
-  const zhihuColumns = columnRows("zhihu-yiye", end)
-  const bestColumn = [...zhihuColumns].filter((row) => row.avgReads !== null).sort((a, b) => (b.avgReads ?? 0) - (a.avgReads ?? 0))[0]
-  if (bestColumn?.avgReads) {
-    suggestions.push(`「${bestColumn.column.name}」近 12 周平均每篇阅读 ${formatCount(bestColumn.avgReads)}，是表现最好的栏目。`)
-  }
-  const empty = zhihuColumns.filter((row) => row.works === 0).map((row) => `「${row.column.name}」`)
-  if (empty.length > 0) suggestions.push(`${empty.join("")}近 12 周还没发过，离计划占比差得最多。`)
 
   return {
     week,
@@ -161,7 +132,6 @@ export function weekReport(week: DayKey): WeekReport {
     readsChange,
     published,
     digest,
-    suggestions,
     note: WEEKLY_NOTES.find((note) => note.week === week) ?? null,
   }
 }

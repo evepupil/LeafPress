@@ -1,12 +1,12 @@
 import { ACCOUNTS, PLATFORMS, accountById } from "@/data/accounts"
-import { LATEST_DAY, THIS_WEEK, TODAY, addDays, daysBetween, diffDays, weekStartOf } from "@/data/clock"
-import { ACCOUNT_DAILY, workDaily } from "@/data/series"
-import type { Account, Column, DayKey, Work } from "@/data/types"
+import { LATEST_DAY, THIS_WEEK, TODAY, addDays, daysBetween, diffDays } from "@/data/clock"
+import { ACCOUNT_DAILY, reachAndInteractions, workDaily } from "@/data/series"
+import type { Account, DayKey, MetricDef, Work } from "@/data/types"
 import { WORKS } from "@/data/works"
 import { formatCount, formatDay, formatDayShort, formatWeekRange, weekdayLabel } from "./format"
 
 /**
- * 数据页、账号页、周报要的统计：账号概况、走势、栏目表现、作品排行。
+ * 数据页、账号页、周报要的统计：账号概况、走势、作品排行。只客观算数，不设目标；要分析让 AI 拉数据自己分析。
  * 读的是数据快照（src/data，相当于每天定时拉回来的数据），不读页面上正在改的作品；
  * 同样的输入每次结果相同，期望值见 metrics.test.ts。
  */
@@ -54,11 +54,15 @@ export function accountLabel(account: Account): string {
   return `${account.name}（${PLATFORMS[account.platform].name}）`
 }
 
+/** 作品所在平台的数据项（各平台不一样，第一项是主数据） */
+export function metricsOf(work: Work): MetricDef[] {
+  return PLATFORMS[accountById(work.accountId).platform].metrics
+}
+
 /** 作品的一项数据显示成文字；没发、或这个平台没有这一项的显示「—」 */
-export function metricText(work: Work, key: "reads" | "likes" | "collects" | "comments"): string {
-  if (!work.totals) return "—"
-  if (key !== "reads" && !PLATFORMS[accountById(work.accountId).platform].interactions.includes(key)) return "—"
-  return formatCount(work.totals[key])
+export function metricText(work: Work, key: string): string {
+  if (!work.totals || !metricsOf(work).some((item) => item.key === key)) return "—"
+  return formatCount(work.totals[key] ?? 0)
 }
 
 /** 已发布、有数据的作品（数据快照里的） */
@@ -71,17 +75,18 @@ export function publishedWorks(accountId?: string): Work[] {
 export interface RankedWork {
   work: Work
   account: Account
-  reads: number
+  /** 主数据：浏览 / 访问 / 播放 */
+  reach: number
+  /** 这个平台标了互动的数据项加起来 */
   interactions: number
-  /** 近 7 天新增阅读 */
+  /** 近 7 天新增的主数据 */
   growth: number
-  /** 互动 ÷ 阅读 */
+  /** 互动 ÷ 主数据 */
   rate: number | null
 }
 
 export function rankedWork(work: Work): RankedWork {
-  const totals = work.totals ?? { reads: 0, likes: 0, collects: 0, comments: 0 }
-  const interactions = totals.likes + totals.collects + totals.comments
+  const { reach, interactions } = reachAndInteractions(work)
   const from = addDays(LATEST_DAY, -6)
   const growth = workDaily(work)
     .filter((item) => item.day >= from)
@@ -89,20 +94,20 @@ export function rankedWork(work: Work): RankedWork {
   return {
     work,
     account: accountById(work.accountId),
-    reads: totals.reads,
+    reach,
     interactions,
     growth,
-    rate: totals.reads > 0 ? interactions / totals.reads : null,
+    rate: reach > 0 ? interactions / reach : null,
   }
 }
 
-export type RankBy = "reads" | "interactions" | "growth"
+export type RankBy = "reach" | "interactions" | "growth"
 
 /** 已发作品按某项排序，取前 limit 个 */
 export function topWorks(by: RankBy, limit = 10, accountId?: string): RankedWork[] {
   return publishedWorks(accountId)
     .map(rankedWork)
-    .sort((a, b) => b[by] - a[by] || b.reads - a.reads || a.work.id.localeCompare(b.work.id))
+    .sort((a, b) => b[by] - a[by] || b.reach - a.reach || a.work.id.localeCompare(b.work.id))
     .slice(0, limit)
 }
 
@@ -110,6 +115,8 @@ export function topWorks(by: RankBy, limit = 10, accountId?: string): RankedWork
 
 export interface AccountSummary {
   account: Account
+  /** 拿到过数据没有：拿数据的工具还没做的号是 false，页面上的数字都显示「—」 */
+  hasData: boolean
   followers: number
   followers7d: number
   followers30d: number
@@ -119,7 +126,6 @@ export interface AccountSummary {
   interactions7d: number
   /** 本周已发的作品数 */
   postsThisWeek: number
-  postsTarget: number
   /** 这个号上已发的作品数 */
   works: number
   lastPublishedAt: DayKey | null
@@ -128,8 +134,6 @@ export interface AccountSummary {
   weeklyGain: number[]
   /** 运营中、超过 14 天没发 */
   stale: boolean
-  /** 粉丝 ÷ 目标 */
-  goalProgress: number
 }
 
 export function accountSummary(accountId: string): AccountSummary {
@@ -152,6 +156,7 @@ export function accountSummary(accountId: string): AccountSummary {
   })
   return {
     account,
+    hasData: daily(accountId).length > 0,
     followers,
     followers7d: followers - at(7),
     followers30d: followers - at(30),
@@ -159,13 +164,11 @@ export function accountSummary(accountId: string): AccountSummary {
     readsChange: readsPrev > 0 ? (reads7d - readsPrev) / readsPrev : null,
     interactions7d: sumFlow(accountId, addDays(LATEST_DAY, -6), LATEST_DAY, "interactions"),
     postsThisWeek: works.filter((work) => work.publishedAt && work.publishedAt >= THIS_WEEK && work.publishedAt <= TODAY).length,
-    postsTarget: account.goals.postsPerWeek,
     works: works.length,
     lastPublishedAt: last,
     daysSincePublish,
     weeklyGain,
     stale: account.stage === "active" && daysSincePublish !== null && daysSincePublish > 14,
-    goalProgress: account.goals.followers > 0 ? followers / account.goals.followers : 0,
   }
 }
 
@@ -266,47 +269,4 @@ export function metricSeries(scope: string, metric: MetricId, range: RangeId): M
     change = prev > 0 ? (value - prev) / prev : null
   }
   return { metric, value, change, points }
-}
-
-// ---------- 栏目表现 ----------
-
-export interface ColumnRow {
-  column: Column
-  /** 这段时间发了几个作品 */
-  works: number
-  /** 实际占比 */
-  share: number
-  targetShare: number
-  avgReads: number | null
-  interactionRate: number | null
-  /** 每周发了几个，12 个数 */
-  weekly: number[]
-}
-
-/** 某账号各栏目近 12 周（到 end 为止）的表现 */
-export function columnRows(accountId: string, end: DayKey = LATEST_DAY): ColumnRow[] {
-  const account = accountById(accountId)
-  const firstWeek = addDays(weekStartOf(end), -77)
-  const works = publishedWorks(accountId).filter((work) => work.publishedAt && work.publishedAt >= firstWeek && work.publishedAt <= end)
-  return account.columns.map((column) => {
-    const mine = works.filter((work) => work.columnId === column.id)
-    const reads = mine.reduce((sum, work) => sum + (work.totals?.reads ?? 0), 0)
-    const interactions = mine.reduce(
-      (sum, work) => sum + (work.totals ? work.totals.likes + work.totals.collects + work.totals.comments : 0),
-      0,
-    )
-    return {
-      column,
-      works: mine.length,
-      share: works.length > 0 ? mine.length / works.length : 0,
-      targetShare: column.targetShare,
-      avgReads: mine.length > 0 ? Math.round(reads / mine.length) : null,
-      interactionRate: reads > 0 ? interactions / reads : null,
-      weekly: Array.from({ length: 12 }, (_, i) => {
-        const week = addDays(firstWeek, 7 * i)
-        const weekEnd = addDays(week, 6)
-        return mine.filter((work) => work.publishedAt && work.publishedAt >= week && work.publishedAt <= weekEnd).length
-      }),
-    }
-  })
 }

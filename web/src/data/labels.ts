@@ -1,4 +1,15 @@
-import type { AccountStage, DataMode, IdeaSource, IdeaStatus, StepKind, WorkStatus, WorkflowStatus } from "./types"
+import type {
+  AccountStage,
+  DataMode,
+  IdeaSource,
+  IdeaStatus,
+  PullStatus,
+  SetupItem,
+  SetupState,
+  StepKind,
+  WorkStatus,
+  WorkflowStatus,
+} from "./types"
 
 /** 界面上的状态文字统一从这里取，各页说法一致 */
 
@@ -21,7 +32,31 @@ export const STAGE_LABEL: Record<AccountStage, string> = {
 export const DATA_MODE_LABEL: Record<DataMode, string> = {
   api: "平台接口",
   analytics: "网站统计",
-  manual: "手填",
+  crawler: "抓创作中心",
+}
+
+export const PULL_STATUS_LABEL: Record<PullStatus, string> = {
+  ok: "正常",
+  failed: "拉取失败",
+  missing: "还没接",
+}
+
+export const SETUP_STATE_LABEL: Record<SetupState, string> = {
+  ready: "接好了",
+  broken: "有问题",
+  unfinished: "没接完",
+}
+
+export const USED_FOR_LABEL: Record<NonNullable<SetupItem["usedFor"]>, string> = {
+  data: "拉数据用",
+  publish: "投稿用",
+  write: "写稿、发布用",
+}
+
+export const SETUP_ITEM_LABEL: Record<SetupItem["status"], string> = {
+  ok: "已配置",
+  missing: "未配置",
+  expired: "已过期",
 }
 
 export const IDEA_STATUS_LABEL: Record<IdeaStatus, string> = {
@@ -56,7 +91,7 @@ export const WORKFLOW_STATUS_LABEL: Record<WorkflowStatus, string> = {
 
 export const METRIC_LABEL = {
   followers: "粉丝",
-  reads: "阅读",
+  reads: "浏览",
   interactions: "互动",
   posts: "发布",
 } as const

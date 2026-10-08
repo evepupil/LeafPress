@@ -187,13 +187,12 @@ describe("转作品", () => {
     expect(works[0].brief).toBe(idea.detail)
   })
 
-  it("博客作品转知乎用博客转知乎；栏目对不上时用第一个栏目", () => {
+  it("博客作品转知乎用博客转知乎", () => {
     const blog = workById("chatgpt-mcp-3a94342e")
     expect(workflowForConvert({ kind: "work", work: blog }, "zhihu-yiye").workflow.id).toBe("blog-to-zhihu")
     expect(workflowForConvert({ kind: "work", work: blog }, "xhs-yiye").workflow.id).toBe("to-xhs-cards")
     expect(workflowForConvert({ kind: "work", work: blog }, "bili-yiye").workflow.id).toBe("video-pipeline")
     const [zhihu] = convert({ kind: "work", work: blog }, ["zhihu-yiye"], "", at(1), ["z-103"], 1)
-    expect(zhihu.columnId).toBe("ai-eng")
     expect(zhihu.source).toEqual({ kind: "work", workId: "chatgpt-mcp-3a94342e" })
     expect(zhihu.log[0].text).toBe("创建，由《ChatGPT 网页版接入自建MCP》转来，用「博客转知乎」工作流")
   })
@@ -207,7 +206,7 @@ describe("转作品", () => {
 })
 
 describe("复制给 AI 的任务说明", () => {
-  it("写清平台、状态、工作流、任务文件夹、来源和步骤", () => {
+  it("写清平台、状态、工作流、任务文件夹、来源和步骤，最后附整份账号档案", () => {
     const work = workById("z-design-extraction")
     const text = taskContext(work, {
       title: "只凭一份设计提炼做 SaaS 后台",
@@ -215,7 +214,7 @@ describe("复制给 AI 的任务说明", () => {
     })
     const lines = text.split("\n")
     expect(lines[0]).toBe("# 作品 z-design-extraction：只凭一份设计提炼做 SaaS 后台：把规则锁进主题，把看板骨架搬到新业务")
-    expect(lines).toContain("- 平台：知乎 · 一叶之桐（栏目：AI 工程化）")
+    expect(lines).toContain("- 平台：知乎 · 一叶之桐")
     expect(lines).toContain("- 状态：等你处理（第 6/7 步 · 你去知乎投递）")
     expect(lines).toContain("- 工作流：博客转知乎")
     expect(lines).toContain("- 任务文件夹：~/.leafpress/tasks/z-design-extraction")
@@ -224,5 +223,14 @@ describe("复制给 AI 的任务说明", () => {
     expect(lines).toContain("[>] 6. 你去知乎投递（你来）")
     expect(lines).toContain("[ ] 7. 归档链接（自动）")
     expect(lines).toContain("## 等作者做的事")
+    expect(lines).toContain("## 账号档案（~/.leafpress/accounts/zhihu-yiye.md）")
+    expect(text).toContain("把 AI 工程化和计算机里的一套方法、一个机制讲透的技术说明文。")
+  })
+
+  it("页面上改过的档案用改过的；空档案提示先问作者", () => {
+    const work = workById("z-jev")
+    const edited = ["## 定位", "", "只写 Cloudflare"].join("\n")
+    expect(taskContext(work, undefined, edited).endsWith(edited)).toBe(true)
+    expect(taskContext(work, undefined, "  ").split("\n").at(-1)).toBe("（还没写，写之前先问作者这个号写给谁、怎么写）")
   })
 })

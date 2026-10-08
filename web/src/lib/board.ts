@@ -1,8 +1,9 @@
 import { ACCOUNTS, PLATFORMS, accountById } from "@/data/accounts"
-import { TODAY, diffDays } from "@/data/clock"
+import { TODAY } from "@/data/clock"
 import type { Idea, IdeaStatus, IsoTime, PlatformId, Work, WorkStatus } from "@/data/types"
 import { formatDay } from "./format"
-import { accountLabel, summaryOf } from "./metrics"
+import { summaryOf } from "./metrics"
+import { type PullRecord, effectiveSource } from "./setup"
 
 /**
  * 看板、列表、侧栏计数、提醒要的计算。和 metrics.ts 的区别：这里读的是页面上正在改的作品和灵感（传进来），
@@ -98,8 +99,8 @@ export function reorderIdeas(ideas: Idea[], id: string, status: IdeaStatus, befo
 
 // ---------- 提醒 ----------
 
-export type NoticeKind = "waiting" | "data" | "stale" | "manual"
-export type NoticeTone = "risk" | "progress" | "idle"
+export type NoticeKind = "waiting" | "data" | "stale"
+export type NoticeTone = "risk" | "progress"
 
 export interface Notice {
   id: string
@@ -111,14 +112,14 @@ export interface Notice {
   at: IsoTime
 }
 
-const KIND_ORDER: NoticeKind[] = ["data", "stale", "waiting", "manual"]
+const KIND_ORDER: NoticeKind[] = ["data", "stale", "waiting"]
 
-/** 铃铛里的提醒：数据拉取失败、断更、等你处理的作品、该手填的数据 */
-export function notices(works: Work[]): Notice[] {
+/** 铃铛里的提醒：数据拉取失败、断更、等你处理的作品。拿数据的工具还没做的号不算异常，不提醒 */
+export function notices(works: Work[], pulls: Record<string, PullRecord> = {}): Notice[] {
   const items: Notice[] = []
   for (const account of ACCOUNTS) {
-    const source = account.dataSource
-    if (source.lastResult === "failed") {
+    const source = effectiveSource(account, pulls[account.id])
+    if (source.status === "failed") {
       items.push({
         id: `data:${account.id}`,
         kind: "data",
@@ -140,20 +141,6 @@ export function notices(works: Work[]): Notice[] {
         href: `/accounts/${account.id}/`,
         at: `${summary.lastPublishedAt}T21:30:00+08:00`,
       })
-    }
-    if (source.mode === "manual" && source.lastPullAt) {
-      const days = diffDays(TODAY, source.lastPullAt.slice(0, 10))
-      if (days > 7) {
-        items.push({
-          id: `manual:${account.id}`,
-          kind: "manual",
-          tone: "idle",
-          title: `${accountLabel(account)}数据 ${days} 天没填`,
-          detail: source.schedule,
-          href: `/data/?entry=${account.id}`,
-          at: source.lastPullAt,
-        })
-      }
     }
   }
   for (const work of works) {

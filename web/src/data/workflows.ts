@@ -97,7 +97,7 @@ export const WORKFLOWS: Workflow[] = [
     ],
     autoPublish: false,
     status: "needs-setup",
-    setupHint: "找问题要用知乎数据开放平台的密钥，还没配置。",
+    setupHint: "找问题要用知乎数据开放平台的「问题推荐」接口，还没开通。",
     say: "把这篇博客挂到知乎问题下",
   },
   {
@@ -170,9 +170,9 @@ export const SCHEDULED: ScheduledWorkflow[] = [
   {
     id: "data-pull",
     name: "拉作品数据",
-    summary: "每天早上拉各账号前一天的数据；拉不了的平台提醒你手填。",
+    summary: "每天早上拉各账号前一天的数据；拿数据的工具还没做的平台先跳过。",
     schedule: "每天 06:00",
-    steps: ["知乎接口", "博客统计", "手填提醒", "存快照"],
+    steps: ["知乎接口", "博客统计", "存快照"],
     lastRunAt: "2026-10-08T06:00:00+08:00",
     lastResult: "failed",
     lastNote: "博客统计接口返回 401，其余已入库",
@@ -201,8 +201,10 @@ export const TOOLS: Tool[] = [
   { name: "VideoCaptioner", kind: "cli", note: "转写、纠错、烧录字幕", status: "ready" },
   { name: "FFmpeg", kind: "cli", note: "一份素材出横版和竖版", status: "ready" },
   { name: "biliup", kind: "cli", note: "B站投稿，还没登录", status: "needs-setup" },
-  { name: "知乎数据开放平台", kind: "api", note: "找问题、拉数据，密钥还没配", status: "needs-setup" },
-  { name: "Umami 统计", kind: "api", note: "博客访问量", status: "ready" },
+  { name: "知乎数据开放平台", kind: "api", note: "拉数据可用；找问题的「问题推荐」接口还没开通", status: "needs-setup" },
+  { name: "Umami 统计", kind: "api", note: "博客访问、访客", status: "ready" },
+  { name: "giscus 评论", kind: "api", note: "博客评论数，读 GitHub 讨论区", status: "ready" },
+  { name: "创作中心抓取", kind: "code", note: "登录 B站、小红书创作中心后抓作品数据，还没做", status: "needs-setup" },
 ]
 
 export function workflowById(id: string): Workflow {

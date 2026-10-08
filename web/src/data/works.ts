@@ -269,15 +269,6 @@ const BLOG_POSTS: [string, string, DayKey, string, "notion" | "repo", number, nu
   ["pixiv-2a94342e", "Pixiv爬虫/下载/代理，无需服务器即可一键部署！", "2025-10-07", "爬虫/serverless/pixiv/好玩", "notion", 8405, 1, 11],
 ]
 
-/** 博客栏目按标签归：问题复盘 > Cloudflare > AI > 开源项目 > 随笔 */
-function blogColumn(tags: string[]): string {
-  if (tags.includes("postmortem")) return "postmortem"
-  if (tags.includes("Cloudflare")) return "cloudflare"
-  if (tags.includes("AI")) return "ai"
-  if (tags.includes("开源项目")) return "oss"
-  return "misc"
-}
-
 /** 博客访问量是生成的：越老的文章累计越多，个别文章额外加权 */
 const BLOG_BOOST: Record<string, number> = {
   "chatgpt-mcp-3a94342e": 2.4,
@@ -287,13 +278,22 @@ const BLOG_BOOST: Record<string, number> = {
   "ai-frontend-info-design-first": 1.5,
 }
 
+/** 博客的数据照 Umami 和 giscus：访问、访客、评论 */
 function blogTotals(slug: string, published: DayKey): WorkTotals {
   const random = seededRandom(`blog-reads:${slug}`)
   const age = diffDays(LATEST_DAY, published) + 1
   const ageFactor = Math.min(1, 0.35 + age / 120)
-  const reads = Math.round((600 + random() * 3000) * ageFactor * (BLOG_BOOST[slug] ?? 1))
-  const comments = Math.round(reads * (0.002 + random() * 0.004))
-  return { reads, likes: 0, comments, collects: 0 }
+  const pageviews = Math.round((600 + random() * 3000) * ageFactor * (BLOG_BOOST[slug] ?? 1))
+  const comments = Math.round(pageviews * (0.002 + random() * 0.004))
+  const visitors = Math.round(pageviews * (0.62 + random() * 0.16))
+  return { pageviews, visitors, comments }
+}
+
+/** 知乎的数据：浏览、点赞、收藏、评论，再按点赞数生成分享 */
+function zhihuTotals(id: string, [views, likes, collects, comments]: [number, number, number, number]): WorkTotals {
+  const random = seededRandom(`zhihu-shares:${id}`)
+  const shares = Math.round(likes * (0.05 + random() * 0.07))
+  return { views, likes, collects, comments, shares }
 }
 
 const at = (day: DayKey, time = "10:00:00"): IsoTime => `${day}T${time}+08:00`
@@ -304,7 +304,6 @@ const blogWorks: Work[] = BLOG_POSTS.map(([slug, title, date, tags, origin, word
     id: slug,
     title,
     accountId: "blog-chaosyn",
-    columnId: blogColumn(tagList),
     status: "done",
     brief: "从博客仓库导入的已发布文章。",
     source: { kind: "import" },
@@ -333,7 +332,6 @@ interface Draft {
   id: string
   title?: string
   accountId: string
-  columnId: string
   status: WorkStatus
   brief: string
   source: WorkSource
@@ -343,6 +341,7 @@ interface Draft {
   createdAt: IsoTime
   updatedAt?: IsoTime
   publishedAt?: DayKey
+  /** 知乎作品的 [浏览, 点赞, 收藏, 评论]，分享按点赞数生成 */
   totals?: [number, number, number, number]
   question?: string
   tags?: string[]
@@ -359,14 +358,12 @@ function make(draft: Draft): Work {
   const step = done ? workflow.steps.length : (draft.step ?? 0)
   const current = workflow.steps[step]
   const ask = draft.status === "waiting" && current?.ask ? current.ask.replaceAll("{folder}", taskFolder(draft.id)) : undefined
-  const [reads, likes, collects, comments] = draft.totals ?? [0, 0, 0, 0]
   const sourceText =
     draft.source.kind === "work" ? `由《${blogTitle(draft.source.workId)}》转来` : draft.source.kind === "idea" ? "由灵感转来" : "直接新建"
   return {
     id: draft.id,
     title,
     accountId: draft.accountId,
-    columnId: draft.columnId,
     status: draft.status,
     brief: draft.brief,
     source: draft.source,
@@ -384,7 +381,7 @@ function make(draft: Draft): Work {
               ? `https://www.zhihu.com/question/demo/answer/${draft.id}`
               : `https://zhuanlan.zhihu.com/p/demo-${draft.id}`,
           publishedAt: draft.publishedAt,
-          totals: { reads, likes, collects, comments },
+          totals: zhihuTotals(draft.id, draft.totals ?? [0, 0, 0, 0]),
         }
       : {}),
     ...(draft.question ? { question: draft.question } : {}),
@@ -400,25 +397,24 @@ function make(draft: Draft): Work {
 const fromBlog = (slug: string): WorkSource => ({ kind: "work", workId: slug })
 const ZHIHU = "zhihu-yiye"
 
-/** 已发的知乎作品：[编号, 来源博客, 栏目, 发布日期, 阅读, 赞同, 收藏, 评论] */
-const ZHIHU_DONE: [string, string, string, DayKey, number, number, number, number][] = [
-  ["z-chatgpt-mcp", "chatgpt-mcp-3a94342e", "ai-eng", "2026-07-29", 15_620, 702, 1_380, 88],
-  ["z-prompt-subagent", "prompt-subagent-ai-36c4342e", "ai-eng", "2026-05-28", 21_904, 1_105, 2_310, 96],
-  ["z-ai-agent", "ai-agent-3114342e", "ai-eng", "2026-03-01", 12_450, 640, 1_512, 58],
-  ["z-workers-ai", "cloudflare-workers-ai-3594342e", "cs", "2026-05-09", 4_310, 166, 248, 22],
-  ["z-nextdevtpl", "saas-nextdevtpl-2-x-saas-3ae4342e", "cs", "2026-08-02", 2_870, 118, 205, 19],
-  ["z-tunnel-ssh", "cloudflare-tunnel-ssh-3bd4342e", "cs", "2026-08-17", 5_480, 231, 512, 30],
-  ["z-minimax-5090", "minimax-h3-rtx-5090-speed-cost", "ai-eng", "2026-09-08", 4_905, 187, 260, 35],
-  ["z-clock-skew", "cross-machine-clock-skew-job-stuck-99", "cs", "2026-09-16", 6_733, 298, 402, 44],
-  ["z-ai-frontend", "ai-frontend-info-design-first", "ai-eng", "2026-09-24", 8_214, 412, 655, 37],
-  ["z-r2-oci", "cloudflare-r2-oci-registry-large-layer-upload", "cs", "2026-09-30", 3_120, 121, 236, 17],
+/** 已发的知乎作品：[编号, 来源博客, 发布日期, 浏览, 点赞, 收藏, 评论] */
+const ZHIHU_DONE: [string, string, DayKey, number, number, number, number][] = [
+  ["z-chatgpt-mcp", "chatgpt-mcp-3a94342e", "2026-07-29", 15_620, 702, 1_380, 88],
+  ["z-prompt-subagent", "prompt-subagent-ai-36c4342e", "2026-05-28", 21_904, 1_105, 2_310, 96],
+  ["z-ai-agent", "ai-agent-3114342e", "2026-03-01", 12_450, 640, 1_512, 58],
+  ["z-workers-ai", "cloudflare-workers-ai-3594342e", "2026-05-09", 4_310, 166, 248, 22],
+  ["z-nextdevtpl", "saas-nextdevtpl-2-x-saas-3ae4342e", "2026-08-02", 2_870, 118, 205, 19],
+  ["z-tunnel-ssh", "cloudflare-tunnel-ssh-3bd4342e", "2026-08-17", 5_480, 231, 512, 30],
+  ["z-minimax-5090", "minimax-h3-rtx-5090-speed-cost", "2026-09-08", 4_905, 187, 260, 35],
+  ["z-clock-skew", "cross-machine-clock-skew-job-stuck-99", "2026-09-16", 6_733, 298, 402, 44],
+  ["z-ai-frontend", "ai-frontend-info-design-first", "2026-09-24", 8_214, 412, 655, 37],
+  ["z-r2-oci", "cloudflare-r2-oci-registry-large-layer-upload", "2026-09-30", 3_120, 121, 236, 17],
 ]
 
-const zhihuDone: Work[] = ZHIHU_DONE.map(([id, slug, columnId, day, reads, likes, collects, comments]) =>
+const zhihuDone: Work[] = ZHIHU_DONE.map(([id, slug, day, reads, likes, collects, comments]) =>
   make({
     id,
     accountId: ZHIHU,
-    columnId,
     status: "done",
     brief: "照知乎写法改写，文末附博客原文链接。",
     source: fromBlog(slug),
@@ -435,7 +431,6 @@ const otherWorks: Work[] = [
     id: "z-prompt-subagent-answer",
     title: "如何系统地学习 AI 工程化？（回答）",
     accountId: ZHIHU,
-    columnId: "ai-eng",
     status: "done",
     brief: "用《从 Prompt 到 Subagent》回答这个问题，开头先给学习顺序。",
     source: fromBlog("prompt-subagent-ai-36c4342e"),
@@ -450,7 +445,6 @@ const otherWorks: Work[] = [
     id: "z-edge-answer",
     title: "Edge 浏览器复制网址后粘贴为空，怎么解决？（回答）",
     accountId: ZHIHU,
-    columnId: "cs",
     status: "done",
     brief: "用 Edge 那篇复盘回答，三步说清开关在哪。",
     source: fromBlog("edge-address-bar-copy-empty"),
@@ -465,7 +459,6 @@ const otherWorks: Work[] = [
     id: "z-claude-md",
     title: "CLAUDE.md 是什么，怎么写才会被执行",
     accountId: ZHIHU,
-    columnId: "ai-eng",
     status: "done",
     brief: "讲清 CLAUDE.md 的加载方式和失效场景，要硬拦的动作交给 hooks。",
     source: { kind: "none" },
@@ -481,7 +474,6 @@ const otherWorks: Work[] = [
     id: "z-tests-rule",
     title: "AI 写代码的项目，哪些代码必须写测试、哪些禁止写",
     accountId: ZHIHU,
-    columnId: "ai-eng",
     status: "done",
     brief: "两条规矩各配一句失效机制：核心逻辑必须测，纯展示禁止测。",
     source: { kind: "none" },
@@ -497,7 +489,6 @@ const otherWorks: Work[] = [
   make({
     id: "z-design-extraction",
     accountId: ZHIHU,
-    columnId: "ai-eng",
     status: "waiting",
     step: 5,
     brief: "照知乎写法改写，突出「把规则锁进主题」这一条；文末附博客原文链接。",
@@ -516,7 +507,6 @@ const otherWorks: Work[] = [
     id: "z-leafpress-intro",
     title: "LeafPress：把一份原稿变成多个平台的版本",
     accountId: ZHIHU,
-    columnId: "ai-eng",
     status: "waiting",
     step: 1,
     brief: "介绍 LeafPress：灵感、作品、工作流怎么串起来，重点讲任务文件夹让任何 agent 都能接手。",
@@ -533,7 +523,6 @@ const otherWorks: Work[] = [
     id: "x-ai-frontend",
     title: "6 张图讲清：AI 做的页面为什么像模板货",
     accountId: "xhs-yiye",
-    columnId: "tips",
     status: "waiting",
     step: 3,
     brief: "把《AI 做的页面像模板货又空心》提炼成 6 张卡片：先信息设计，再写数字规格。",
@@ -546,7 +535,6 @@ const otherWorks: Work[] = [
     id: "v-tunnel-ssh",
     title: "Cloudflare Tunnel 实现 ssh 穿透 · 录屏版",
     accountId: "bili-yiye",
-    columnId: "tutorial",
     status: "waiting",
     step: 4,
     brief: "做成 10 分钟以内的录屏教程，只讲 ssh 穿透这一件事。",
@@ -566,7 +554,6 @@ const otherWorks: Work[] = [
   make({
     id: "z-reasoning",
     accountId: ZHIHU,
-    columnId: "ai-eng",
     status: "doing",
     step: 1,
     brief: "改写成知乎文章，开头直接给报错信息和结论，方便搜报错的人。",
@@ -584,7 +571,6 @@ const otherWorks: Work[] = [
     id: "b-tunnel-access",
     title: "用 Cloudflare Tunnel 加 Access，把本机服务安全地开放给手机",
     accountId: "blog-chaosyn",
-    columnId: "cloudflare",
     status: "todo",
     order: 1,
     brief: "实战文：为什么不直接暴露端口；Tunnel 加 Access 的配置步骤；手机上怎么登录；踩过的坑。中英双语。",
@@ -596,7 +582,6 @@ const otherWorks: Work[] = [
     id: "z-fleet-truncation",
     title: "派便宜模型写代码：一次输出 3.3 万字就截断，任务书要写明分步落盘",
     accountId: ZHIHU,
-    columnId: "ai-eng",
     status: "todo",
     order: 2,
     brief: "写成知乎说明文：便宜模型一次输出太长会被截断；任务书要写明分步落盘。素材在 LeafPress 进度 10 月 5 日检查点 3。",
@@ -607,7 +592,6 @@ const otherWorks: Work[] = [
   make({
     id: "z-jev",
     accountId: ZHIHU,
-    columnId: "ai-eng",
     status: "todo",
     order: 3,
     brief: "改写成知乎文章，标题突出「分类选项必须留一个兜底项」。",
@@ -619,7 +603,6 @@ const otherWorks: Work[] = [
     id: "z-hourly-rate",
     title: "一人公司怎么算每个副业的时薪",
     accountId: ZHIHU,
-    columnId: "econ",
     status: "todo",
     order: 4,
     brief: "讲清任务、时间、收支三样怎么连起来算时薪，举 DeverDesk 的做法。",
@@ -631,7 +614,6 @@ const otherWorks: Work[] = [
     id: "z-vacuum-into",
     title: "SQLite 升级前备份：为什么用 VACUUM INTO 而不是复制文件",
     accountId: ZHIHU,
-    columnId: "cs",
     status: "todo",
     order: 5,
     brief: "讲清有人读库时复制文件为什么会漏掉 WAL 里的数据，VACUUM INTO 怎么保证一致。",
@@ -643,7 +625,6 @@ const otherWorks: Work[] = [
     id: "z-tunnel-access",
     title: "把本机服务给手机用，为什么不该直接开端口",
     accountId: ZHIHU,
-    columnId: "cs",
     status: "todo",
     order: 6,
     brief: "和博客那篇同一个选题的知乎版：先讲直接开端口的风险，再讲 Tunnel 加 Access。",

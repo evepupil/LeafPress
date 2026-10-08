@@ -97,12 +97,16 @@ describe("灵感看板", () => {
 })
 
 describe("提醒", () => {
-  it("数据失败在前，然后是等你处理的作品（新的在前），最后是该手填的", () => {
+  it("数据拉取失败在前，然后是等你处理的作品（新的在前）；还没接数据的号不提醒", () => {
     const items = notices(WORKS)
-    expect(items.map((item) => item.kind)).toEqual(["data", "waiting", "waiting", "waiting", "waiting", "manual"])
+    expect(items.map((item) => item.kind)).toEqual(["data", "waiting", "waiting", "waiting", "waiting"])
     expect(items[0].title).toBe("技术博客数据拉取失败")
     expect(items[1].href).toBe("/?open=z-leafpress-intro")
-    expect(items.at(-1)?.title).toBe("一叶之桐（B站）数据 10 天没填")
+  })
+
+  it("页面上重新拉成功了，拉取失败的提醒就没了", () => {
+    const pulls = { "blog-chaosyn": { status: "ok" as const, at: "2026-10-08T09:31:00+08:00" } }
+    expect(notices(WORKS, pulls).some((item) => item.kind === "data")).toBe(false)
   })
 
   it("等你处理的作品跟着页面上的作品变", () => {

@@ -17,47 +17,59 @@ export type LabelColor = "red" | "orange" | "amber" | "green" | "teal" | "blue" 
 
 export type PlatformId = "blog" | "zhihu" | "bilibili" | "xiaohongshu"
 
+/** 平台上一个作品的一项数据，例如知乎的「浏览」「点赞」，B站的「投币」「弹幕」 */
+export interface MetricDef {
+  key: string
+  label: string
+  /** 算不算互动：合计「互动」时把这些加起来 */
+  interaction: boolean
+}
+
 export interface Platform {
   id: PlatformId
   name: string
   /** 平台标识方块里的一个字 */
   glyph: string
   color: LabelColor
-  /** 这个平台有哪些互动数据 */
-  interactions: ("likes" | "collects" | "comments")[]
+  /** 这个平台的作品有哪些数据。各平台不一样；第一项是主数据（浏览、访问、播放） */
+  metrics: MetricDef[]
 }
 
 export type AccountStage = "active" | "preparing" | "paused"
 
-/** 栏目：一个账号下固定的内容方向 */
-export interface Column {
-  id: string
-  name: string
-  /** 计划占比 0～1，同一个账号的栏目加起来等于 1 */
-  targetShare: number
-  color: LabelColor
-}
+/** 数据怎么拿：平台接口、网站统计、登录后抓创作中心页面。没有手填：要手填还不如自己去平台上看 */
+export type DataMode = "api" | "analytics" | "crawler"
+/** 拉得怎么样：正常、拉取失败、还没接（拿数据的工具还没做） */
+export type PullStatus = "ok" | "failed" | "missing"
 
-export interface Benchmark {
-  name: string
-  platform: PlatformId | "web"
-  note: string
-}
-
-/** 数据怎么来：平台接口、网站统计、手填 */
-export type DataMode = "api" | "analytics" | "manual"
-export type PullResult = "ok" | "failed" | "never"
-
+/** 数据获取：接一个平台要做的两件事之一（另一件是作品产出的工作流） */
 export interface DataSource {
   mode: DataMode
   /** 给人看的来源名，例如「知乎数据开放平台」 */
   provider: string
-  /** 什么时候拉 / 什么时候填 */
+  /** 什么时候拉 */
   schedule: string
+  status: PullStatus
   lastPullAt?: IsoTime
-  lastResult: PullResult
   failReason?: string
   fixHint?: string
+  /** 还没接时打算怎么拿 */
+  plan?: string
+}
+
+/** 一个账号接得怎么样：接好了、有问题（原来能用的坏了，比如密钥过期、拉取失败）、没接完（还缺工具或配置） */
+export type SetupState = "ready" | "broken" | "unfinished"
+
+/** 接这个平台的账号要配的一样东西，例如博客仓库路径、Umami 密钥、biliup 登录 */
+export interface SetupItem {
+  key: string
+  label: string
+  /** 现在的值；密钥类只存「已配置」的事实，界面上不显示原文 */
+  value?: string
+  secret?: boolean
+  status: "ok" | "missing" | "expired"
+  /** 用在哪：拉数据、投稿、写稿。拉数据要的配好了，「现在拉一次」才拉得到 */
+  usedFor?: "data" | "publish" | "write"
 }
 
 export interface Account {
@@ -70,20 +82,16 @@ export interface Account {
   since: DayKey
   /** 「粉丝」在这个平台叫什么：关注者、粉丝、订阅 */
   audienceLabel: string
-  /** 「阅读」在这个平台叫什么：阅读、访问、播放、浏览 */
+  /** 主数据在这个平台叫什么：浏览、访问、播放 */
   readsLabel: string
-  positioning: string
-  audience: string[]
-  columns: Column[]
-  styleRules: string[]
-  bannedPhrases: string[]
-  benchmarks: Benchmark[]
-  goals: { followers: number; by: DayKey; postsPerWeek: number }
-  /** 方向调整记录，新的在前 */
-  directionLog: { date: DayKey; note: string }[]
+  /**
+   * 账号档案：一份随便写的 Markdown。定位、写给谁、文风、禁用词、对标、目标……想写什么写什么，
+   * agent 写稿前整份读，就知道这个号是干什么的。以后放在 ~/.leafpress/accounts/<编号>.md
+   */
+  profile: string
   dataSource: DataSource
-  /** 筹备清单，只有筹备中的号才有 */
-  prep?: { label: string; done: boolean }[]
+  /** 接这个平台的账号要配的东西（作品产出的工作流按平台取，见 workflowsFor） */
+  setup: SetupItem[]
 }
 
 /** 作品状态：待实现（AI 的待做）→ 进行中（AI 在做）→ 等你处理 → 已完成 */
@@ -99,13 +107,8 @@ export type WorkSource =
   /** 直接新建 */
   | { kind: "none" }
 
-/** 截至昨天的累计数据，只有已完成（已发布）的作品才有 */
-export interface WorkTotals {
-  reads: number
-  likes: number
-  comments: number
-  collects: number
-}
+/** 截至昨天的累计数据，只有已完成（已发布）的作品才有。键是平台数据项的 key（见 Platform.metrics） */
+export type WorkTotals = Record<string, number>
 
 /** 作品里的一条记录 */
 export interface WorkLog {
@@ -119,7 +122,6 @@ export interface Work {
   title: string
   /** 发在哪个账号；平台由账号决定 */
   accountId: string
-  columnId: string
   status: WorkStatus
   /** 要写什么、有什么要求。AI 从这里读 */
   brief: string

@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest"
 
-import { ACCOUNTS, accountById } from "./accounts"
+import { ACCOUNTS, PLATFORMS, accountById } from "./accounts"
 import { LATEST_DAY, SERIES_START, THIS_WEEK, TODAY, addDays, addMinutes, daysBetween, weekdayIndex } from "./clock"
 import { HARVEST_POOL, IDEAS } from "./ideas"
-import { ACCOUNT_DAILY, workDaily } from "./series"
+import { ACCOUNT_DAILY, reachAndInteractions, workDaily } from "./series"
 import { SCHEDULED, TOOLS, WORKFLOWS, pickWorkflow, workflowById } from "./workflows"
 import { WORKS } from "./works"
 
@@ -29,10 +29,20 @@ describe("演示数据自洽", () => {
     expect(unique(HARVEST_POOL.map((item) => item.text))).toBe(true)
   })
 
-  it("每个账号的栏目计划占比加起来是 1", () => {
+  it("每个平台的数据项不重复，第一项是主数据（不算互动），至少有一项互动", () => {
+    for (const platform of Object.values(PLATFORMS)) {
+      expect(unique(platform.metrics.map((item) => item.key))).toBe(true)
+      expect(platform.metrics[0].interaction).toBe(false)
+      expect(platform.metrics.some((item) => item.interaction)).toBe(true)
+    }
+  })
+
+  it("每个账号都有档案；要配的东西编号不重复；还没接数据的号写了打算怎么拿", () => {
     for (const account of ACCOUNTS) {
-      const sum = account.columns.reduce((total, column) => total + column.targetShare, 0)
-      expect(sum).toBeCloseTo(1, 6)
+      expect(account.profile.trim().length).toBeGreaterThan(0)
+      expect(unique(account.setup.map((item) => item.key))).toBe(true)
+      if (account.dataSource.status === "missing") expect(account.dataSource.plan).toBeDefined()
+      if (account.dataSource.status === "failed") expect(account.dataSource.failReason).toBeDefined()
     }
   })
 
@@ -55,11 +65,11 @@ describe("演示数据自洽", () => {
 })
 
 describe("作品", () => {
-  it("一个作品只对应一个账号：栏目属于这个账号，工作流属于这个平台", () => {
+  it("一个作品只对应一个账号：工作流属于这个平台；已发作品的数据项正好是这个平台的数据项", () => {
     for (const work of WORKS) {
       const account = accountById(work.accountId)
-      expect(account.columns.some((column) => column.id === work.columnId)).toBe(true)
       expect(workflowById(work.workflowId).platform).toBe(account.platform)
+      if (work.totals) expect(Object.keys(work.totals).sort()).toEqual(PLATFORMS[account.platform].metrics.map((item) => item.key).sort())
     }
   })
 
@@ -117,21 +127,26 @@ describe("作品", () => {
 })
 
 describe("每日数据", () => {
-  it("每个账号从开号（最早 4 月 20 日）到昨天一天不缺，粉丝不为负", () => {
+  it("接了数据的号从开号（最早 4 月 20 日）到昨天一天不缺，粉丝不为负；还没接的号没有数据", () => {
     for (const account of ACCOUNTS) {
       const points = ACCOUNT_DAILY[account.id]
+      if (account.dataSource.status === "missing") {
+        expect(points).toEqual([])
+        continue
+      }
       const start = account.since > SERIES_START ? account.since : SERIES_START
       expect(points.map((point) => point.day)).toEqual(daysBetween(start, LATEST_DAY))
       for (const point of points) expect(point.followers).toBeGreaterThanOrEqual(0)
     }
   })
 
-  it("每个已发作品每天的阅读加起来正好等于累计阅读", () => {
+  it("每个已发作品每天的主数据、互动加起来正好等于累计数", () => {
     for (const work of WORKS) {
       if (work.status !== "done" || !work.totals) continue
       const days = workDaily(work)
-      expect(days.reduce((sum, day) => sum + day.reads, 0)).toBe(work.totals.reads)
-      expect(days.reduce((sum, day) => sum + day.interactions, 0)).toBe(work.totals.likes + work.totals.collects + work.totals.comments)
+      const { reach, interactions } = reachAndInteractions(work)
+      expect(days.reduce((sum, day) => sum + day.reads, 0)).toBe(reach)
+      expect(days.reduce((sum, day) => sum + day.interactions, 0)).toBe(interactions)
       expect(days[0].day).toBe(work.publishedAt)
       expect(days.at(-1)?.day).toBe(LATEST_DAY)
     }

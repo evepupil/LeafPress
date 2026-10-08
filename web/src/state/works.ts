@@ -15,7 +15,7 @@ import { type ConvertSource, advance, convert, moveTo, submitFeedback, workflowO
  * 用户菜单里「恢复初始数据」清掉。推进规则全在 @/lib/work-engine，这里只负责存和定时。
  */
 
-export type WorkPatch = Partial<Pick<Work, "title" | "brief" | "columnId" | "workflowId" | "question" | "url">>
+export type WorkPatch = Partial<Pick<Work, "title" | "brief" | "workflowId" | "question" | "url">>
 export type ActionResult = { ok: true } | { ok: false; reason: string }
 
 interface WorksState {

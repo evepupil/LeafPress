@@ -1,4 +1,4 @@
-import { PLATFORMS, accountById, columnOf } from "@/data/accounts"
+import { PLATFORMS, accountById, profilePath } from "@/data/accounts"
 import { dayOf } from "@/data/clock"
 import type { Idea, IsoTime, StepKind, Work, WorkSource, WorkStatus } from "@/data/types"
 import { pickWorkflow, workflowById } from "@/data/workflows"
@@ -205,17 +205,13 @@ export function convert(
   firstOrder: number,
 ): Work[] {
   return accountIds.map((accountId, index) => {
-    const account = accountById(accountId)
     const { workSource, workflow } = workflowForConvert(source, accountId)
     const title = source.kind === "idea" ? source.idea.text : source.kind === "work" ? source.work.title : source.title.trim()
-    const preferred = source.kind === "work" ? source.work.columnId : undefined
-    const columnId = preferred && columnOf(accountId, preferred) ? preferred : account.columns[0].id
     const fromText = source.kind === "idea" ? "由灵感转来" : source.kind === "work" ? `由《${source.work.title}》转来` : "直接新建"
     return {
       id: ids[index],
       title,
       accountId,
-      columnId,
       status: "todo",
       brief: brief.trim(),
       source: workSource,
@@ -238,15 +234,17 @@ export interface ContextSource {
   localPath?: string
 }
 
-/** 复制给 AI 的任务说明：任何 agent 拿到这段就知道要干什么、做到哪了、东西在哪 */
-export function taskContext(work: Work, source?: ContextSource): string {
+/**
+ * 复制给 AI 的任务说明：任何 agent 拿到这段就知道要干什么、做到哪了、东西在哪。
+ * 最后附上整份账号档案（profile 传页面上改过的；不传用初始的），agent 不用另外去找就知道这个号是干什么的。
+ */
+export function taskContext(work: Work, source?: ContextSource, profile?: string): string {
   const account = accountById(work.accountId)
   const workflow = workflowOf(work)
-  const column = columnOf(work.accountId, work.columnId)
   const lines = [
     `# 作品 ${work.id}：${work.title}`,
     "",
-    `- 平台：${PLATFORMS[account.platform].name} · ${account.name}（栏目：${column?.name ?? "—"}）`,
+    `- 平台：${PLATFORMS[account.platform].name} · ${account.name}`,
     `- 状态：${STATUS_TEXT[work.status]}（${progressText(work)}）`,
     `- 工作流：${workflow.name}`,
     `- 任务文件夹：${taskFolder(work.id)}`,
@@ -264,6 +262,7 @@ export function taskContext(work: Work, source?: ContextSource): string {
   })
   if (work.ask) lines.push("", "## 等作者做的事", "", work.ask)
   if (work.feedback) lines.push("", "## 作者的反馈", "", work.feedback)
-  lines.push("", `写之前先看账号「${account.name}」（${PLATFORMS[account.platform].name}）的方向档案：定位、栏目、文风规矩和禁用词。`)
+  const text = (profile ?? account.profile).trim()
+  lines.push("", `## 账号档案（${profilePath(account.id)}）`, "", text || "（还没写，写之前先问作者这个号写给谁、怎么写）")
   return lines.join("\n")
 }
