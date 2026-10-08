@@ -167,7 +167,9 @@ export const useWorks = create<WorksState>()(
     },
     {
       name: "leafpress:works",
-      version: 1,
+      // 2：作品去掉栏目、数据按平台的数据项存。浏览器里存的是旧版本时直接换成新的初始数据，旧的数据项对不上
+      version: 2,
+      migrate: () => ({ works: WORKS, serial: FIRST_SERIAL, minute: 0 }),
       storage: createJSONStorage(() => localStorage),
       partialize: (state) => ({ works: state.works, serial: state.serial, minute: state.minute }),
       // 首屏先用初始数据渲染，和静态导出的页面一致；挂载后再读浏览器里存的（见 StoreHydration）
