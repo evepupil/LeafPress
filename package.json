@@ -23,9 +23,11 @@
     "gate": "pnpm --filter @leafpress/core gate && pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm build && pnpm --filter leafpress-web gate"
   },
   "dependencies": {
+    "@hono/node-server": "2.1.4",
     "@leafpress/core": "workspace:*",
     "commander": "15.0.0",
     "gray-matter": "4.0.3",
+    "hono": "4.13.13",
     "js-yaml": "4.1.1",
     "remark-gfm": "4.0.1",
     "remark-parse": "11.0.0",
