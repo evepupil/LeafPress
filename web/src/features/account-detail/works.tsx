@@ -10,7 +10,7 @@ import { Spinner, WorkStatusIcon } from "@/components/base/state-icons"
 import { accountById } from "@/data/accounts"
 import type { Work } from "@/data/types"
 import { formatDay } from "@/lib/format"
-import { metricText } from "@/lib/metrics"
+import { metricText, metricsOf } from "@/lib/metrics"
 import { focusRing, focusRingInset } from "@/lib/styles"
 import { progressText, waitingLabel, workflowOf } from "@/lib/work-engine"
 import { useWorks } from "@/state/works"
@@ -79,7 +79,7 @@ export function AccountWorks({ accountId }: { accountId: string }) {
                     <p className="truncate text-sm">{work.title}</p>
                     <p className={cn("truncate text-xs", subtitle.warn ? "text-warn" : "text-fg-2")}>{subtitle.text}</p>
                   </div>
-                  {work.status === "done" && <span className="shrink-0 text-xs tabular">{metricText(work, "reads")}</span>}
+                  {work.status === "done" && <span className="shrink-0 text-xs tabular">{metricText(work, metricsOf(work)[0].key)}</span>}
                 </Link>
               </li>
             )

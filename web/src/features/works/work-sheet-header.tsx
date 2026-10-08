@@ -16,6 +16,7 @@ import { WORK_STATUS_LABEL } from "@/data/labels"
 import type { Work } from "@/data/types"
 import { shortTitle } from "@/lib/metrics"
 import { taskContext } from "@/lib/work-engine"
+import { useAccounts } from "@/state/accounts"
 import { useIdeas } from "@/state/ideas"
 import { useWorks } from "@/state/works"
 import { copyWithToast, runAiWithToast } from "./work-sheet-actions"
@@ -70,7 +71,9 @@ function RunButton({ work }: { work: Work }) {
 function CopyContextButton({ work }: { work: Work }) {
   const copy = () => {
     const source = contextSourceOf(work, useWorks.getState().works, useIdeas.getState().ideas)
-    void copyWithToast(taskContext(work, source), "已复制，粘贴给任意 agent 就能接着做")
+    // 账号档案页面上改过的用改过的，一起附在说明最后
+    const profile = useAccounts.getState().profiles[work.accountId]
+    void copyWithToast(taskContext(work, source, profile), "已复制，粘贴给任意 agent 就能接着做")
   }
 
   return (

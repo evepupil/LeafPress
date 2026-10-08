@@ -2,7 +2,7 @@
 
 import { Keyboard, SquarePen } from "lucide-react"
 import { usePathname, useSearchParams } from "next/navigation"
-import { useSyncExternalStore, type ReactNode } from "react"
+import { useMemo, useSyncExternalStore, type ReactNode } from "react"
 
 import { IconButton } from "@/components/base/icon-button"
 import { PlatformMark } from "@/components/base/marks"
@@ -12,6 +12,7 @@ import { ACCOUNTS } from "@/data/accounts"
 import { notices } from "@/lib/board"
 import { formatCount } from "@/lib/format"
 import { summaryOf } from "@/lib/metrics"
+import { useAccounts } from "@/state/accounts"
 import { useIdeas } from "@/state/ideas"
 import { useUi } from "@/state/ui"
 import { useWorks } from "@/state/works"
@@ -23,7 +24,8 @@ import { NavRow, SectionTitle } from "./sidebar-parts"
 const ACCOUNT_ROWS = ACCOUNTS.map((account) => ({
   account,
   href: `/accounts/${account.id}/`,
-  followers: formatCount(summaryOf(account.id).followers),
+  // 数据还没接的号不显示数字，不用 0 冒充
+  followers: summaryOf(account.id).hasData ? formatCount(summaryOf(account.id).followers) : undefined,
 }))
 
 const VIEW_ICON: Record<ViewKey, ReactNode> = {
@@ -31,9 +33,6 @@ const VIEW_ICON: Record<ViewKey, ReactNode> = {
   todo: <StatusIcon glyph="ring" tone="idle" />,
   issues: <StatusIcon glyph="alert" tone="risk" />,
 }
-
-/** 数据异常：拉取失败、手填超过 7 天的账号（跟数据快照走，和页面上的作品无关） */
-const ISSUE_COUNT = notices([]).filter((item) => item.kind === "data" || item.kind === "manual").length
 
 function subscribeHash(onChange: () => void): () => void {
   window.addEventListener("hashchange", onChange)
@@ -67,13 +66,16 @@ export function WorkbenchSidebar({ onNavigate }: { onNavigate?: () => void }) {
   const workCount = useWorks((state) => state.works.length)
   const waitingCount = useWorks((state) => state.works.filter((work) => work.status === "waiting").length)
   const todoCount = useWorks((state) => state.works.filter((work) => work.status === "todo").length)
+  // 数据异常：拉取失败的账号（页面上重新拉成功了就不算）；还没接数据的号不算异常
+  const pulls = useAccounts((state) => state.pulls)
+  const issueCount = useMemo(() => notices([], pulls).filter((item) => item.kind === "data").length, [pulls])
   const setCaptureOpen = useUi((state) => state.setCaptureOpen)
   const setShortcutsOpen = useUi((state) => state.setShortcutsOpen)
 
   const active = resolveNav(pathname, params, hash)
   // 页面行旁边的数字：作品总数、灵感收件箱里还没处理的条数（清空后不显示）
   const pageCounts: Partial<Record<PageKey, number>> = { works: workCount, ideas: inboxCount > 0 ? inboxCount : undefined }
-  const viewCounts: Record<ViewKey, number> = { waiting: waitingCount, todo: todoCount, issues: ISSUE_COUNT }
+  const viewCounts: Record<ViewKey, number> = { waiting: waitingCount, todo: todoCount, issues: issueCount }
 
   // 手机上侧栏在抽屉里：先收起抽屉，再打开弹窗
   const openCapture = () => {

@@ -11,7 +11,6 @@ function makeWork(id: string, accountId: string, status: WorkStatus): Work {
     id,
     title: id,
     accountId,
-    columnId: "ai-eng",
     status,
     brief: "",
     source: { kind: "none" },

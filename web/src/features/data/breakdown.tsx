@@ -10,14 +10,14 @@ import { focusRing } from "@/lib/styles"
 
 const TH = "h-8 px-3 font-normal whitespace-nowrap"
 
-/** 互动率 = 互动 ÷ 阅读；没有阅读时算不出来，显示「—」 */
+/** 互动率 = 互动 ÷ 浏览；没有浏览时算不出来，显示「—」 */
 function rateText(interactions: number, reads: number): string {
   return reads > 0 ? formatPercent(interactions / reads) : "—"
 }
 
 /** 分账号：多个号放在一张表里横着比，最后一行是合计 */
 export function AccountBreakdown() {
-  // 合计行：粉丝、涨幅、阅读、互动都是各账号相加；阅读涨跌不同账号的基数不同，合计行不给
+  // 合计行：粉丝、涨幅、浏览、互动都是各账号相加（数据还没接的号都是 0）；浏览涨跌不同账号的基数不同，合计行不给
   const total = ACCOUNT_SUMMARIES.reduce(
     (sum, item) => ({
       followers: sum.followers + item.followers,
@@ -56,7 +56,7 @@ export function AccountBreakdown() {
                 30 天
               </th>
               <th scope="col" className={cn(TH, "text-right")}>
-                阅读
+                浏览
               </th>
               <th scope="col" className={cn(TH, "text-right")}>
                 互动率
@@ -71,20 +71,29 @@ export function AccountBreakdown() {
                     <AccountTag account={item.account} size="md" showPlatform />
                   </Link>
                 </td>
-                <td className="px-3 text-right tabular">{formatCount(item.followers)}</td>
-                <td className="px-3 text-right">
-                  <Delta value={item.followers7d} kind="count" />
-                </td>
-                <td className="px-3 text-right">
-                  <Delta value={item.followers30d} kind="count" />
-                </td>
-                <td className="px-3 text-right">
-                  <span className="flex items-center justify-end gap-1.5">
-                    <span className="tabular">{formatCount(item.reads7d)}</span>
-                    <Delta value={item.readsChange} />
-                  </span>
-                </td>
-                <td className="px-3 text-right text-fg-2 tabular">{rateText(item.interactions7d, item.reads7d)}</td>
+                {item.hasData ? (
+                  <>
+                    <td className="px-3 text-right tabular">{formatCount(item.followers)}</td>
+                    <td className="px-3 text-right">
+                      <Delta value={item.followers7d} kind="count" />
+                    </td>
+                    <td className="px-3 text-right">
+                      <Delta value={item.followers30d} kind="count" />
+                    </td>
+                    <td className="px-3 text-right">
+                      <span className="flex items-center justify-end gap-1.5">
+                        <span className="tabular">{formatCount(item.reads7d)}</span>
+                        <Delta value={item.readsChange} />
+                      </span>
+                    </td>
+                    <td className="px-3 text-right text-fg-2 tabular">{rateText(item.interactions7d, item.reads7d)}</td>
+                  </>
+                ) : (
+                  // 拿数据的工具还没做：一整行写明，不用 0 冒充
+                  <td colSpan={5} className="px-3 text-right text-xs text-fg-2">
+                    数据还没接
+                  </td>
+                )}
               </tr>
             ))}
           </tbody>

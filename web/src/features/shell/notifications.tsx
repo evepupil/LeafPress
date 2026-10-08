@@ -12,12 +12,12 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { type Notice, type NoticeTone, notices } from "@/lib/board"
 import { formatRelative } from "@/lib/format"
 import { focusRingInset } from "@/lib/styles"
+import { useAccounts } from "@/state/accounts"
 import { useWorks } from "@/state/works"
 
 const TONE_LOOK: Record<NoticeTone, { glyph: StatusGlyph; tone: GlyphTone }> = {
   risk: { glyph: "alert", tone: "risk" },
   progress: { glyph: "dot", tone: "progress" },
-  idle: { glyph: "ring", tone: "idle" },
 }
 
 const rowClass = cn("flex items-start gap-2 px-3 py-2 transition-colors duration-(--dur-fast) hover:bg-hover", focusRingInset)
@@ -36,11 +36,12 @@ function NoticeRow({ item, onOpen }: { item: Notice; onOpen: () => void }) {
   )
 }
 
-/** 窗口栏的铃铛：数据拉取失败、等你处理的作品、该手填的数据；有出错的事时右上角亮红点 */
+/** 窗口栏的铃铛：数据拉取失败、等你处理的作品；有出错的事时右上角亮红点 */
 export function Notifications() {
   const [open, setOpen] = useState(false)
   const works = useWorks((state) => state.works)
-  const items = useMemo(() => notices(works), [works])
+  const pulls = useAccounts((state) => state.pulls)
+  const items = useMemo(() => notices(works, pulls), [works, pulls])
   const hasRisk = items.some((item) => item.tone === "risk")
   const close = () => setOpen(false)
 

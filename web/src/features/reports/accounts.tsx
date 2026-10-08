@@ -8,7 +8,6 @@ import { useMemo } from "react"
 import { AccountTag } from "@/components/base/account-tag"
 import { Delta } from "@/components/base/delta"
 import { EmptyState } from "@/components/base/empty-state"
-import { ProgressMeter } from "@/components/base/progress-meter"
 import { formatCount } from "@/lib/format"
 import { shortTitle } from "@/lib/metrics"
 import { weekReport } from "@/lib/report"
@@ -20,8 +19,8 @@ const COLUMNS: { label: string; align: "left" | "right" }[] = [
   { label: "账号", align: "left" },
   { label: "粉丝", align: "right" },
   { label: "增减", align: "right" },
-  { label: "发布 / 目标", align: "right" },
-  { label: "阅读", align: "right" },
+  { label: "发布", align: "right" },
+  { label: "浏览", align: "right" },
   { label: "互动", align: "right" },
   { label: "最佳作品", align: "left" },
 ]
@@ -30,7 +29,7 @@ const HEAD_ALIGN = { left: "text-left", right: "text-right" } as const
 
 const BEST_LINK = cn("block max-w-[200px] truncate rounded-sm text-xs hover:underline", focusRing)
 
-/** 分账号：一行一个号，横着比粉丝、发布、阅读和互动；最后一行是合计 */
+/** 分账号：一行一个号，横着比粉丝、发布、浏览和互动，只放客观的数；最后一行是合计。数据还没接的号写明 */
 export function ReportAccounts() {
   const week = useReportWeek((state) => state.week)
   const report = useMemo(() => weekReport(week), [week])
@@ -70,26 +69,24 @@ export function ReportAccounts() {
                   <td className="px-3">
                     <AccountTag account={row.account} size="md" showPlatform />
                   </td>
-                  <td className="px-3 text-right whitespace-nowrap">
-                    <span className="tabular text-fg-2">{formatCount(row.followersStart)} → </span>
-                    <span className="tabular">{formatCount(row.followersEnd)}</span>
-                  </td>
-                  <td className="px-3 text-right">
-                    <Delta value={row.delta} kind="count" />
-                  </td>
-                  <td className="px-3 text-right whitespace-nowrap">
-                    {/* 只有运营中的号有目标；筹备中的号只显示发了几篇 */}
-                    {row.target > 0 ? (
-                      <span className="inline-flex items-center gap-1.5 tabular">
-                        {row.posts}/{row.target}
-                        <ProgressMeter value={row.posts / row.target} />
-                      </span>
-                    ) : (
-                      <span className="tabular text-fg-2">{row.posts}</span>
-                    )}
-                  </td>
-                  <td className="px-3 text-right tabular">{formatCount(row.reads)}</td>
-                  <td className="px-3 text-right tabular text-fg-2">{formatCount(row.interactions)}</td>
+                  {row.hasData ? (
+                    <>
+                      <td className="px-3 text-right whitespace-nowrap">
+                        <span className="tabular text-fg-2">{formatCount(row.followersStart)} → </span>
+                        <span className="tabular">{formatCount(row.followersEnd)}</span>
+                      </td>
+                      <td className="px-3 text-right">
+                        <Delta value={row.delta} kind="count" />
+                      </td>
+                    </>
+                  ) : (
+                    <td colSpan={2} className="px-3 text-right text-xs text-fg-2">
+                      数据还没接
+                    </td>
+                  )}
+                  <td className="px-3 text-right tabular">{row.posts}</td>
+                  <td className="px-3 text-right tabular">{row.hasData ? formatCount(row.reads) : "—"}</td>
+                  <td className="px-3 text-right tabular text-fg-2">{row.hasData ? formatCount(row.interactions) : "—"}</td>
                   <td className="px-3">
                     {row.best ? (
                       <Link href={`/?open=${row.best.item.work.id}`} className={BEST_LINK} title={row.best.item.work.title}>
@@ -109,9 +106,7 @@ export function ReportAccounts() {
                 <td className="px-3 text-right">
                   <Delta value={totals.delta} kind="count" />
                 </td>
-                <td className="px-3 text-right tabular whitespace-nowrap">
-                  {totals.posts}/{totals.target}
-                </td>
+                <td className="px-3 text-right tabular whitespace-nowrap">{totals.posts}</td>
                 <td className="px-3 text-right tabular">{formatCount(totals.reads)}</td>
                 <td className="px-3 text-right tabular">{formatCount(totals.interactions)}</td>
                 <td className="px-3" />

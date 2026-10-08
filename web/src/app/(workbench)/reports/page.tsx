@@ -1,5 +1,4 @@
 import { ReportAccounts } from "@/features/reports/accounts"
-import { ReportColumns } from "@/features/reports/columns"
 import { ReportDigest } from "@/features/reports/digest"
 import { ReportHistory } from "@/features/reports/history"
 import { ReportNotes } from "@/features/reports/notes"
@@ -14,14 +13,7 @@ export default function Page() {
         <div className="flex min-w-0 flex-col gap-(--gap-card) xl:col-span-3">
           <ReportDigest />
           <ReportAccounts />
-          <div className="grid items-start gap-(--gap-card) lg:grid-cols-2">
-            <div className="min-w-0">
-              <ReportWorks />
-            </div>
-            <div className="min-w-0">
-              <ReportColumns />
-            </div>
-          </div>
+          <ReportWorks />
           <ReportNotes />
         </div>
         <div className="flex min-w-0 flex-col gap-(--gap-card)">

@@ -1,8 +1,8 @@
 "use client"
 
 import { cn } from "cn"
-import { Eye, Hand, MessageSquare, ThumbsUp, Workflow } from "lucide-react"
-import { useState, type ReactNode } from "react"
+import { Hand, Workflow } from "lucide-react"
+import { Fragment, useState } from "react"
 
 import { AccountTag } from "@/components/base/account-tag"
 import { WORK_DRAG, endCardDrag, startCardDrag } from "@/components/base/board-dnd"
@@ -10,27 +10,15 @@ import { LabelChip } from "@/components/base/label-chip"
 import { Spinner, WorkStatusIcon } from "@/components/base/state-icons"
 import { Button } from "@/components/ui/button"
 import { accountById } from "@/data/accounts"
-import { METRIC_LABEL } from "@/data/labels"
 import type { Work } from "@/data/types"
 import { formatCount } from "@/lib/format"
-import { metricText } from "@/lib/metrics"
 import { focusRing } from "@/lib/styles"
 import { progressText, waitingLabel, workflowOf } from "@/lib/work-engine"
 import { useWorks } from "@/state/works"
 import { WorkCardMenu } from "./works-card-menu"
-import { cardTimeText, interactionOf, sourceMarkOf, type WorkHandlers } from "./works-model"
+import { cardMetrics, cardTimeText, sourceMarkOf, type WorkHandlers } from "./works-model"
 
 const STAT_ICON = "size-3.5 shrink-0 text-fg-3"
-
-/** 图标 + 数字的一小组（已完成卡片的第三行）；悬停给出这个数字是什么 */
-function Stat({ title, icon, children }: { title: string; icon: ReactNode; children: ReactNode }) {
-  return (
-    <span title={title} className="inline-flex items-center gap-1">
-      {icon}
-      <span className="text-xs text-fg-2 tabular">{children}</span>
-    </span>
-  )
-}
 
 /** 第三行的内容，按状态不同：待实现是工作流，进行中是进度，等你处理是卡在哪一步，已完成是数据 */
 function CardMeta({ work, running, onOpen }: { work: Work; running: boolean; onOpen: (id: string) => void }) {
@@ -81,23 +69,16 @@ function CardMeta({ work, running, onOpen }: { work: Work; running: boolean; onO
       )
     case "done": {
       if (!work.totals) return <span className="text-xs text-fg-2">还没有数据</span>
-      const interaction = interactionOf(work)
+      // 各平台的数据项不一样，直接写平台自己的叫法：知乎「浏览 1.6万 · 点赞 702」，博客「访问 4,601 · 评论 12」
       return (
-        <>
-          <Stat title={accountById(work.accountId).readsLabel} icon={<Eye className={STAT_ICON} aria-hidden />}>
-            {metricText(work, "reads")}
-          </Stat>
-          {interaction?.kind === "comments" && (
-            <Stat title="评论" icon={<MessageSquare className={STAT_ICON} aria-hidden />}>
-              {formatCount(interaction.value)}
-            </Stat>
-          )}
-          {interaction?.kind === "reactions" && (
-            <Stat title={METRIC_LABEL.interactions} icon={<ThumbsUp className={STAT_ICON} aria-hidden />}>
-              {formatCount(interaction.value)}
-            </Stat>
-          )}
-        </>
+        <span className="truncate text-xs text-fg-2" data-card-metrics>
+          {cardMetrics(work).map((item, index) => (
+            <Fragment key={item.label}>
+              {index > 0 && " · "}
+              {item.label} <span className="text-fg tabular">{formatCount(item.value)}</span>
+            </Fragment>
+          ))}
+        </span>
       )
     }
   }

@@ -1,6 +1,6 @@
 "use client"
 
-import { Lightbulb, Sparkles } from "lucide-react"
+import { Sparkles } from "lucide-react"
 import { useMemo } from "react"
 
 import { LabelChip } from "@/components/base/label-chip"
@@ -10,9 +10,8 @@ import { weekReport } from "@/lib/report"
 import { useReportWeek } from "@/state/report-week"
 
 /**
- * 小结与建议：本页最重要的一块。
- * 句子全部由 weekReport 现成算好（发了几篇、粉丝、阅读、断更，以及下一步建议），
- * 这里只负责按周展示，不自己拼文字；跟着共享的周一起变。
+ * 小结：本页最重要的一块。只放客观的几句（发了几篇、粉丝、浏览、断更），不设目标、不给建议，要分析让 AI 拉数据自己分析。
+ * 句子全部由 weekReport 现成算好，这里只负责按周展示，不自己拼文字；跟着共享的周一起变。
  */
 export function ReportDigest() {
   const week = useReportWeek((state) => state.week)
@@ -37,21 +36,6 @@ export function ReportDigest() {
           </li>
         ))}
       </ul>
-
-      {/* 没有建议时整节不出现 */}
-      {report.suggestions.length > 0 && (
-        <div className="mt-3 border-t border-line pt-3">
-          <h3 className="pb-1.5 text-xs font-medium text-fg-2">建议</h3>
-          <ul className="flex flex-col gap-1.5" data-suggestions>
-            {report.suggestions.map((line) => (
-              <li key={line} className="flex gap-2 text-sm">
-                <Lightbulb className="mt-0.5 size-3.5 shrink-0 text-fg-3" aria-hidden />
-                <span className="min-w-0">{line}</span>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
     </section>
   )
 }

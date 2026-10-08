@@ -54,7 +54,7 @@ export function ReportHistory() {
                 <span aria-hidden>·</span>
                 <span>粉丝 {formatSigned(report.totals.delta)}</span>
                 <span aria-hidden>·</span>
-                <span>阅读 {formatCount(report.totals.reads)}</span>
+                <span>浏览 {formatCount(report.totals.reads)}</span>
               </span>
             </button>
           )

@@ -1,5 +1,7 @@
+"use client"
+
 import Link from "next/link"
-import type { ReactNode } from "react"
+import { type ReactNode, useMemo } from "react"
 
 import { MiniBars } from "@/components/base/bars"
 import { Delta } from "@/components/base/delta"
@@ -7,10 +9,13 @@ import { LabelChip } from "@/components/base/label-chip"
 import { PlatformMark } from "@/components/base/marks"
 import { SourceBadge } from "@/components/base/source-badge"
 import { PLATFORMS } from "@/data/accounts"
-import { STAGE_LABEL } from "@/data/labels"
-import type { AccountStage, DataSource, LabelColor, PlatformId } from "@/data/types"
+import { SETUP_STATE_LABEL, STAGE_LABEL } from "@/data/labels"
+import type { AccountStage, DataSource, LabelColor, PlatformId, SetupState } from "@/data/types"
 import { formatCount } from "@/lib/format"
+import { markdownSummary } from "@/lib/markdown"
 import type { AccountSummary } from "@/lib/metrics"
+import { setupView } from "@/lib/setup"
+import { useAccounts, useProfile } from "@/state/accounts"
 import type { NewAccount } from "./accounts-grid-dialog"
 import { AccountTasks } from "./accounts-grid-tasks"
 
@@ -21,8 +26,15 @@ const STAGE_COLOR: Record<AccountStage, LabelColor> = {
   paused: "gray",
 }
 
-/** 刚加的账号还没有任何数据：手填、从没拉过 */
-const NEW_ACCOUNT_SOURCE: DataSource = { mode: "manual", provider: "", schedule: "", lastResult: "never" }
+/** 接入状态的色点：接好了绿、有问题红、没接完黄 */
+const SETUP_COLOR: Record<SetupState, LabelColor> = {
+  ready: "green",
+  broken: "red",
+  unfinished: "amber",
+}
+
+/** 刚加的账号还没接：拿数据的工具、要配的东西都等接这个平台时再定 */
+const NEW_ACCOUNT_SOURCE: DataSource = { mode: "crawler", provider: "", schedule: "", status: "missing" }
 
 /**
  * 整张卡片都能点，又不让链接套链接（卡片里还有一条「手上的活」链接）：
@@ -82,18 +94,12 @@ function Stat({ label, children }: { label: string; children: ReactNode }) {
 
 /** 现有账号的卡片：点卡片任何地方进账号详情，「手上的活」单独去作品页 */
 export function AccountCard({ summary }: { summary: AccountSummary }) {
-  const {
-    account: a,
-    followers,
-    followers7d,
-    reads7d,
-    readsChange,
-    postsThisWeek,
-    postsTarget,
-    weeklyGain,
-    stale,
-    daysSincePublish,
-  } = summary
+  const { account: a, hasData, followers, followers7d, reads7d, readsChange, postsThisWeek, weeklyGain, stale, daysSincePublish } = summary
+  const profile = useProfile(a.id)
+  const config = useAccounts((state) => state.config[a.id])
+  const pull = useAccounts((state) => state.pulls[a.id])
+  const setup = useMemo(() => setupView(a, config, pull), [a, config, pull])
+  const intro = useMemo(() => markdownSummary(profile), [profile])
   return (
     <div
       data-account-card={a.id}
@@ -107,42 +113,40 @@ export function AccountCard({ summary }: { summary: AccountSummary }) {
         chips={
           <>
             <LabelChip color={STAGE_COLOR[a.stage]}>{STAGE_LABEL[a.stage]}</LabelChip>
+            <span data-setup-state={setup.state} className="contents">
+              <LabelChip color={SETUP_COLOR[setup.state]} title={setup.gaps.join("；")}>
+                {SETUP_STATE_LABEL[setup.state]}
+              </LabelChip>
+            </span>
             {stale && daysSincePublish !== null && <LabelChip color="red">{`${daysSincePublish} 天没更新`}</LabelChip>}
           </>
         }
       />
-      <p className="line-clamp-2 text-sm text-fg-2">{a.positioning}</p>
+      {intro && <p className="line-clamp-2 text-sm text-fg-2">{intro}</p>}
       {/* 数值加涨跌放在一行；格子窄时涨跌换到下一行，不撑破卡片 */}
       <div className="grid grid-cols-3 gap-2 border-t border-line pt-2.5">
         <Stat label={a.audienceLabel}>
           <span className="flex flex-wrap items-baseline gap-x-1">
             <span className="text-sm font-medium tabular" data-account-followers>
-              {formatCount(followers)}
+              {hasData ? formatCount(followers) : "—"}
             </span>
-            <Delta value={followers7d} kind="count" />
+            {hasData && <Delta value={followers7d} kind="count" />}
           </span>
         </Stat>
         <Stat label="本周发布">
-          <span className="text-sm font-medium tabular">{`${postsThisWeek}/${postsTarget}`}</span>
+          <span className="text-sm font-medium tabular">{postsThisWeek}</span>
         </Stat>
         <Stat label={`近 7 天${a.readsLabel}`}>
           <span className="flex flex-wrap items-baseline gap-x-1">
-            <span className="text-sm font-medium tabular">{formatCount(reads7d)}</span>
-            <Delta value={readsChange} />
+            <span className="text-sm font-medium tabular">{hasData ? formatCount(reads7d) : "—"}</span>
+            {hasData && <Delta value={readsChange} />}
           </span>
         </Stat>
       </div>
       <AccountTasks accountId={a.id} platform={a.platform} />
-      <div className="flex flex-wrap gap-1">
-        {a.columns.map((column) => (
-          <LabelChip key={column.id} color={column.color}>
-            {column.name}
-          </LabelChip>
-        ))}
-      </div>
       <div className="flex min-w-0 items-center gap-2">
-        <SourceBadge source={a.dataSource} />
-        <MiniBars values={weeklyGain} className="ml-auto" />
+        <SourceBadge source={setup.source} />
+        {hasData && <MiniBars values={weeklyGain} className="ml-auto" />}
       </div>
     </div>
   )

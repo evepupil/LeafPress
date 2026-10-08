@@ -11,7 +11,7 @@ import { accountById } from "@/data/accounts"
 import { WORK_STATUS_LABEL } from "@/data/labels"
 import type { Work, WorkStatus } from "@/data/types"
 import { formatRelative } from "@/lib/format"
-import { metricText } from "@/lib/metrics"
+import { metricText, metricsOf } from "@/lib/metrics"
 import { focusRingInset } from "@/lib/styles"
 import { progressText, workflowOf } from "@/lib/work-engine"
 import { useWorks } from "@/state/works"
@@ -24,7 +24,7 @@ const COLUMNS: { label: string; className: string }[] = [
   { label: "工作流", className: "w-[120px] text-left" },
   { label: "进度", className: "w-[180px] text-left" },
   { label: "更新", className: "w-[96px] text-left" },
-  { label: "阅读", className: "w-[72px] text-right" },
+  { label: "浏览", className: "w-[72px] text-right" },
 ]
 
 function WorkRow({ work, onOpen }: { work: Work; onOpen: (id: string) => void }) {
@@ -64,7 +64,7 @@ function WorkRow({ work, onOpen }: { work: Work; onOpen: (id: string) => void })
         </div>
       </td>
       <td className="px-3 text-xs text-fg-2 tabular">{formatRelative(work.updatedAt)}</td>
-      <td className="px-3 text-right text-xs text-fg-2 tabular">{metricText(work, "reads")}</td>
+      <td className="px-3 text-right text-xs text-fg-2 tabular">{metricText(work, metricsOf(work)[0].key)}</td>
     </tr>
   )
 }

@@ -13,7 +13,6 @@ function makeWork(id: string, status: WorkStatus, patch: Partial<Work> = {}): Wo
     id,
     title: id,
     accountId: "zhihu-yiye",
-    columnId: "ai-eng",
     status,
     brief: "",
     source: { kind: "none" },

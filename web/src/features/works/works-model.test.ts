@@ -5,7 +5,7 @@ import { WORKS } from "@/data/works"
 import {
   cardTimeText,
   emptyColumnText,
-  interactionOf,
+  cardMetrics,
   moreCount,
   platformCounts,
   readWorksParams,
@@ -126,10 +126,16 @@ describe("卡片上的字", () => {
     expect(sourceMarkOf(blogPost, undefined)).toBeNull()
   })
 
-  it("已完成的互动数：博客只有评论，知乎是赞同 + 收藏 + 评论，没发的没有", () => {
+  it("已完成卡片的两项数据按平台自己的叫法：知乎浏览 + 点赞，博客访问 + 评论，没发的没有", () => {
+    expect(cardMetrics(work("z-chatgpt-mcp"))).toEqual([
+      { label: "浏览", value: 15620 },
+      { label: "点赞", value: 702 },
+    ])
     const post = work("chatgpt-mcp-3a94342e")
-    expect(interactionOf(post)).toEqual({ kind: "comments", value: post.totals?.comments })
-    expect(interactionOf(work("z-chatgpt-mcp"))).toEqual({ kind: "reactions", value: 702 + 1380 + 88 })
-    expect(interactionOf(work("b-tunnel-access"))).toBeNull()
+    expect(cardMetrics(post)).toEqual([
+      { label: "访问", value: post.totals?.pageviews },
+      { label: "评论", value: post.totals?.comments },
+    ])
+    expect(cardMetrics(work("b-tunnel-access"))).toEqual([])
   })
 })

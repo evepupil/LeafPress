@@ -9,7 +9,7 @@ import { AccountTag } from "@/components/base/account-tag"
 import { EmptyState } from "@/components/base/empty-state"
 import { Segmented } from "@/components/base/segmented"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { ACCOUNTS, PLATFORMS } from "@/data/accounts"
+import { ACCOUNTS, PLATFORMS, accountById } from "@/data/accounts"
 import { formatCount } from "@/lib/format"
 import { metricText, topWorks, type RankBy } from "@/lib/metrics"
 import { focusRing } from "@/lib/styles"
@@ -18,7 +18,7 @@ import { focusRing } from "@/lib/styles"
 const TOP_LIMIT = 10
 
 const SORT_OPTIONS: { value: RankBy; label: string }[] = [
-  { value: "reads", label: "阅读" },
+  { value: "reach", label: "浏览" },
   { value: "interactions", label: "互动" },
   { value: "growth", label: "近 7 天" },
 ]
@@ -27,12 +27,17 @@ const TH = "h-8 px-3 font-normal whitespace-nowrap"
 /** 数字列：右对齐、等宽数字 */
 const TD_NUM = "px-3 text-right tabular"
 
-/** 作品排行：一个作品一行，可以换排序依据，也可以只看某一个账号 */
+/**
+ * 作品排行：一个作品一行，可以换排序依据，也可以只看某一个账号。
+ * 各平台的数据项不一样：看全部账号时列主数据（浏览 / 访问 / 播放，各取各的）和互动合计；
+ * 只看一个号时按这个平台自己的数据项一列一列摆（知乎：浏览、点赞、收藏、评论、分享）。
+ */
 export function TopWorks() {
-  const [by, setBy] = useState<RankBy>("reads")
+  const [by, setBy] = useState<RankBy>("reach")
   const [account, setAccount] = useState("all")
 
   const items = useMemo(() => topWorks(by, TOP_LIMIT, account === "all" ? undefined : account), [by, account])
+  const metrics = account === "all" ? null : PLATFORMS[accountById(account).platform].metrics
 
   return (
     <section id="top" aria-labelledby="top-title" className="overflow-hidden rounded-lg border border-line bg-card shadow-sm">
@@ -62,10 +67,10 @@ export function TopWorks() {
       </div>
 
       {items.length === 0 ? (
-        <EmptyState icon={ChartColumn} title="这个号还没有发布数据" />
+        <EmptyState icon={ChartColumn} title="这个号还没有数据" />
       ) : (
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[820px] text-sm">
+          <table className="w-full min-w-[760px] text-sm">
             <thead className="bg-raised text-xs text-fg-2">
               <tr>
                 <th scope="col" className={cn(TH, "text-left")}>
@@ -74,21 +79,25 @@ export function TopWorks() {
                 <th scope="col" className={cn(TH, "text-left")}>
                   作品
                 </th>
-                <th scope="col" className={cn(TH, "text-left")}>
-                  账号
-                </th>
-                <th scope="col" className={cn(TH, "text-right")}>
-                  阅读
-                </th>
-                <th scope="col" className={cn(TH, "text-right")}>
-                  赞同
-                </th>
-                <th scope="col" className={cn(TH, "text-right")}>
-                  收藏
-                </th>
-                <th scope="col" className={cn(TH, "text-right")}>
-                  评论
-                </th>
+                {metrics ? (
+                  metrics.map((metric) => (
+                    <th key={metric.key} scope="col" className={cn(TH, "text-right")}>
+                      {metric.label}
+                    </th>
+                  ))
+                ) : (
+                  <>
+                    <th scope="col" className={cn(TH, "text-left")}>
+                      账号
+                    </th>
+                    <th scope="col" className={cn(TH, "text-right")}>
+                      浏览
+                    </th>
+                    <th scope="col" className={cn(TH, "text-right")}>
+                      互动
+                    </th>
+                  </>
+                )}
                 <th scope="col" className={cn(TH, "text-right")}>
                   近 7 天
                 </th>
@@ -108,13 +117,23 @@ export function TopWorks() {
                       {item.work.title}
                     </Link>
                   </td>
-                  <td className="px-3">
-                    <AccountTag account={item.account} />
-                  </td>
-                  <td className={TD_NUM}>{metricText(item.work, "reads")}</td>
-                  <td className={TD_NUM}>{metricText(item.work, "likes")}</td>
-                  <td className={TD_NUM}>{metricText(item.work, "collects")}</td>
-                  <td className={TD_NUM}>{metricText(item.work, "comments")}</td>
+                  {metrics ? (
+                    metrics.map((metric) => (
+                      <td key={metric.key} className={TD_NUM}>
+                        {metricText(item.work, metric.key)}
+                      </td>
+                    ))
+                  ) : (
+                    <>
+                      <td className="px-3">
+                        <AccountTag account={item.account} />
+                      </td>
+                      <td className={TD_NUM} title={item.account.readsLabel}>
+                        {formatCount(item.reach)}
+                      </td>
+                      <td className={TD_NUM}>{formatCount(item.interactions)}</td>
+                    </>
+                  )}
                   <td className={TD_NUM}>{item.growth > 0 ? `+${formatCount(item.growth)}` : "—"}</td>
                 </tr>
               ))}

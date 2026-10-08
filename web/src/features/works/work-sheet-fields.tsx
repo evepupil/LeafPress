@@ -5,7 +5,6 @@ import { toast } from "sonner"
 
 import { AccountTag } from "@/components/base/account-tag"
 import { IconButton } from "@/components/base/icon-button"
-import { ColorDot } from "@/components/base/marks"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { accountById } from "@/data/accounts"
@@ -16,30 +15,6 @@ import { useDraft } from "./work-sheet-draft"
 import { timeText, workflowLocked } from "./work-sheet-model"
 import { WorkSheetOrigin } from "./work-sheet-origin"
 import { FieldRow, QUIET_TRIGGER, SheetSection, VALUE_CELL } from "./work-sheet-parts"
-
-/** 栏目：改了立刻保存 */
-function ColumnRow({ work }: { work: Work }) {
-  const update = useWorks((state) => state.update)
-  const account = accountById(work.accountId)
-
-  return (
-    <FieldRow label="栏目" htmlFor="work-column">
-      <Select value={work.columnId} onValueChange={(columnId) => update(work.id, { columnId })}>
-        <SelectTrigger id="work-column" className={QUIET_TRIGGER}>
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent position="popper" align="start">
-          {account.columns.map((column) => (
-            <SelectItem key={column.id} value={column.id}>
-              <ColorDot color={column.color} />
-              {column.name}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-    </FieldRow>
-  )
-}
 
 /** 工作流：同一个平台里可以换，但只有还没开始做的待实现作品能换 */
 function WorkflowRow({ work }: { work: Work }) {
@@ -124,7 +99,6 @@ export function WorkSheetFields({ work }: { work: Work }) {
             <AccountTag account={accountById(work.accountId)} size="md" showPlatform />
           </div>
         </FieldRow>
-        <ColumnRow work={work} />
         <WorkflowRow work={work} />
         <WorkSheetOrigin work={work} />
         {work.status === "done" && <LinkRow work={work} />}

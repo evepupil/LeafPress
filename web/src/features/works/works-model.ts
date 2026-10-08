@@ -131,17 +131,19 @@ export function sourceMarkOf(work: Work, sourceWork: Work | undefined): string |
   return null
 }
 
-export interface Interaction {
-  /** comments：这个平台只有评论（博客）；reactions：赞同 + 收藏 + 评论合计 */
-  kind: "comments" | "reactions"
+export interface CardMetric {
+  label: string
   value: number
 }
 
-/** 已完成卡片上的互动数：博客只有评论，其余平台是赞同、收藏、评论加起来；没有数据返回 null */
-export function interactionOf(work: Work): Interaction | null {
+/**
+ * 已完成卡片第三行的两项数据，按各平台自己的叫法：主数据（浏览 / 访问 / 播放）+ 第一项互动
+ * （知乎、B站、小红书是点赞，博客是评论）。没有数据返回空数组。
+ */
+export function cardMetrics(work: Work): CardMetric[] {
   const totals = work.totals
-  if (!totals) return null
-  const kinds = PLATFORMS[accountById(work.accountId).platform].interactions
-  if (kinds.length === 1 && kinds[0] === "comments") return { kind: "comments", value: totals.comments }
-  return { kind: "reactions", value: kinds.reduce((sum, key) => sum + totals[key], 0) }
+  if (!totals) return []
+  const metrics = PLATFORMS[accountById(work.accountId).platform].metrics
+  const picked = [metrics[0], metrics.find((item) => item.interaction)].filter((item) => item !== undefined)
+  return picked.map((item) => ({ label: item.label, value: totals[item.key] ?? 0 }))
 }

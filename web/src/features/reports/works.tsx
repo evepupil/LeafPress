@@ -50,7 +50,7 @@ export function ReportWorks() {
                 {item.work.title}
               </Link>
               <span className="shrink-0 text-xs text-fg-2">{item.work.publishedAt ? weekdayLabel(item.work.publishedAt) : "—"}</span>
-              <span className="w-14 shrink-0 text-right text-xs tabular">{formatCount(item.reads)}</span>
+              <span className="w-14 shrink-0 text-right text-xs tabular">{formatCount(item.reach)}</span>
             </li>
           ))}
         </ul>
