@@ -1,14 +1,10 @@
-import { ExternalLink } from "lucide-react"
-
 import { Delta } from "@/components/base/delta"
 import { LabelChip } from "@/components/base/label-chip"
 import { PlatformMark } from "@/components/base/marks"
 import { ProgressMeter } from "@/components/base/progress-meter"
 import { StatusIcon } from "@/components/base/status-icon"
-import { Button } from "@/components/ui/button"
 import { PLATFORMS, accountById } from "@/data/accounts"
 import { STAGE_LABEL } from "@/data/labels"
-import { WECHAT_REVIEW_QUEUE, WECHAT_REVIEW_URL } from "@/data/tools"
 import type { AccountStage, LabelColor } from "@/data/types"
 import { formatCount, formatDay, formatPercent, formatSigned } from "@/lib/format"
 import { summaryOf } from "@/lib/metrics"
@@ -76,17 +72,6 @@ export function AccountHeader({ accountId }: { accountId: string }) {
         <div data-stale-banner className="mt-3 flex flex-wrap items-center gap-2 rounded-md bg-raised px-3 py-2 text-sm">
           <StatusIcon glyph="alert" tone="risk" />
           <span>已经 {summary.daysSincePublish} 天没更新</span>
-          {account.platform === "wechat" && (
-            <>
-              <span className="text-fg-2">审核队列 {WECHAT_REVIEW_QUEUE} 张待审</span>
-              <Button variant="outline" size="sm" className="ml-auto" asChild>
-                <a href={WECHAT_REVIEW_URL} target="_blank" rel="noreferrer">
-                  去审图
-                  <ExternalLink className="size-3" aria-hidden />
-                </a>
-              </Button>
-            </>
-          )}
         </div>
       )}
     </section>

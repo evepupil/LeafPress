@@ -1,4 +1,3 @@
-import { cn } from "cn"
 import Link from "next/link"
 import type { ReactNode } from "react"
 
@@ -12,8 +11,8 @@ import { STAGE_LABEL } from "@/data/labels"
 import type { AccountStage, DataSource, LabelColor, PlatformId } from "@/data/types"
 import { formatCount } from "@/lib/format"
 import type { AccountSummary } from "@/lib/metrics"
-import { focusRing } from "@/lib/styles"
 import type { NewAccount } from "./accounts-grid-dialog"
+import { AccountTasks } from "./accounts-grid-tasks"
 
 /** 阶段标签的色点：运营中绿、筹备中黄、暂停灰。按对象映射取值，不拼接 */
 const STAGE_COLOR: Record<AccountStage, LabelColor> = {
@@ -25,15 +24,47 @@ const STAGE_COLOR: Record<AccountStage, LabelColor> = {
 /** 刚加的账号还没有任何数据：手填、从没拉过 */
 const NEW_ACCOUNT_SOURCE: DataSource = { mode: "manual", provider: "", schedule: "", lastResult: "never" }
 
-/** 卡片第一行：平台标识 + 名字与副标题 + 右侧标签。长名字在中间一栏被截断，标签不会被挤掉 */
-function CardHead({ platform, name, subtitle, chips }: { platform: PlatformId; name: string; subtitle: string; chips: ReactNode }) {
+/**
+ * 整张卡片都能点，又不让链接套链接（卡片里还有一条「手上的活」链接）：
+ * 点开账号详情的链接只包住名字和平台，它的伪元素铺满整张卡片（外层是 relative）。
+ * 键盘焦点的描边也画在这一层上，框住整张卡片。
+ */
+const CARD_LINK =
+  "min-w-0 outline-none after:absolute after:-inset-px after:rounded-lg focus-visible:after:outline-2 focus-visible:after:outline-solid focus-visible:after:outline-offset-1 focus-visible:after:outline-(--focus-ring)"
+
+/**
+ * 卡片第一行：平台标识 + 名字与副标题 + 右侧标签。长名字在中间一栏被截断，标签不会被挤掉。
+ * 传了 href，名字和副标题就是进详情页的链接；不传（刚加的账号还没有详情页）就是普通文字。
+ */
+function CardHead({
+  platform,
+  name,
+  subtitle,
+  chips,
+  href,
+}: {
+  platform: PlatformId
+  name: string
+  subtitle: string
+  chips: ReactNode
+  href?: string
+}) {
+  const text = (
+    <>
+      <p className="truncate text-sm font-medium">{name}</p>
+      <p className="truncate text-xs text-fg-2">{subtitle}</p>
+    </>
+  )
   return (
     <div className="flex min-w-0 items-center gap-2.5">
       <PlatformMark platform={platform} size={28} />
-      <div className="min-w-0">
-        <p className="truncate text-sm font-medium">{name}</p>
-        <p className="truncate text-xs text-fg-2">{subtitle}</p>
-      </div>
+      {href ? (
+        <Link href={href} className={CARD_LINK}>
+          {text}
+        </Link>
+      ) : (
+        <div className="min-w-0">{text}</div>
+      )}
       <div className="ml-auto flex shrink-0 gap-1">{chips}</div>
     </div>
   )
@@ -49,7 +80,7 @@ function Stat({ label, children }: { label: string; children: ReactNode }) {
   )
 }
 
-/** 现有账号的卡片：整张是链接，点开进账号详情 */
+/** 现有账号的卡片：点卡片任何地方进账号详情，「手上的活」单独去作品页 */
 export function AccountCard({ summary }: { summary: AccountSummary }) {
   const {
     account: a,
@@ -64,15 +95,12 @@ export function AccountCard({ summary }: { summary: AccountSummary }) {
     daysSincePublish,
   } = summary
   return (
-    <Link
-      href={`/accounts/${a.id}/`}
+    <div
       data-account-card={a.id}
-      className={cn(
-        "flex min-w-0 flex-col gap-2.5 rounded-lg border border-line bg-card px-4 py-3 shadow-sm transition-[border-color] duration-(--dur-fast) hover:border-line-3",
-        focusRing,
-      )}
+      className="relative isolate flex min-w-0 flex-col gap-2.5 rounded-lg border border-line bg-card px-4 py-3 shadow-sm transition-[border-color] duration-(--dur-fast) hover:border-line-3"
     >
       <CardHead
+        href={`/accounts/${a.id}/`}
         platform={a.platform}
         name={a.name}
         subtitle={`${PLATFORMS[a.platform].name} · ${a.handle}`}
@@ -104,6 +132,7 @@ export function AccountCard({ summary }: { summary: AccountSummary }) {
           </span>
         </Stat>
       </div>
+      <AccountTasks accountId={a.id} platform={a.platform} />
       <div className="flex flex-wrap gap-1">
         {a.columns.map((column) => (
           <LabelChip key={column.id} color={column.color}>
@@ -115,7 +144,7 @@ export function AccountCard({ summary }: { summary: AccountSummary }) {
         <SourceBadge source={a.dataSource} />
         <MiniBars values={weeklyGain} className="ml-auto" />
       </div>
-    </Link>
+    </div>
   )
 }
 

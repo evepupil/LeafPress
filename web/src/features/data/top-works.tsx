@@ -3,15 +3,15 @@
 import { cn } from "cn"
 import { ChartColumn } from "lucide-react"
 import Link from "next/link"
-import { useState } from "react"
+import { useMemo, useState } from "react"
 
+import { AccountTag } from "@/components/base/account-tag"
 import { EmptyState } from "@/components/base/empty-state"
-import { PubChip } from "@/components/base/pub-chip"
 import { Segmented } from "@/components/base/segmented"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { ACCOUNTS, PLATFORMS } from "@/data/accounts"
 import { formatCount } from "@/lib/format"
-import { metricText, topPublications, type RankBy } from "@/lib/metrics"
+import { metricText, topWorks, type RankBy } from "@/lib/metrics"
 import { focusRing } from "@/lib/styles"
 
 /** 排行只看前 10 名 */
@@ -27,13 +27,12 @@ const TH = "h-8 px-3 font-normal whitespace-nowrap"
 /** 数字列：右对齐、等宽数字 */
 const TD_NUM = "px-3 text-right tabular"
 
-/** 作品排行：按单个版本排，可以换排序依据，也可以只看某一个账号 */
+/** 作品排行：一个作品一行，可以换排序依据，也可以只看某一个账号 */
 export function TopWorks() {
   const [by, setBy] = useState<RankBy>("reads")
   const [account, setAccount] = useState("all")
 
-  // 数据是写死在内存里的，每次渲染直接算，不用缓存
-  const items = topPublications(by, TOP_LIMIT, account === "all" ? undefined : account)
+  const items = useMemo(() => topWorks(by, TOP_LIMIT, account === "all" ? undefined : account), [by, account])
 
   return (
     <section id="top" aria-labelledby="top-title" className="overflow-hidden rounded-lg border border-line bg-card shadow-sm">
@@ -76,7 +75,7 @@ export function TopWorks() {
                   作品
                 </th>
                 <th scope="col" className={cn(TH, "text-left")}>
-                  版本
+                  账号
                 </th>
                 <th scope="col" className={cn(TH, "text-right")}>
                   阅读
@@ -98,28 +97,24 @@ export function TopWorks() {
             <tbody>
               {items.map((item, index) => (
                 <tr
-                  key={item.pub.id}
+                  key={item.work.id}
                   data-top-row
-                  data-pub={item.pub.id}
+                  data-work={item.work.id}
                   className="h-10 border-t border-line transition-colors duration-(--dur-fast) hover:bg-hover"
                 >
                   <td className="w-8 px-3 text-left text-xs text-fg-2 tabular">{index + 1}</td>
                   <td className="px-3">
-                    <Link
-                      href={`/works/?open=${item.work.id}`}
-                      title={item.work.title}
-                      className={cn("block max-w-[320px] truncate", focusRing)}
-                    >
+                    <Link href={`/?open=${item.work.id}`} title={item.work.title} className={cn("block max-w-[320px] truncate", focusRing)}>
                       {item.work.title}
                     </Link>
                   </td>
                   <td className="px-3">
-                    <PubChip pub={item.pub} />
+                    <AccountTag account={item.account} />
                   </td>
-                  <td className={TD_NUM}>{metricText(item.pub, "reads")}</td>
-                  <td className={TD_NUM}>{metricText(item.pub, "likes")}</td>
-                  <td className={TD_NUM}>{metricText(item.pub, "collects")}</td>
-                  <td className={TD_NUM}>{metricText(item.pub, "comments")}</td>
+                  <td className={TD_NUM}>{metricText(item.work, "reads")}</td>
+                  <td className={TD_NUM}>{metricText(item.work, "likes")}</td>
+                  <td className={TD_NUM}>{metricText(item.work, "collects")}</td>
+                  <td className={TD_NUM}>{metricText(item.work, "comments")}</td>
                   <td className={TD_NUM}>{item.growth > 0 ? `+${formatCount(item.growth)}` : "—"}</td>
                 </tr>
               ))}

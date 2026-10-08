@@ -6,7 +6,7 @@ import { IconButton } from "@/components/base/icon-button"
 import { Button } from "@/components/ui/button"
 import { LAST_WEEK, THIS_WEEK, addDays } from "@/data/clock"
 import { formatWeekRange } from "@/lib/format"
-import { REPORT_WEEKS } from "@/lib/metrics"
+import { REPORT_WEEKS } from "@/lib/report"
 import { useReportWeek } from "@/state/report-week"
 
 /**

@@ -8,7 +8,7 @@ import { Field } from "@/components/base/field"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import type { DayKey, WeeklyNote } from "@/data/types"
-import { weekReport } from "@/lib/metrics"
+import { weekReport } from "@/lib/report"
 import { useReportWeek } from "@/state/report-week"
 
 /** 复盘的三段话 */
@@ -34,9 +34,9 @@ function textOf(note: WeeklyNote | null): NoteText {
 
 /**
  * 我的复盘：三段自己写的话，跟着所选的周走。
- * 草稿和已保存的版本都按周分开记：一周没被编辑过，就直接拿它原本的复盘当草稿
+ * 草稿和已保存的内容都按周分开记：一周没被编辑过，就直接拿它原本的复盘当草稿
  * （等于第一次显示时用原复盘初始化），第一次输入才把这一周写进草稿。
- * 草稿和已保存版本有出入时，「保存」才能点；保存后两者一致，按钮重新变灰。
+ * 草稿和已保存的内容有出入时，「保存」才能点；保存后两者一致，按钮重新变灰。
  */
 export function ReportNotes() {
   const week = useReportWeek((state) => state.week)

@@ -7,12 +7,15 @@ import { toast } from "sonner"
 
 import { AccountTag } from "@/components/base/account-tag"
 import { SourceBadge } from "@/components/base/source-badge"
+import { RunResultIcon } from "@/components/base/state-icons"
 import { Button } from "@/components/ui/button"
 import { ACCOUNTS, accountById } from "@/data/accounts"
 import { DEMO_NOW } from "@/data/clock"
 import { DATA_MODE_LABEL } from "@/data/labels"
 import type { DataSource, IsoTime } from "@/data/types"
+import { formatRelative } from "@/lib/format"
 import { accountLabel } from "@/lib/metrics"
+import { useSchedules } from "@/state/schedules"
 import { EntryDialog, blankEntryForm, type EntryForm } from "./sources-entry-dialog"
 
 /** 地址栏 entry 参数对应的账号：只有手填方式的账号才打开弹窗，其余一律忽略 */
@@ -21,10 +24,12 @@ function manualAccountOf(entry: string | null): string | null {
   return account?.dataSource.mode === "manual" ? account.id : null
 }
 
-/** 数据来源：每个号的数据从哪来、什么时候拉、上次拉得怎么样；手填方式的号可以在这里补数据 */
+/** 数据来源：最上面是定时的「拉作品数据」上次跑得怎么样；下面每个号的数据从哪来、什么时候拉；手填方式的号可以在这里补数据 */
 export function DataSources() {
   const router = useRouter()
   const params = useSearchParams()
+  // 定时工作流「拉作品数据」最近一次运行；视图栏的「现在拉一次」跑完会改它，这一行的时间跟着变成「刚刚」
+  const pullRun = useSchedules((state) => state.runs["data-pull"])
   // 手填保存后记下的时间（用演示时刻，显示成「刚刚」）；刷新就复原
   const [overrides, setOverrides] = useState<Record<string, IsoTime>>({})
   // 手填弹窗对应的账号，null 表示关着。从总览的「去手填」跳来时，地址栏带 entry 参数，挂载时读一次
@@ -56,6 +61,13 @@ export function DataSources() {
         <h2 id="sources-title" className="text-sm font-medium">
           数据来源
         </h2>
+      </div>
+      <div data-pull-schedule className="flex flex-wrap items-center gap-2 border-b border-line px-3 py-2 text-xs">
+        <RunResultIcon result={pullRun.lastResult} />
+        <span className="text-fg">拉作品数据 · 每天 06:00</span>
+        <span className={pullRun.lastResult === "failed" ? "text-bad" : "text-fg-2"}>
+          {formatRelative(pullRun.lastRunAt)} · {pullRun.lastNote}
+        </span>
       </div>
       <ul className="divide-y divide-line">
         {ACCOUNTS.map((account) => {

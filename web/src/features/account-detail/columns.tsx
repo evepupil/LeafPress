@@ -18,7 +18,7 @@ const HEADERS: { label: string; align: "left" | "right" }[] = [
 
 export function ColumnTable({ accountId }: { accountId: string }) {
   const rows = columnRows(accountId)
-  const nothingPublished = rows.every((row) => row.pubs === 0)
+  const nothingPublished = rows.every((row) => row.works === 0)
 
   return (
     <section id="columns" aria-labelledby="columns-title" className="overflow-hidden rounded-lg border border-line bg-card shadow-sm">
@@ -46,7 +46,7 @@ export function ColumnTable({ accountId }: { accountId: string }) {
             </tr>
           </thead>
           <tbody>
-            {rows.map(({ column, pubs, share, targetShare, avgReads, interactionRate, weekly }) => (
+            {rows.map(({ column, works, share, targetShare, avgReads, interactionRate, weekly }) => (
               <tr key={column.id} data-column-row={column.id} className="h-10 border-t border-line">
                 <td className="px-3">
                   <div className="flex items-center gap-2 whitespace-nowrap">
@@ -54,7 +54,7 @@ export function ColumnTable({ accountId }: { accountId: string }) {
                     {column.name}
                   </div>
                 </td>
-                <td className="px-3 text-right tabular">{pubs}</td>
+                <td className="px-3 text-right tabular">{works}</td>
                 <td className="px-3 text-right whitespace-nowrap tabular">
                   {/* 实际占比不到计划的一半，说明这个栏目被冷落了，实际那部分标成警示色 */}
                   <span className={cn(share < targetShare / 2 && "text-warn")}>{formatPercent(share)}</span> / {formatPercent(targetShare)}

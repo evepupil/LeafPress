@@ -6,15 +6,11 @@ import { AccountTag } from "@/components/base/account-tag"
 import { ColorDot } from "@/components/base/marks"
 import { ProgressMeter } from "@/components/base/progress-meter"
 import { ACCOUNTS } from "@/data/accounts"
-import { LATEST_DAY, addDays } from "@/data/clock"
-import type { DayKey } from "@/data/types"
-import { PUBLICATIONS } from "@/data/works"
 import { formatCount, formatPercent } from "@/lib/format"
 import { summaryOf } from "@/lib/metrics"
 import { focusRing } from "@/lib/styles"
+import { RECENT_DAYS, publishedRecently } from "./direction-matrix-recent"
 
-/** 「近 N 天」的 N：窗口从最新一天往前数，含最新一天 */
-const RECENT_DAYS = 30
 /** 「写给谁」最多列出几项，其余折成 +N */
 const AUDIENCE_SHOWN = 2
 
@@ -23,7 +19,7 @@ const AUDIENCE_SHOWN = 2
  * 账号列留足 200px，名字和「· 平台名」都能完整显示。
  * 「定位」「写给谁」两列写成百分比（45% / 25%），只当比例用：写死宽度的列先占走自己那份，
  * 这两列的百分比加起来比剩下的地方大，浏览器会按比例缩小，结果是剩下的地方按 45:25 分给它们，「定位」分到的最多。
- * 装不下的文字用省略号收尾（悬停看全文）。容器不够 760px 时整张表横向滚动，不再继续挤。
+ * 装不下的文字用省略号收尾（悬停看全文）。容器不够 900px 时整张表横向滚动，不再继续挤。
  */
 const COLUMNS = [
   { label: "账号", width: "w-[200px]" },
@@ -35,18 +31,6 @@ const COLUMNS = [
   { label: "粉丝目标", width: "w-[140px]" },
 ]
 
-/** 这个号在 [from, 最新一天] 里已发的版本数 */
-function publishedSince(accountId: string, from: DayKey): number {
-  return PUBLICATIONS.filter(
-    (pub) =>
-      pub.accountId === accountId &&
-      pub.state === "published" &&
-      pub.publishedAt !== undefined &&
-      pub.publishedAt >= from &&
-      pub.publishedAt <= LATEST_DAY,
-  ).length
-}
-
 /** 前两项用「、」连起来；多出来的项数单独返回，界面上写成 +N */
 function audienceParts(audience: string[]): { shown: string; rest: number } {
   return {
@@ -57,7 +41,6 @@ function audienceParts(audience: string[]): { shown: string; rest: number } {
 
 /** A2 方向对照：把各账号的定位、读者、栏目、节奏和粉丝目标排成一张表，横着比 */
 export function DirectionMatrix() {
-  const from = addDays(LATEST_DAY, 1 - RECENT_DAYS)
   return (
     <section id="directions" aria-labelledby="directions-title" className="overflow-hidden rounded-lg border border-line bg-card shadow-sm">
       <div className="flex h-10 items-center gap-2 border-b border-line px-3">
@@ -79,7 +62,7 @@ export function DirectionMatrix() {
           </thead>
           <tbody>
             {ACCOUNTS.map((a) => {
-              const recent = publishedSince(a.id, from)
+              const recent = publishedRecently(a.id)
               const { goalProgress } = summaryOf(a.id)
               const { shown, rest } = audienceParts(a.audience)
               return (

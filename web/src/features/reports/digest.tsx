@@ -6,7 +6,7 @@ import { useMemo } from "react"
 import { LabelChip } from "@/components/base/label-chip"
 import { LAST_WEEK } from "@/data/clock"
 import { formatWeekRange } from "@/lib/format"
-import { weekReport } from "@/lib/metrics"
+import { weekReport } from "@/lib/report"
 import { useReportWeek } from "@/state/report-week"
 
 /**

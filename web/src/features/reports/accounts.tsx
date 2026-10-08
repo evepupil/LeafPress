@@ -10,7 +10,8 @@ import { Delta } from "@/components/base/delta"
 import { EmptyState } from "@/components/base/empty-state"
 import { ProgressMeter } from "@/components/base/progress-meter"
 import { formatCount } from "@/lib/format"
-import { shortTitle, weekReport } from "@/lib/metrics"
+import { shortTitle } from "@/lib/metrics"
+import { weekReport } from "@/lib/report"
 import { focusRing } from "@/lib/styles"
 import { useReportWeek } from "@/state/report-week"
 
@@ -91,7 +92,7 @@ export function ReportAccounts() {
                   <td className="px-3 text-right tabular text-fg-2">{formatCount(row.interactions)}</td>
                   <td className="px-3">
                     {row.best ? (
-                      <Link href={`/works/?open=${row.best.item.work.id}`} className={BEST_LINK} title={row.best.item.work.title}>
+                      <Link href={`/?open=${row.best.item.work.id}`} className={BEST_LINK} title={row.best.item.work.title}>
                         {shortTitle(row.best.item.work.title)}
                       </Link>
                     ) : (

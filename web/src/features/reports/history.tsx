@@ -8,7 +8,7 @@ import { BoardColumn } from "@/components/base/board"
 import { LabelChip } from "@/components/base/label-chip"
 import { THIS_WEEK } from "@/data/clock"
 import { formatCount, formatSigned, formatWeekRange } from "@/lib/format"
-import { REPORT_WEEKS, weekReport } from "@/lib/metrics"
+import { REPORT_WEEKS, weekReport } from "@/lib/report"
 import { focusRing } from "@/lib/styles"
 import { useReportWeek } from "@/state/report-week"
 

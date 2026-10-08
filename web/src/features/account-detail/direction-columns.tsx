@@ -11,10 +11,10 @@ import { Unset } from "./direction-parts"
  */
 export function ColumnPlan({ rows }: { rows: ColumnRow[] }) {
   if (rows.length === 0) return <Unset />
-  const anyIdle = rows.some((row) => row.pubs === 0)
+  const anyIdle = rows.some((row) => row.works === 0)
   return (
     <ul className="flex flex-col gap-1">
-      {rows.map(({ column, pubs, share, targetShare }) => (
+      {rows.map(({ column, works, share, targetShare }) => (
         <li key={column.id} data-direction-column={column.id} className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5 text-sm">
           <ColorDot color={column.color} />
           <span className="min-w-24 flex-1 truncate">{column.name}</span>
@@ -22,7 +22,7 @@ export function ColumnPlan({ rows }: { rows: ColumnRow[] }) {
             计划 {formatPercent(targetShare)} · 实际 {formatPercent(share)}
           </span>
           <ProgressMeter value={share} className="w-16" />
-          {pubs === 0 ? (
+          {works === 0 ? (
             <span className="text-xs text-warn max-sm:basis-full max-sm:pl-4 sm:w-24 sm:text-right">近 12 周没发过</span>
           ) : (
             anyIdle && <span aria-hidden className="hidden sm:block sm:w-24" />

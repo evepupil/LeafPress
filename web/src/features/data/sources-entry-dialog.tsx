@@ -23,7 +23,7 @@ export function blankEntryForm(accountId: string | null): EntryForm {
   return { followers: accountId === null ? "" : String(summaryOf(accountId).followers), reads: "", interactions: "" }
 }
 
-/** 手填弹窗：给没有接口的号（公众号、B站、小红书）补一次数据 */
+/** 手填弹窗：给没有接口的号（B站、小红书）补一次数据 */
 export function EntryDialog({
   account,
   form,
