@@ -56,6 +56,12 @@ export function dayOf(time: IsoTime): DayKey {
   return new Date(new Date(time).getTime() + 8 * 3_600_000).toISOString().slice(0, 10)
 }
 
+/** 某一刻往后 n 分钟，结果统一写成北京时间 */
+export function addMinutes(time: IsoTime, n: number): IsoTime {
+  const shifted = new Date(new Date(time).getTime() + n * 60_000 + 8 * 3_600_000)
+  return `${shifted.toISOString().slice(0, 19)}+08:00`
+}
+
 /** 某一刻距离 DEMO_NOW 多少分钟（过去为正） */
 export function minutesAgo(time: IsoTime): number {
   return Math.round((new Date(DEMO_NOW).getTime() - new Date(time).getTime()) / 60_000)

@@ -1,11 +1,10 @@
 import type { Account, Platform, PlatformId } from "./types"
 
 export const PLATFORMS: Record<PlatformId, Platform> = {
-  blog: { id: "blog", name: "博客", glyph: "博", color: "green" },
-  zhihu: { id: "zhihu", name: "知乎", glyph: "知", color: "blue" },
-  wechat: { id: "wechat", name: "公众号", glyph: "公", color: "teal" },
-  bilibili: { id: "bilibili", name: "B站", glyph: "B", color: "pink" },
-  xiaohongshu: { id: "xiaohongshu", name: "小红书", glyph: "红", color: "red" },
+  blog: { id: "blog", name: "博客", glyph: "博", color: "green", interactions: ["comments"] },
+  zhihu: { id: "zhihu", name: "知乎", glyph: "知", color: "blue", interactions: ["likes", "collects", "comments"] },
+  bilibili: { id: "bilibili", name: "B站", glyph: "B", color: "pink", interactions: ["likes", "collects", "comments"] },
+  xiaohongshu: { id: "xiaohongshu", name: "小红书", glyph: "红", color: "red", interactions: ["likes", "collects", "comments"] },
 }
 
 /** 侧栏和各页的账号顺序 */
@@ -92,37 +91,6 @@ export const ACCOUNTS: Account[] = [
       lastResult: "failed",
       failReason: "统计接口返回 401",
       fixHint: "Umami 的 API 密钥可能过期了，到 Umami 后台重新生成，再填进配置。",
-    },
-  },
-  {
-    id: "wechat-acg",
-    platform: "wechat",
-    name: "ACG萌图宅",
-    handle: "acg_otaku",
-    url: "https://mp.weixin.qq.com/",
-    stage: "active",
-    since: "2025-03-01",
-    audienceLabel: "用户",
-    readsLabel: "阅读",
-    positioning: "每天一期二次元美图壁纸，每期 8 张精选。",
-    audience: ["二次元爱好者", "找手机壁纸的人"],
-    columns: [{ id: "wallpaper", name: "二次元美图壁纸", targetShare: 1, color: "pink" }],
-    styleRules: [
-      "标题固定为「二次元美图壁纸 第 N 期」",
-      "每期 8 张：人物好看，构图、光影、色彩舒服",
-      "简介一句话，30 字以内",
-      "不收 AI 生成的图",
-    ],
-    bannedPhrases: [],
-    benchmarks: [{ name: "每日壁纸精选", platform: "wechat", note: "固定时间发，每期同一种版式" }],
-    goals: { followers: 5_000, by: "2026-12-31", postsPerWeek: 7 },
-    directionLog: [{ date: "2026-07-28", note: "接上自动审图和出草稿，只出草稿，人工确认后再发" }],
-    dataSource: {
-      mode: "manual",
-      provider: "公众号后台（数据接口权限待确认）",
-      schedule: "每周一手填",
-      lastPullAt: "2026-09-28T21:10:00+08:00",
-      lastResult: "ok",
     },
   },
   {
