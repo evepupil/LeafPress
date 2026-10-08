@@ -24,6 +24,11 @@ function WorkSheetBody({ work, onClose, onConvert }: { work: Work; onClose: () =
   return (
     <>
       <WorkSheetHeader work={work} detail={detail} detailError={error} detailLoading={loading} onClose={onClose} onConvert={onConvert} />
+      {work.status === "doing" && work.error && (
+        <p role="alert" data-work-error className="mx-4 mt-3 rounded-md border border-bad/30 bg-bad/5 px-3 py-2 text-sm text-bad">
+          出错了：{work.error}
+        </p>
+      )}
       <div className="scroll-thin min-h-0 flex-1 overflow-y-auto">
         {work.status === "waiting" && <WorkSheetWaiting work={work} detail={detail} />}
         {work.status === "todo" && work.feedback && <WorkSheetFeedback work={work} />}

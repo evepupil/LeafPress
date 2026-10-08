@@ -4,12 +4,12 @@ import { formatRelative, type Work } from "@leafpress/core"
 import { useMemo, useState } from "react"
 
 import { Button } from "@/components/ui/button"
-import { useData } from "@/state/data"
+import { useNow } from "@/lib/local-clock"
 import { LOG_PREVIEW, newestFirst } from "./work-sheet-model"
 import { SheetSection } from "./work-sheet-parts"
 
 export function WorkSheetLog({ work }: { work: Work }) {
-  const now = useData((state) => state.boot?.now ?? new Date().toISOString())
+  const now = useNow() ?? work.updatedAt
   const [all, setAll] = useState(false)
   const rows = useMemo(() => newestFirst(work.log), [work.log])
   if (rows.length === 0) return null

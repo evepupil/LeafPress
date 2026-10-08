@@ -8,7 +8,8 @@ import { AccountTag } from "@/components/base/account-tag"
 import { IconButton } from "@/components/base/icon-button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { useAccounts, useData, useToday } from "@/state/data"
+import { useNow } from "@/lib/local-clock"
+import { useAccounts, useToday } from "@/state/data"
 import { updateWork } from "@/state/actions/works"
 import { useDraft } from "./work-sheet-draft"
 import { timeText } from "./work-sheet-model"
@@ -92,7 +93,7 @@ export function WorkSheetFields({ work }: { work: Work }) {
   const accounts = useAccounts()
   const account = accounts.find((item) => item.id === work.accountId)
   const today = useToday()
-  const now = useData((state) => state.boot?.now ?? new Date().toISOString())
+  const now = useNow() ?? work.updatedAt
   return (
     <SheetSection>
       <dl className="grid grid-cols-[88px_minmax(0,1fr)] items-center gap-x-3 gap-y-2 text-sm">

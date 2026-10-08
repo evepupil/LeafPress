@@ -10,7 +10,6 @@ import { DropLine, WORK_DRAG, useBoardDrop } from "@/components/base/board-dnd"
 import { IconButton } from "@/components/base/icon-button"
 import { WorkStatusIcon } from "@/components/base/state-icons"
 import { WORK_STATUS_LABEL, type Work, type WorkStatus } from "@leafpress/core"
-import { moveWork } from "@/state/actions/works"
 import { focusRing } from "@/lib/styles"
 import { WorkCard } from "./works-card"
 import {
@@ -28,6 +27,7 @@ function Column({
   single,
   queue,
   handlers,
+  onMove,
   onNewWork,
 }: {
   column: WorkColumnData
@@ -35,6 +35,7 @@ function Column({
   single: boolean
   queue: TodoQueue
   handlers: WorkHandlers
+  onMove: (id: string, status: Exclude<WorkStatus, "doing">, beforeId: string | null) => void
   onNewWork: () => void
 }) {
   const { status, items } = column
@@ -44,7 +45,7 @@ function Column({
       toast("进行中由 agent 更新，不能手动移入")
       return
     }
-    void moveWork(id, status, before).catch((error: unknown) => toast(error instanceof Error ? error.message : "移动作品失败"))
+    onMove(id, status, before)
   })
   // 已完成的会越攒越多，默认只放前 20 张
   const shown = status === "done" ? items.slice(0, limit) : items
@@ -97,14 +98,13 @@ function Column({
   )
 }
 
-/**
- * 作品看板：四列从左到右是待实现、进行中、等你处理、已完成。进行中状态由 agent 更新；其他状态可通过服务端接口移动。
- */
+/** 作品看板：四列从左到右是待实现、进行中、等你处理、已完成。进行中状态由 agent 更新；其他状态可通过服务端接口移动。 */
 export function WorksBoard({
   works,
   status,
   queue,
   handlers,
+  onMove,
   onNewWork,
 }: {
   /** 已经按平台和搜索词筛过的作品 */
@@ -113,6 +113,7 @@ export function WorksBoard({
   status: WorkStatus | null
   queue: TodoQueue
   handlers: WorkHandlers
+  onMove: (id: string, status: Exclude<WorkStatus, "doing">, beforeId: string | null) => void
   onNewWork: () => void
 }) {
   const columns = useMemo(() => workColumns(works, status), [works, status])
@@ -120,7 +121,15 @@ export function WorksBoard({
   return (
     <div className="scroll-thin flex h-full min-h-0 items-start gap-(--gap-card) overflow-x-auto scroll-px-3 p-3 pb-20 lg:pb-3 max-md:snap-x max-md:snap-mandatory">
       {columns.map((column) => (
-        <Column key={column.status} column={column} single={status !== null} queue={queue} handlers={handlers} onNewWork={onNewWork} />
+        <Column
+          key={column.status}
+          column={column}
+          single={status !== null}
+          queue={queue}
+          handlers={handlers}
+          onMove={onMove}
+          onNewWork={onNewWork}
+        />
       ))}
     </div>
   )

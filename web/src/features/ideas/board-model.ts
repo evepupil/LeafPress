@@ -1,4 +1,22 @@
-import { IDEA_SOURCE_LABEL, type Idea, type UpdateIdeaInput, type Work } from "@leafpress/core"
+import { IDEA_SOURCE_LABEL, reorderIdeas, type Idea, type IdeaStatus, type IsoTime, type UpdateIdeaInput, type Work } from "@leafpress/core"
+
+export function moveIdeaPreview(
+  ideas: Idea[],
+  id: string,
+  status: Exclude<IdeaStatus, "converted">,
+  beforeId: string | null,
+  now: IsoTime,
+): Idea[] {
+  const current = ideas.find((idea) => idea.id === id)
+  if (!current || current.status === "converted") return ideas
+  const moved = { ...current, status, updatedAt: now }
+  const next = ideas.map((idea) => (idea.id === id ? moved : idea))
+  const order = reorderIdeas(next, id, status, beforeId)
+  return next.map((idea) => {
+    const position = order.get(idea.id)
+    return position === undefined ? idea : { ...idea, order: position }
+  })
+}
 
 export function worksOf(idea: Idea, worksById: ReadonlyMap<string, Work>): Work[] {
   return idea.workIds.flatMap((id) => {

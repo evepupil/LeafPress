@@ -37,7 +37,7 @@ export function AccountHeader({ accountId }: { accountId: string }) {
         <div className="min-w-0">
           <p className="truncate text-sm font-medium">{account.name}</p>
           <p className="truncate text-xs text-fg-2">
-            {PLATFORMS[account.platform].name} · {account.handle ?? account.url ?? ""}
+            {[PLATFORMS[account.platform].name, account.handle ?? account.url].filter(Boolean).join(" · ")}
           </p>
         </div>
         <div className="ml-auto flex shrink-0 items-center gap-1.5">

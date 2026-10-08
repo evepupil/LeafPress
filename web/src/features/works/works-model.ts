@@ -6,7 +6,9 @@ import {
   sortColumn,
   formatDayShort,
   formatRelative,
+  reorderTodo,
   type Account,
+  type IsoTime,
   type PlatformId,
   type Work,
   type WorkStatus,
@@ -27,6 +29,7 @@ export interface WorksParams {
   platform: PlatformFilter
   status: WorkStatus | null
   openId: string | null
+  accountId: string | null
 }
 
 export function readWorksParams(params: { get(name: string): string | null }): WorksParams {
@@ -37,6 +40,7 @@ export function readWorksParams(params: { get(name: string): string | null }): W
     platform: PLATFORM_IDS.find((id) => id === platform) ?? "all",
     status: WORK_STATUS_ORDER.find((item) => item === status) ?? null,
     openId: params.get("open") || null,
+    accountId: params.get("account") || null,
   }
 }
 
@@ -68,11 +72,21 @@ function platformOf(accounts: Account[], id: string): PlatformId | undefined {
   return accounts.find((account) => account.id === id)?.platform
 }
 
-export function filterWorks(works: Work[], filter: { platform: PlatformFilter; query: string }, accounts: Account[]): Work[] {
-  return filterByCore(works, filter, (id) => platformOf(accounts, id))
+export function filterWorks(
+  works: Work[],
+  filter: { platform: PlatformFilter; query: string; accountId?: string | null },
+  accounts: Account[],
+): Work[] {
+  const byPlatform = filterByCore(works, filter, (id) => platformOf(accounts, id))
+  return filter.accountId ? byPlatform.filter((work) => work.accountId === filter.accountId) : byPlatform
 }
-export function platformCounts(works: Work[], query: string, accounts: Account[]): Record<PlatformFilter, number> {
-  const matched = filterWorks(works, { platform: "all", query }, accounts)
+export function platformCounts(
+  works: Work[],
+  query: string,
+  accounts: Account[],
+  accountId?: string | null,
+): Record<PlatformFilter, number> {
+  const matched = filterWorks(works, { platform: "all", query, accountId }, accounts)
   const counts: Record<PlatformFilter, number> = { all: matched.length, blog: 0, zhihu: 0, bilibili: 0, xiaohongshu: 0 }
   for (const work of matched) {
     const platform = platformOf(accounts, work.accountId)
@@ -80,6 +94,19 @@ export function platformCounts(works: Work[], query: string, accounts: Account[]
   }
   return counts
 }
+export function moveWorkPreview(works: Work[], id: string, status: WorkStatus, beforeId: string | null, now: IsoTime): Work[] {
+  const current = works.find((work) => work.id === id)
+  if (!current) return works
+  const moved = { ...current, status, updatedAt: now }
+  const next = works.map((work) => (work.id === id ? moved : work))
+  if (status !== "todo") return next
+  const order = reorderTodo(next, id, beforeId)
+  return next.map((work) => {
+    const position = order.get(work.id)
+    return position === undefined ? work : { ...work, order: position }
+  })
+}
+
 export function workColumns(works: Work[], only: WorkStatus | null): WorkColumnData[] {
   return WORK_STATUS_ORDER.filter((status) => only === null || status === only).map((status) => ({
     status,

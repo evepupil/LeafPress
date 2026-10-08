@@ -141,7 +141,10 @@ export function renderInit(result: InitResult): string {
     `配置文件：${result.configFile}`,
     `记录库：${result.dbFile}`,
     ...(result.configUpgraded && result.configBackup !== undefined
-      ? [`配置已升级，旧的备份在 ${result.configBackup}`]
+      ? [
+          `配置已升级，旧的备份在 ${result.configBackup}`,
+          "旧配置里的博客仓库路径没有迁移：接博客时在博客账号的「接入」里重新填。",
+        ]
       : []),
     ...(result.migration.from < result.migration.to &&
     result.migration.backupPath !== undefined

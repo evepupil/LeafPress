@@ -6,7 +6,8 @@ import { useMemo } from "react"
 
 import { LabelChip } from "@/components/base/label-chip"
 import { RunResultIcon } from "@/components/base/state-icons"
-import { useData, useIdeas, useSchedules } from "@/state/data"
+import { useNow } from "@/lib/local-clock"
+import { useIdeas, useSchedules } from "@/state/data"
 
 const SOURCES = Object.keys(IDEA_SOURCE_LABEL) as IdeaSource[]
 
@@ -21,10 +22,10 @@ function sourceMix(ideas: ReturnType<typeof useIdeas>): string {
 export function IdeaHarvest() {
   const ideas = useIdeas()
   const schedule = useSchedules().find((item) => item.id === "idea-harvest")
-  const now = useData((state) => state.boot?.now)
+  const now = useNow()
   const mix = useMemo(() => sourceMix(ideas), [ideas])
 
-  if (!schedule) return null
+  if (!schedule?.installed) return null
 
   return (
     <section id="harvest" aria-labelledby="harvest-title" className="rounded-lg border border-line bg-card shadow-sm">

@@ -62,6 +62,9 @@ describe("init", () => {
     const output = renderInit(result);
     expect(output).toContain(`配置已升级，旧的备份在 ${result.configBackup}`);
     expect(output).toContain(
+      "旧配置里的博客仓库路径没有迁移：接博客时在博客账号的「接入」里重新填。",
+    );
+    expect(output).toContain(
       `记录库已从第 1 版升到第 2 版，备份在 ${result.migration.backupPath}`,
     );
   });

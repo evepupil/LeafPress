@@ -107,7 +107,7 @@ export function AccountCard({ summary }: { summary: AccountSummary }) {
         href={accountHref(a.id)}
         platform={a.platform}
         name={a.name}
-        subtitle={`${PLATFORMS[a.platform].name} · ${a.handle ?? a.url ?? ""}`}
+        subtitle={[PLATFORMS[a.platform].name, a.handle ?? a.url].filter(Boolean).join(" · ")}
         chips={
           <>
             <LabelChip color={STAGE_COLOR[a.stage]}>{STAGE_LABEL[a.stage]}</LabelChip>

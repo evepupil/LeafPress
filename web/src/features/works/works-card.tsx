@@ -8,29 +8,18 @@ import { Fragment, useState } from "react"
 import { AccountTag } from "@/components/base/account-tag"
 import { WORK_DRAG, endCardDrag, startCardDrag } from "@/components/base/board-dnd"
 import { LabelChip } from "@/components/base/label-chip"
-import { WorkStatusIcon, Spinner } from "@/components/base/state-icons"
+import { WorkStatusIcon } from "@/components/base/state-icons"
 import { Button } from "@/components/ui/button"
 import { AgentLeaseStatus } from "./agent-lease"
-import { useData, useWorks } from "@/state/data"
+import { useAccounts, useWorks } from "@/state/data"
+import { useNow } from "@/lib/local-clock"
 import { focusRing } from "@/lib/styles"
 import { WorkCardMenu } from "./works-card-menu"
 import { cardMetrics, cardTimeText, sourceMarkOf, type WorkHandlers } from "./works-model"
 
 const STAT_ICON = "size-3.5 shrink-0 text-fg-3"
 
-function CardMeta({
-  work,
-  running,
-  account,
-  now,
-  onOpen,
-}: {
-  work: Work
-  running: boolean
-  account: Account
-  now?: string
-  onOpen: (id: string) => void
-}) {
+function CardMeta({ work, account, now, onOpen }: { work: Work; account: Account; now?: string; onOpen: (id: string) => void }) {
   const workflow = workflowById(work.workflowId)
   switch (work.status) {
     case "todo":
@@ -52,9 +41,10 @@ function CardMeta({
     case "doing":
       return (
         <>
-          {running ? <Spinner /> : <WorkStatusIcon status="doing" />}
+          <WorkStatusIcon status="doing" />
           <span className="truncate text-xs text-fg-2">{workflow ? progressText(work, workflow) : "进行中"}</span>
           <AgentLeaseStatus work={work} now={now} />
+          {work.error && <LabelChip color="red">出错了</LabelChip>}
         </>
       )
     case "waiting":
@@ -105,13 +95,12 @@ export function WorkCard({
   frontId: string | null
   handlers: WorkHandlers
 }) {
-  const accounts = useData((state) => state.boot?.accounts ?? [])
+  const accounts = useAccounts()
   const works = useWorks()
   const account = accounts.find((item) => item.id === work.accountId)
   const sourceWorkId = work.source.kind === "work" ? work.source.workId : undefined
   const sourceWork = sourceWorkId ? works.find((item) => item.id === sourceWorkId) : undefined
-  const now = useData((state) => state.boot?.now)
-  const running = Boolean(work.lease && now && Date.parse(work.lease.expiresAt) > Date.parse(now))
+  const now = useNow()
   const [dragging, setDragging] = useState(false)
   const draggable = work.status !== "done"
   const mark = sourceMarkOf(work, sourceWork, accounts)
@@ -171,7 +160,7 @@ export function WorkCard({
         {work.title}
       </button>
       <div className={cn("flex min-w-0 flex-wrap items-center", work.status === "done" ? "gap-x-3 gap-y-1" : "gap-1")}>
-        <CardMeta work={work} running={running} account={account} now={now} onOpen={handlers.onOpen} />
+        <CardMeta work={work} account={account} now={now} onOpen={handlers.onOpen} />
       </div>
     </div>
   )

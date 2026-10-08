@@ -167,7 +167,12 @@ export function AccountSetup({ accountId }: { accountId: string }) {
                   <span className={cn("ml-auto shrink-0 text-xs", usable ? "text-fg-2" : "text-warn")}>{usable ? "可用" : "待配置"}</span>
                 </div>
                 {!usable && workflow.requires.length > 0 && (
-                  <p className="pl-6 text-xs text-warn">需要配置：{workflow.requires.join("、")}</p>
+                  <p className="pl-6 text-xs text-warn">
+                    需要配置：
+                    {workflow.requires
+                      .map((key) => PLATFORMS[account.platform].setupItems.find((item) => item.key === key)?.label ?? key)
+                      .join("、")}
+                  </p>
                 )}
               </li>
             )
@@ -206,12 +211,25 @@ export function AccountSetup({ accountId }: { accountId: string }) {
           )}
         </div>
       </Part>
-      <Part title="要配的东西">
-        <ul className="flex flex-col gap-3">
-          {view.items.map((item) => (
-            <ConfigRow key={item.key} accountId={accountId} item={item} />
-          ))}
-        </ul>
+      {view.items.length > 0 && (
+        <Part title="要配的东西">
+          <ul className="flex flex-col gap-3">
+            {view.items.map((item) => (
+              <ConfigRow key={item.key} accountId={accountId} item={item} />
+            ))}
+          </ul>
+        </Part>
+      )}
+      <Part title="还缺什么">
+        {view.gaps.length > 0 ? (
+          <ul className="flex flex-col gap-1 text-sm text-warn">
+            {view.gaps.map((gap) => (
+              <li key={gap}>{gap}</li>
+            ))}
+          </ul>
+        ) : (
+          <p className="text-sm text-fg-2">没有缺项</p>
+        )}
       </Part>
     </section>
   )

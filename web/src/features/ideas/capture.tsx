@@ -7,11 +7,15 @@ import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { addIdea } from "@/state/actions/ideas"
+import { useAccounts } from "@/state/data"
 import { AccountSelect } from "./capture-account"
+import { defaultIdeaAccountId } from "./capture-model"
 
 export function IdeaCapture() {
+  const accounts = useAccounts()
   const [text, setText] = useState("")
-  const [accountId, setAccountId] = useState<string | undefined>(undefined)
+  const [accountId, setAccountId] = useState<string | null | undefined>(undefined)
+  const selectedAccountId = accountId === undefined ? defaultIdeaAccountId(accounts) : (accountId ?? undefined)
   const [saving, setSaving] = useState(false)
   const ready = text.trim().length > 0
 
@@ -19,7 +23,7 @@ export function IdeaCapture() {
     if (!ready || saving) return
     setSaving(true)
     try {
-      await addIdea({ text: text.trim(), ...(accountId ? { accountId } : {}), source: "quick" })
+      await addIdea({ text: text.trim(), ...(selectedAccountId ? { accountId: selectedAccountId } : {}), source: "quick" })
       setText("")
       toast.success("记下了")
     } catch (error) {
@@ -60,7 +64,12 @@ export function IdeaCapture() {
           }}
         />
         <div className="flex items-center gap-2">
-          <AccountSelect id="idea-capture-account" value={accountId} onChange={setAccountId} className="w-auto min-w-[160px]" />
+          <AccountSelect
+            id="idea-capture-account"
+            value={selectedAccountId}
+            onChange={(next) => setAccountId(next ?? null)}
+            className="w-auto min-w-[160px]"
+          />
           <Button type="submit" size="sm" className="ml-auto" data-idea-capture-submit disabled={!ready || saving}>
             记下
           </Button>

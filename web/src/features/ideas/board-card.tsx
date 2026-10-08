@@ -9,7 +9,8 @@ import { AccountTag } from "@/components/base/account-tag"
 import { IDEA_DRAG, endCardDrag, startCardDrag } from "@/components/base/board-dnd"
 import { WorkChip } from "@/components/base/work-chip"
 import { Button } from "@/components/ui/button"
-import { useAccount, useData } from "@/state/data"
+import { useNow } from "@/lib/local-clock"
+import { useAccount } from "@/state/data"
 import { focusRing } from "@/lib/styles"
 import { sourceDetailOf } from "./board-model"
 import { HOVER_REVEAL, IdeaMenu } from "./board-menu"
@@ -35,7 +36,7 @@ export function IdeaCard({
   const [dragging, setDragging] = useState(false)
   const converted = idea.status === "converted"
   const account = useAccount(idea.accountId)
-  const now = useData((state) => state.boot?.now)
+  const now = useNow()
   const detail = sourceDetailOf(idea)
 
   return (

@@ -9,15 +9,11 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
-import type { PlatformId } from "@leafpress/core"
+import type { AddAccountInput, PlatformId } from "@leafpress/core"
 import { PLATFORMS, PLATFORM_ORDER } from "@leafpress/core"
 
-/** 弹窗交给账号网格的结果：名字和定位已去掉首尾空白 */
-export interface NewAccount {
-  platform: PlatformId
-  name: string
-  intro: string
-}
+/** 弹窗交给账号网格的结果；接入字段按平台目录生成 */
+export type NewAccount = AddAccountInput
 
 const DEFAULT_PLATFORM: PlatformId = "zhihu"
 
@@ -37,6 +33,9 @@ export function AddAccountDialog({
   const [platform, setPlatform] = useState<PlatformId>(DEFAULT_PLATFORM)
   const [name, setName] = useState("")
   const [positioning, setPositioning] = useState("")
+  const [handle, setHandle] = useState("")
+  const [url, setUrl] = useState("")
+  const [settings, setSettings] = useState<Record<string, string>>({})
   const [saving, setSaving] = useState(false)
   const nameRef = useRef<HTMLInputElement>(null)
   const canSubmit = name.trim().length > 0
@@ -63,7 +62,16 @@ export function AddAccountDialog({
             if (!canSubmit || saving) return
             setSaving(true)
             try {
-              const added = await onAdd({ platform, name: name.trim(), intro: positioning.trim() })
+              const input: NewAccount = { platform, name: name.trim(), intro: positioning.trim() }
+              if (handle.trim()) input.handle = handle.trim()
+              if (url.trim()) input.url = url.trim()
+              const configured: Record<string, string> = {}
+              for (const item of PLATFORMS[platform].setupItems) {
+                const value = settings[item.key]?.trim()
+                if (value) configured[item.key] = value
+              }
+              if (Object.keys(configured).length > 0) input.settings = configured
+              const added = await onAdd(input)
               if (added) onOpenChange(false)
             } finally {
               setSaving(false)
@@ -77,7 +85,10 @@ export function AddAccountDialog({
                   value={platform}
                   onValueChange={(value) => {
                     const next = PLATFORM_ORDER.find((item) => item === value)
-                    if (next) setPlatform(next)
+                    if (next) {
+                      setPlatform(next)
+                      setSettings({})
+                    }
                   }}
                 >
                   <SelectTrigger id="new-account-platform" className="w-full">
@@ -106,6 +117,38 @@ export function AddAccountDialog({
                   onChange={(event) => setName(event.target.value)}
                 />
               </Field>
+              <Field id="new-account-handle" label="主页标识">
+                <Input
+                  id="new-account-handle"
+                  autoComplete="off"
+                  placeholder="@name"
+                  value={handle}
+                  onChange={(event) => setHandle(event.target.value)}
+                />
+              </Field>
+              <Field id="new-account-url" label="主页地址">
+                <Input
+                  id="new-account-url"
+                  type="url"
+                  autoComplete="url"
+                  placeholder="https://"
+                  value={url}
+                  onChange={(event) => setUrl(event.target.value)}
+                />
+              </Field>
+              {PLATFORMS[platform].setupItems.map((item) => (
+                <Field key={item.key} id={`new-account-setting-${item.key}`} label={item.label}>
+                  <Input
+                    id={`new-account-setting-${item.key}`}
+                    type={item.secret ? "password" : "text"}
+                    autoComplete={item.secret ? "new-password" : "off"}
+                    placeholder={item.placeholder}
+                    value={settings[item.key] ?? ""}
+                    onChange={(event) => setSettings((current) => ({ ...current, [item.key]: event.target.value }))}
+                  />
+                  {item.hint && <p className="text-xs text-fg-2">{item.hint}</p>}
+                </Field>
+              ))}
               <Field id="new-account-positioning" label="定位">
                 <Textarea
                   id="new-account-positioning"

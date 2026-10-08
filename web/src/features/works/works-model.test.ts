@@ -5,7 +5,9 @@ import {
   cardMetrics,
   cardTimeText,
   emptyColumnText,
+  filterWorks,
   moreCount,
+  moveWorkPreview,
   platformCounts,
   readWorksParams,
   sourceMarkOf,
@@ -70,24 +72,33 @@ const WORKS: Work[] = [
 
 describe("地址栏参数", () => {
   it("没有参数使用默认值", () =>
-    expect(readWorksParams(new URLSearchParams(""))).toEqual({ view: "board", platform: "all", status: null, openId: null }))
+    expect(readWorksParams(new URLSearchParams(""))).toEqual({
+      view: "board",
+      platform: "all",
+      status: null,
+      openId: null,
+      accountId: null,
+    }))
   it("读取有效参数并忽略无效值", () => {
     expect(readWorksParams(new URLSearchParams("view=list&platform=zhihu&status=waiting&open=z-1"))).toEqual({
       view: "list",
       platform: "zhihu",
       status: "waiting",
       openId: "z-1",
+      accountId: null,
     })
     expect(readWorksParams(new URLSearchParams("view=grid&platform=weibo&status=bad&open="))).toEqual({
       view: "board",
       platform: "all",
       status: null,
       openId: null,
+      accountId: null,
     })
   })
   it("保留其他参数并省略默认值", () => {
     expect(withParam("status=waiting", "open", "z-1")).toBe("status=waiting&open=z-1")
     expect(withParam("status=waiting&open=z-1", "open", null)).toBe("status=waiting")
+    expect(withParam("view=list&account=blog-1", "account", null)).toBe("view=list")
     expect(withParam("view=list", "view", "board")).toBe("")
     expect(worksHref("view=list")).toBe("/?view=list")
   })
@@ -96,6 +107,20 @@ describe("地址栏参数", () => {
 describe("作品模型", () => {
   it("按账号所属平台统计搜索结果", () =>
     expect(platformCounts(WORKS, "", ACCOUNTS)).toEqual({ all: 5, blog: 3, zhihu: 2, bilibili: 0, xiaohongshu: 0 }))
+  it("筛选账号时只保留该账号的作品", () => {
+    expect(filterWorks(WORKS, { platform: "all", query: "", accountId: "blog-1" }, ACCOUNTS).map((item) => item.id)).toEqual([
+      "b-1",
+      "b-2",
+      "b-3",
+    ])
+    expect(platformCounts(WORKS, "", ACCOUNTS, "blog-1").all).toBe(3)
+  })
+  it("预览拖动时立即使用 core 队列顺序", () => {
+    const next = moveWorkPreview(WORKS, "b-2", "todo", "b-1", "2026-10-08T12:00:00Z")
+    expect(next.find((item) => item.id === "b-2")).toMatchObject({ status: "todo", order: 1, updatedAt: "2026-10-08T12:00:00Z" })
+    expect(next.find((item) => item.id === "b-1")?.order).toBe(2)
+    expect(WORKS.find((item) => item.id === "b-2")?.status).toBe("doing")
+  })
   it("分列保持 core 顺序并支持单列筛选", () => {
     expect(workColumns(WORKS, null).map((column) => [column.status, column.items.length])).toEqual([
       ["todo", 2],

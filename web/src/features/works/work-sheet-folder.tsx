@@ -44,7 +44,7 @@ export function WorkSheetFolder({ work, detail, loading, error }: { work: Work; 
             label="打开任务文件夹"
             onClick={() =>
               void openFolder(work.id)
-                .then((result) => toast.success(`已打开 ${result.path}`))
+                .then(() => toast.success("已在资源管理器里打开"))
                 .catch((error: unknown) => toast(error instanceof Error ? error.message : "打开文件夹失败"))
             }
           >

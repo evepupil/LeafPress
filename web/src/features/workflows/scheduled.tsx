@@ -7,18 +7,18 @@ import Link from "next/link"
 import { useState } from "react"
 import { toast } from "sonner"
 
-import { EmptyState } from "@/components/base/empty-state"
 import { LabelChip } from "@/components/base/label-chip"
 import { RunResultIcon, Spinner } from "@/components/base/state-icons"
 import { Button } from "@/components/ui/button"
 import { focusRing } from "@/lib/styles"
+import { useNow } from "@/lib/local-clock"
 import { pullNow } from "@/state/actions/data"
-import { useData, useSchedules } from "@/state/data"
+import { useSchedules } from "@/state/data"
 
 const FIX_HREF = "/data/#sources"
 
 function ScheduledBlock({ item, divided }: { item: ReturnType<typeof useSchedules>[number]; divided: boolean }) {
-  const now = useData((state) => state.boot?.now)
+  const now = useNow()
   const [running, setRunning] = useState(false)
   const failed = item.lastResult === "failed"
   const canPull = item.id === "data-pull"
@@ -78,7 +78,8 @@ function ScheduledBlock({ item, divided }: { item: ReturnType<typeof useSchedule
 }
 
 export function ScheduledRuns() {
-  const schedules = useSchedules()
+  const schedules = useSchedules().filter((item) => item.installed)
+  if (schedules.length === 0) return null
   return (
     <section id="scheduled" aria-labelledby="scheduled-title" className="overflow-hidden rounded-lg border border-line bg-card shadow-sm">
       <div className="flex h-10 items-center gap-2 border-b border-line px-3">
@@ -88,11 +89,9 @@ export function ScheduledRuns() {
         </h2>
         <span className="text-sm text-fg-2 tabular">{schedules.length}</span>
       </div>
-      {schedules.length === 0 ? (
-        <EmptyState icon={Clock} title="没有定时工作流" />
-      ) : (
-        schedules.map((item, index) => <ScheduledBlock key={item.id} item={item} divided={index > 0} />)
-      )}
+      {schedules.map((item, index) => (
+        <ScheduledBlock key={item.id} item={item} divided={index > 0} />
+      ))}
     </section>
   )
 }

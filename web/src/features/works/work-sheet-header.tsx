@@ -14,7 +14,8 @@ import { AgentLeaseStatus } from "./agent-lease"
 import { Input } from "@/components/ui/input"
 import { SheetDescription, SheetTitle } from "@/components/ui/sheet"
 import { deleteWork, updateWork } from "@/state/actions/works"
-import { useAccounts, useData } from "@/state/data"
+import { useAccounts } from "@/state/data"
+import { useNow } from "@/lib/local-clock"
 import { copyWithToast } from "./work-sheet-actions"
 import { useDraft } from "./work-sheet-draft"
 
@@ -54,10 +55,10 @@ function CopyContextButton({ detail, detailError, detailLoading }: { detail?: Wo
       data-copy-context
       disabled={!detail}
       title={detailError ?? (detailLoading ? "正在读取任务上下文" : undefined)}
-      onClick={() => detail && void copyWithToast(detail.context, "任务上下文已复制")}
+      onClick={() => detail && void copyWithToast(detail.context)}
     >
       <Copy />
-      复制任务上下文
+      复制给 AI
     </Button>
   )
 }
@@ -104,7 +105,7 @@ export function WorkSheetHeader({
   onConvert: (work: Work) => void
 }) {
   const account = useAccounts().find((item) => item.id === work.accountId)
-  const now = useData((state) => state.boot?.now)
+  const now = useNow()
   return (
     <div data-sheet-header className="shrink-0">
       <div className="flex h-10 items-center gap-2 border-b border-line px-4 pr-12">

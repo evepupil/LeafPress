@@ -14,6 +14,7 @@ import {
 } from "@leafpress/core"
 import { cn } from "cn"
 import { Check, Lightbulb } from "lucide-react"
+import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useState } from "react"
 import { toast } from "sonner"
@@ -44,7 +45,7 @@ function workflowFor(source: ConvertSource, account: Account) {
 }
 
 function initialSelection(source: ConvertSource, works: Work[], accounts: Account[]): string[] {
-  if (source.kind === "idea") return source.idea.accountId ? [source.idea.accountId] : []
+  if (source.kind === "idea") return []
   if (source.kind === "work" && source.platform === "blog") {
     const done = derivedFrom(works, source.work.id).some(
       (work) => accounts.find((account) => account.id === work.accountId)?.platform === "zhihu",
@@ -132,52 +133,61 @@ function ConvertForm({ source, onClose, onDone }: { source: ConvertSource; onClo
             <Input id="convert-title" autoFocus value={title} onChange={(event) => setTitle(event.target.value)} />
           </div>
         )}
-        <fieldset className="flex flex-col gap-1.5">
-          <legend className="mb-1.5 text-sm font-medium">发到哪些平台</legend>
-          <div className="flex flex-col gap-px overflow-hidden rounded-md border border-line">
-            {options.map((account) => {
-              const checked = selected.includes(account.id)
-              const { workflow, ready: usable } = workflowFor(source, account)
-              const already = existing.filter((work) => work.accountId === account.id).length
-              return (
-                <button
-                  key={account.id}
-                  type="button"
-                  role="checkbox"
-                  aria-checked={checked}
-                  data-convert-account={account.id}
-                  onClick={() => toggle(account.id)}
-                  className={cn(
-                    "flex min-h-10 w-full min-w-0 items-center gap-2 bg-card px-2.5 py-1.5 text-left transition-colors duration-(--dur-fast) hover:bg-hover",
-                    focusRing,
-                  )}
-                >
-                  <span
-                    aria-hidden
+        {accounts.length === 0 ? (
+          <p className="rounded-md bg-raised px-3 py-2 text-sm text-fg-2">
+            先加一个账号。
+            <Link href="/accounts/?add=1" onClick={onClose} className="font-medium text-fg underline">
+              加账号
+            </Link>
+          </p>
+        ) : (
+          <fieldset className="flex flex-col gap-1.5">
+            <legend className="mb-1.5 text-sm font-medium">发到哪些平台</legend>
+            <div className="flex flex-col gap-px overflow-hidden rounded-md border border-line">
+              {options.map((account) => {
+                const checked = selected.includes(account.id)
+                const { workflow, ready: usable } = workflowFor(source, account)
+                const already = existing.filter((work) => work.accountId === account.id).length
+                return (
+                  <button
+                    key={account.id}
+                    type="button"
+                    role="checkbox"
+                    aria-checked={checked}
+                    data-convert-account={account.id}
+                    onClick={() => toggle(account.id)}
                     className={cn(
-                      "flex size-4 shrink-0 items-center justify-center rounded-[4px] border",
-                      checked ? "border-ink bg-ink text-white" : "border-line-3 bg-card",
+                      "flex min-h-10 w-full min-w-0 items-center gap-2 bg-card px-2.5 py-1.5 text-left transition-colors duration-(--dur-fast) hover:bg-hover",
+                      focusRing,
                     )}
                   >
-                    {checked && <Check className="size-3" strokeWidth={3} />}
-                  </span>
-                  <PlatformMark platform={account.platform} size={16} />
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate text-sm">
-                      {account.name}
-                      <span className="text-fg-2"> · {PLATFORMS[account.platform].name}</span>
+                    <span
+                      aria-hidden
+                      className={cn(
+                        "flex size-4 shrink-0 items-center justify-center rounded-[4px] border",
+                        checked ? "border-ink bg-ink text-white" : "border-line-3 bg-card",
+                      )}
+                    >
+                      {checked && <Check className="size-3" strokeWidth={3} />}
                     </span>
-                    {already > 0 && <span className="block text-xs text-fg-2">已有 {already} 个</span>}
-                  </span>
-                  <span className={cn("shrink-0 text-xs", usable ? "text-fg-2" : "text-warn")} data-convert-workflow>
-                    {workflow.name}
-                    {!usable && " · 要配置"}
-                  </span>
-                </button>
-              )
-            })}
-          </div>
-        </fieldset>
+                    <PlatformMark platform={account.platform} size={16} />
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-sm">
+                        {account.name}
+                        <span className="text-fg-2"> · {PLATFORMS[account.platform].name}</span>
+                      </span>
+                      {already > 0 && <span className="block text-xs text-fg-2">已有 {already} 个</span>}
+                    </span>
+                    <span className={cn("shrink-0 text-xs", usable ? "text-fg-2" : "text-warn")} data-convert-workflow>
+                      {workflow.name}
+                      {!usable && " · 要配置"}
+                    </span>
+                  </button>
+                )
+              })}
+            </div>
+          </fieldset>
+        )}
         <div className="flex flex-col gap-1.5">
           <Label htmlFor="convert-brief">要求</Label>
           <Textarea
@@ -193,9 +203,23 @@ function ConvertForm({ source, onClose, onDone }: { source: ConvertSource; onClo
         <Button type="button" variant="outline" onClick={onClose}>
           取消
         </Button>
-        <Button type="submit" disabled={!ready} data-convert-submit>
-          {saving ? "正在创建…" : selected.length > 0 ? `${isNew ? "新建" : "转成"} ${selected.length} 个作品` : isNew ? "新建" : "转作品"}
-        </Button>
+        {accounts.length === 0 ? (
+          <Button type="button" asChild>
+            <Link href="/accounts/?add=1" onClick={onClose}>
+              加账号
+            </Link>
+          </Button>
+        ) : (
+          <Button type="submit" disabled={!ready} data-convert-submit>
+            {saving
+              ? "正在创建…"
+              : selected.length > 0
+                ? `${isNew ? "新建" : "转成"} ${selected.length} 个作品`
+                : isNew
+                  ? "新建"
+                  : "转作品"}
+          </Button>
+        )}
       </DialogFooter>
     </form>
   )

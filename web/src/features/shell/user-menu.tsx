@@ -1,7 +1,7 @@
 "use client"
 
 import { cn } from "cn"
-import { Bot, Copy, ExternalLink, Keyboard } from "lucide-react"
+import { Bot, Copy, Keyboard } from "lucide-react"
 import { useRef, useState } from "react"
 import { toast } from "sonner"
 
@@ -20,9 +20,7 @@ import { exportBackup } from "@/state/actions/system"
 import { useData } from "@/state/data"
 import { useUi } from "@/state/ui"
 
-const BLOG_URL = "https://blog.chaosyn.com/"
-/** 在 agent 里常说的几句 */
-const PHRASES = ["看看 LeafPress 有哪些待实现的作品，挑第一个做", "做一下 z-jev", "z-design-extraction 我发好了，继续"]
+const PHRASES = ["看看 LeafPress 有哪些待实现的作品，挑第一个做", "继续", "把这几条记成灵感：…"]
 
 async function copy(text: string) {
   if (await copyText(text)) toast.success("已复制")
@@ -42,7 +40,7 @@ function CopyRow({ text, label, mono = false }: { text: string; label: string; m
   )
 }
 
-/** 右上角的头像菜单：交给 AI、导出备份、快捷键、打开博客 */
+/** 右上角的头像菜单：交给 AI、导出备份、快捷键 */
 export function UserMenu() {
   const setShortcutsOpen = useUi((state) => state.setShortcutsOpen)
   const paths = useData((state) => state.boot?.paths)
@@ -82,12 +80,6 @@ export function UserMenu() {
           >
             <Copy />
             导出备份
-          </DropdownMenuItem>
-          <DropdownMenuItem asChild>
-            <a href={BLOG_URL} target="_blank" rel="noreferrer">
-              <ExternalLink />
-              打开博客
-            </a>
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>

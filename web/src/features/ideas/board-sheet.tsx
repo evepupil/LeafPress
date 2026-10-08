@@ -4,7 +4,7 @@ import { IDEA_SOURCE_LABEL, IDEA_STATUS_LABEL, WORK_STATUS_LABEL, formatRelative
 import { cn } from "cn"
 import { ArrowRight, Trash2 } from "lucide-react"
 import Link from "next/link"
-import { useEffect, useRef, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { toast } from "sonner"
 
 import { Field } from "@/components/base/field"
@@ -17,20 +17,11 @@ import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "
 import { Textarea } from "@/components/ui/textarea"
 import { focusRing } from "@/lib/styles"
 import { ignoreToastInteraction } from "@/lib/toast"
+import { useNow } from "@/lib/local-clock"
 import { updateIdea } from "@/state/actions/ideas"
-import { useAccount, useData } from "@/state/data"
+import { useAccount } from "@/state/data"
 import { draftPatch, sourceDetailOf, worksOf } from "./board-model"
 import { AccountSelect } from "./capture-account"
-
-function useDraft(saved: string) {
-  const [draft, setDraft] = useState(saved)
-  const [seen, setSeen] = useState(saved)
-  if (saved !== seen) {
-    setSeen(saved)
-    setDraft(saved)
-  }
-  return [draft, setDraft] as const
-}
 
 function IdeaWork({ work }: { work: Work }) {
   const account = useAccount(work.accountId)
@@ -49,39 +40,52 @@ function IdeaWork({ work }: { work: Work }) {
 }
 
 function IdeaDraft({ idea, works }: { idea: Idea; works: Work[] }) {
-  const [text, setText] = useDraft(idea.text)
-  const [detail, setDetail] = useDraft(idea.detail ?? "")
-  const latest = useRef({ text, detail })
-  const now = useData((state) => state.boot?.now)
+  const [text, setText] = useState(idea.text)
+  const [detail, setDetail] = useState(idea.detail)
+  const latest = useRef({ text: idea.text, detail: idea.detail })
+  const baseline = useRef(idea)
+  const queue = useRef(Promise.resolve())
+  const now = useNow()
   const detailOfSource = sourceDetailOf(idea)
-  useEffect(() => {
-    latest.current = { text, detail }
-  })
 
-  const save = async (nextText = text, nextDetail = detail) => {
-    const patch = draftPatch(idea, nextText, nextDetail)
-    if (!patch) return
-    try {
-      await updateIdea(idea.id, patch)
-      setText(patch.text ?? idea.text)
-      setDetail(patch.detail ?? idea.detail ?? "")
-    } catch (error) {
-      toast(error instanceof Error ? error.message : "保存灵感失败")
-    }
-  }
+  const saveDraft = useCallback(
+    (snapshot: { text: string; detail: string }) => {
+      queue.current = queue.current
+        .catch(() => undefined)
+        .then(async () => {
+          const patch = draftPatch(baseline.current, snapshot.text, snapshot.detail)
+          if (!patch) return
+          await updateIdea(idea.id, patch)
+          baseline.current = {
+            ...baseline.current,
+            ...(patch.text !== undefined ? { text: patch.text } : {}),
+            ...(patch.detail !== undefined ? { detail: patch.detail } : {}),
+          }
+        })
+        .catch((error: unknown) => {
+          toast(error instanceof Error ? error.message : "保存灵感失败")
+        })
+      return queue.current
+    },
+    [idea.id],
+  )
 
-  useEffect(() => {
-    const id = idea.id
-    return () => {
-      const patch = draftPatch(idea, latest.current.text, latest.current.detail)
-      if (patch) void updateIdea(id, patch).catch((error: unknown) => toast(error instanceof Error ? error.message : "保存灵感失败"))
-    }
-  }, [idea])
+  useEffect(() => () => void saveDraft(latest.current), [saveDraft])
 
   return (
     <div className="flex flex-col gap-3 px-4 py-3">
       <Field id="idea-text" label="一句话">
-        <Textarea id="idea-text" rows={2} value={text} onChange={(event) => setText(event.target.value)} onBlur={() => void save()} />
+        <Textarea
+          id="idea-text"
+          rows={2}
+          value={text}
+          onChange={(event) => {
+            const next = event.target.value
+            latest.current = { ...latest.current, text: next }
+            setText(next)
+          }}
+          onBlur={() => void saveDraft(latest.current)}
+        />
       </Field>
       <Field id="idea-detail" label="细节">
         <Textarea
@@ -90,8 +94,12 @@ function IdeaDraft({ idea, works }: { idea: Idea; works: Work[] }) {
           placeholder="想写什么、素材在哪"
           className="min-h-28"
           value={detail}
-          onChange={(event) => setDetail(event.target.value)}
-          onBlur={() => void save()}
+          onChange={(event) => {
+            const next = event.target.value
+            latest.current = { ...latest.current, detail: next }
+            setDetail(next)
+          }}
+          onBlur={() => void saveDraft(latest.current)}
         />
       </Field>
       <Field id="idea-account" label="账号">

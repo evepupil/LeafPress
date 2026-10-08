@@ -3,7 +3,7 @@
 import { cn } from "cn"
 import { DATA_MODE_LABEL, PULL_STATUS_LABEL, formatRelative, type DataSourceView, type PullStatus } from "@leafpress/core"
 
-import { useData } from "@/state/data"
+import { useNow } from "@/lib/local-clock"
 
 const DOT: Record<PullStatus, string> = {
   ok: "var(--team)",
@@ -18,8 +18,8 @@ const TEXT: Record<PullStatus, string> = {
 }
 
 export function SourceBadge({ source, className }: { source: DataSourceView; className?: string }) {
-  const now = useData((state) => state.boot?.now)
-  const when = source.lastPullAt ? formatRelative(source.lastPullAt, now ?? source.lastPullAt) : ""
+  const now = useNow()
+  const when = source.lastPullAt && now ? formatRelative(source.lastPullAt, now) : ""
   const text =
     source.status === "missing"
       ? PULL_STATUS_LABEL.missing

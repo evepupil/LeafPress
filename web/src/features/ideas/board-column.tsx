@@ -3,13 +3,11 @@
 import { cn } from "cn"
 import { ArrowRight, Inbox, Star } from "lucide-react"
 import { Fragment, useMemo, useState, type ReactNode } from "react"
-import { toast } from "sonner"
 
 import { BoardColumn } from "@/components/base/board"
 import { DropLine, IDEA_DRAG, useBoardDrop } from "@/components/base/board-dnd"
 import { IDEA_STATUS_LABEL, sortIdeas, type Idea, type IdeaStatus, type Work } from "@leafpress/core"
 import { focusRing } from "@/lib/styles"
-import { moveIdea } from "@/state/actions/ideas"
 import { IdeaCard } from "./board-card"
 import { worksOf } from "./board-model"
 
@@ -33,6 +31,7 @@ export function IdeaColumn({
   onOpen,
   onConvert,
   onDelete,
+  onMove,
 }: {
   status: IdeaStatus
   /** 全部灵感，这一列自己挑出属于自己的 */
@@ -41,6 +40,7 @@ export function IdeaColumn({
   onOpen(id: string): void
   onConvert(idea: Idea): void
   onDelete(idea: Idea): void
+  onMove(id: string, status: Exclude<IdeaStatus, "converted">, beforeId: string | null): void
 }) {
   const items = useMemo(() => sortIdeas(ideas, status), [ideas, status])
   const [limit, setLimit] = useState(CONVERTED_PAGE)
@@ -50,7 +50,7 @@ export function IdeaColumn({
       if (idea) onConvert(idea)
       return
     }
-    void moveIdea(id, status, before).catch((error: unknown) => toast(error instanceof Error ? error.message : "移动灵感失败"))
+    onMove(id, status, before)
   })
 
   const shown = status === "converted" ? items.slice(0, limit) : items

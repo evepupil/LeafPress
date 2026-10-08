@@ -29,8 +29,7 @@ export interface ShellFrameProps {
 }
 
 /**
- * 数据和偏好存在浏览器本地，服务端拿不到。服务端和首帧统一画骨架，
- * 浏览器就绪后再渲染真实界面，避免两边内容对不上。
+ * 页面数据来自本机服务。服务端和首帧统一画骨架，浏览器订阅就绪后再渲染真实界面，避免两边内容对不上。
  */
 export function ShellFrame(props: ShellFrameProps) {
   const status = useData((state) => state.status)
@@ -44,22 +43,28 @@ export function ShellFrame(props: ShellFrameProps) {
 
 function ConnectionNotice() {
   const error = useData((state) => state.error)
+  const reconnecting = useData((state) => state.reconnecting)
   const retry = useData((state) => state.load)
-  if (!error) return null
+  if (!error && !reconnecting) return null
   return (
-    <div role="alert" className="flex shrink-0 flex-wrap items-center gap-x-2 gap-y-1 border-b border-line bg-raised px-3 py-2 text-sm">
+    <div
+      role={error ? "alert" : "status"}
+      aria-live={error ? "assertive" : "polite"}
+      className="flex shrink-0 flex-wrap items-center gap-x-2 gap-y-1 border-b border-line bg-raised px-3 py-2 text-sm"
+    >
       <AlertTriangle className="size-4 shrink-0 text-bad" aria-hidden />
-      <span className="font-medium">连不上本机服务</span>
-      <span className="text-fg-2">在终端运行 leafpress serve</span>
-      {error.message !== "连接本机服务失败" && <span className="min-w-0 truncate text-fg-2">{error.message}</span>}
-      {error.hint && <span className="min-w-0 truncate text-fg-2">{error.hint}</span>}
+      <span className="font-medium">{reconnecting ? "正在重连本机服务" : "连不上本机服务"}</span>
+      {error && !reconnecting && <span className="text-fg-2">请确认服务已启动</span>}
+      {error && error.message !== "连接本机服务失败" && <span className="min-w-0 truncate text-fg-2">{error.message}</span>}
+      {error?.hint && <span className="min-w-0 truncate text-fg-2">{error.hint}</span>}
       <button
         type="button"
+        aria-busy={reconnecting}
         className="ml-auto inline-flex h-7 shrink-0 items-center gap-1 rounded-md px-2 text-xs hover:bg-hover"
         onClick={() => void retry()}
       >
-        <RefreshCw className="size-3.5" />
-        重试
+        <RefreshCw className={cn("size-3.5", reconnecting && "animate-spin")} />
+        {reconnecting ? "重试中" : "重试"}
       </button>
     </div>
   )

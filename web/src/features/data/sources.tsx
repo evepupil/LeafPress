@@ -6,7 +6,7 @@ import Link from "next/link"
 import { useState } from "react"
 import { toast } from "sonner"
 
-import { accountHref, DATA_MODE_LABEL, PLATFORMS, PULL_STATUS_LABEL, formatRelative, setupView, type Account } from "@leafpress/core"
+import { accountHref, DATA_MODE_LABEL, PLATFORMS, formatRelative, setupView, type Account } from "@leafpress/core"
 import { AccountTag } from "@/components/base/account-tag"
 import { EmptyState } from "@/components/base/empty-state"
 import { SourceBadge } from "@/components/base/source-badge"
@@ -14,13 +14,13 @@ import { RunResultIcon } from "@/components/base/state-icons"
 import { Button } from "@/components/ui/button"
 import { focusRing } from "@/lib/styles"
 import { pullNow } from "@/state/actions/data"
-import { useData, useAccounts, usePulls, useSchedules } from "@/state/data"
+import { useNow } from "@/lib/local-clock"
+import { useAccounts, usePulls, useSchedules } from "@/state/data"
 
 function SourceRow({ account, schedule }: { account: Account; schedule?: string }) {
   const pulls = usePulls()
   const pull = pulls.find((item) => item.accountId === account.id)
   const source = setupView(account, PLATFORMS[account.platform], { pull, schedule }).source
-  const missingCapabilities = [PLATFORMS[account.platform].audienceLabel, ...PLATFORMS[account.platform].metrics.map((item) => item.label)]
   const [retrying, setRetrying] = useState(false)
   const failed = source.status === "failed"
 
@@ -47,10 +47,13 @@ function SourceRow({ account, schedule }: { account: Account; schedule?: string 
         )}
       </div>
       <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 text-xs text-fg-2">
-        <span className="min-w-0 break-words">
-          {source.mode ? DATA_MODE_LABEL[source.mode] : PULL_STATUS_LABEL.missing}
-          {source.provider && ` · ${source.provider}`}
-        </span>
+        {/* 还没接时只留状态标记，不重复写「还没接」 */}
+        {source.mode && (
+          <span className="min-w-0 break-words">
+            {DATA_MODE_LABEL[source.mode]}
+            {source.provider && ` · ${source.provider}`}
+          </span>
+        )}
         {source.schedule && (
           <span className="inline-flex items-center gap-1">
             <Clock className="size-3" aria-hidden />
@@ -67,8 +70,7 @@ function SourceRow({ account, schedule }: { account: Account; schedule?: string 
       )}
       {source.status === "missing" && (
         <p className="text-xs text-fg-2">
-          {`缺少数据获取工具，暂时无法获取${missingCapabilities.join("、")}。`}
-          <Link href={`${accountHref(account.id)}#setup`} className={cn("ml-1 underline underline-offset-2 hover:text-fg", focusRing)}>
+          <Link href={`${accountHref(account.id)}#setup`} className={cn("underline underline-offset-2 hover:text-fg", focusRing)}>
             看接入
           </Link>
         </p>
@@ -81,7 +83,7 @@ export function DataSources() {
   const accounts = useAccounts()
   const schedules = useSchedules()
   const schedule = schedules.find((item) => item.id === "data-pull")
-  const now = useData((state) => state.boot?.now)
+  const now = useNow()
   const scheduleTime = schedule?.lastRunAt && now ? formatRelative(schedule.lastRunAt, now) : undefined
 
   return (
@@ -92,22 +94,26 @@ export function DataSources() {
           数据来源
         </h2>
       </div>
-      <div data-pull-schedule className="flex flex-wrap items-center gap-2 border-b border-line px-3 py-2 text-xs">
-        {schedule?.lastResult ? <RunResultIcon result={schedule.lastResult} /> : <Clock className="size-3.5 text-fg-2" aria-hidden />}
-        <span className="text-fg">
-          {schedule?.name ?? "拉作品数据"} · {schedule?.when ?? "未安排"}
-        </span>
-        <span className={schedule?.lastResult === "failed" ? "text-bad" : "text-fg-2"}>
-          {scheduleTime ? `${scheduleTime} · ${schedule?.lastNote ?? ""}` : schedule?.installed ? "尚未运行" : "未安装"}
-        </span>
-      </div>
+      {schedule?.installed && (
+        <div data-pull-schedule className="flex flex-wrap items-center gap-2 border-b border-line px-3 py-2 text-xs">
+          {schedule.lastResult ? <RunResultIcon result={schedule.lastResult} /> : <Clock className="size-3.5 text-fg-2" aria-hidden />}
+          <span className="text-fg">
+            {schedule.name} · {schedule.when}
+          </span>
+          <span className={schedule.lastResult === "failed" ? "text-bad" : "text-fg-2"}>
+            {scheduleTime ? `${scheduleTime} · ${schedule.lastNote ?? ""}` : "尚未运行"}
+          </span>
+        </div>
+      )}
       <ul className="divide-y divide-line">
         {accounts.length === 0 ? (
           <li>
             <EmptyState icon={Database} title="还没有数据来源" />
           </li>
         ) : (
-          accounts.map((account) => <SourceRow key={account.id} account={account} schedule={schedule?.when} />)
+          accounts.map((account) => (
+            <SourceRow key={account.id} account={account} schedule={schedule?.installed ? schedule.when : undefined} />
+          ))
         )}
       </ul>
     </section>

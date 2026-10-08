@@ -1,24 +1,27 @@
 "use client"
 
-import { shortTitle, type ConvertSource, type Work, type WorkStatus } from "@leafpress/core"
+import { shortTitle, toIsoTime, type ConvertSource, type Work, type WorkStatus } from "@leafpress/core"
 import { Plus } from "lucide-react"
 import { useRouter, useSearchParams } from "next/navigation"
-import { useMemo, useState } from "react"
+import { useMemo, useRef, useState } from "react"
 import { toast } from "sonner"
 
+import { EmptyState } from "@/components/base/empty-state"
 import { ConfirmDialog } from "@/components/base/confirm-dialog"
 import { Button } from "@/components/ui/button"
 import { ConvertDialog } from "@/components/work/convert-dialog"
 import { PageFrame, type ViewTab } from "@/features/shell/page-frame"
 import { useUi } from "@/state/ui"
-import { useAccounts, useWorks } from "@/state/data"
-import { deleteWork } from "@/state/actions/works"
+import { useData, useAccounts, useWorks } from "@/state/data"
+import { moveWork, deleteWork } from "@/state/actions/works"
+import { useNow } from "@/lib/local-clock"
 import { WorkSheet } from "./work-sheet"
 import { WorksBoard } from "./works-board"
 import { WorksFilterBar } from "./works-filters"
 import { WorksList } from "./works-list"
 import {
   filterWorks,
+  moveWorkPreview,
   platformCounts,
   readWorksParams,
   todoQueue,
@@ -39,6 +42,9 @@ export function WorksPage() {
   const searchParams = useSearchParams()
   const paramsKey = searchParams.toString()
   const works = useWorks()
+  const moving = useRef(false)
+  const localNow = useNow()
+  const displayWorks = works
   const accounts = useAccounts()
   const setNewWorkOpen = useUi((state) => state.setNewWorkOpen)
   const current = readWorksParams(searchParams)
@@ -58,9 +64,27 @@ export function WorksPage() {
   }
   const openId = current.openId
   const setParam = (name: string, value: string | null) => router.replace(worksHref(withParam(paramsKey, name, value)), { scroll: false })
-  const visible = useMemo(() => filterWorks(works, { platform, query }, accounts), [works, platform, query, accounts])
-  const counts = useMemo(() => platformCounts(works, query, accounts), [works, query, accounts])
-  const queue = useMemo(() => todoQueue(works), [works])
+  const visible = useMemo(
+    () => filterWorks(displayWorks, { platform, query, accountId: current.accountId }, accounts),
+    [displayWorks, platform, query, accounts, current.accountId],
+  )
+  const counts = useMemo(
+    () => platformCounts(displayWorks, query, accounts, current.accountId),
+    [displayWorks, query, accounts, current.accountId],
+  )
+  const queue = useMemo(() => todoQueue(displayWorks), [displayWorks])
+  const movePreview = (id: string, nextStatus: Exclude<WorkStatus, "doing">, beforeId: string | null) => {
+    if (moving.current) return
+    const next = moveWorkPreview(works, id, nextStatus, beforeId, localNow ?? toIsoTime(new Date()))
+    if (next === works) return
+    moving.current = true
+    useData.getState().patchBoot((boot) => ({ ...boot, works: next }))
+    void moveWork(id, nextStatus, beforeId)
+      .catch((error: unknown) => toast(error instanceof Error ? error.message : "移动作品失败"))
+      .finally(() => {
+        moving.current = false
+      })
+  }
   const handlers: WorkHandlers = {
     onOpen: (id) => setParam("open", id),
     onConvert: (work) => {
@@ -118,15 +142,35 @@ export function WorksPage() {
           counts={counts}
           query={query}
           status={status}
+          accountLabel={current.accountId ? (accounts.find((item) => item.id === current.accountId)?.name ?? current.accountId) : null}
           onPlatformChange={changePlatform}
           onQueryChange={setQuery}
           onClearStatus={clearStatus}
+          onClearAccount={() => setParam("account", null)}
         />
       }
     >
       <section id="works" aria-label="作品" className="h-full">
-        {view === "board" ? (
-          <WorksBoard works={visible} status={status} queue={queue} handlers={handlers} onNewWork={() => setNewWorkOpen(true)} />
+        {accounts.length === 0 ? (
+          <EmptyState
+            icon={Plus}
+            title="先加一个账号，再记灵感或新建作品"
+            action={
+              <Button variant="outline" size="sm" data-empty-add-account onClick={() => router.push("/accounts/?add=1")}>
+                <Plus />
+                加账号
+              </Button>
+            }
+          />
+        ) : view === "board" ? (
+          <WorksBoard
+            works={visible}
+            status={status}
+            queue={queue}
+            handlers={handlers}
+            onMove={movePreview}
+            onNewWork={() => setNewWorkOpen(true)}
+          />
         ) : (
           <WorksList works={visible} status={status} onOpen={handlers.onOpen} />
         )}

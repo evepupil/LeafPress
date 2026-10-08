@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest"
 
 import type { Work } from "@leafpress/core"
-import { orderAccountWorks } from "./works-order"
+import { ACCOUNT_WORK_PREVIEW_LIMIT, orderAccountWorks, previewAccountWorks } from "./works-order"
 
 function makeWork(id: string, status: Work["status"], patch: Partial<Work> = {}): Work {
   return {
@@ -45,6 +45,15 @@ describe("账号页作品顺序", () => {
       "done-new",
       "done-old",
     ])
+  })
+  it("returns a top-eight preview and preserves the total count", () => {
+    const works = Array.from({ length: ACCOUNT_WORK_PREVIEW_LIMIT + 2 }, (_, index) =>
+      makeWork(`work-${index}`, "todo", { order: index + 1 }),
+    )
+    const preview = previewAccountWorks(works, "account-1")
+    expect(preview.total).toBe(10)
+    expect(preview.items).toHaveLength(8)
+    expect(preview.items[0]?.id).toBe("work-0")
   })
   it("不修改输入并只返回指定账号的作品", () => {
     const works = [makeWork("one", "todo"), makeWork("two", "done", { accountId: "account-2" })]

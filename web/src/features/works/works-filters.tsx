@@ -19,17 +19,21 @@ export function WorksFilterBar({
   counts,
   query,
   status,
+  accountLabel,
   onPlatformChange,
   onQueryChange,
   onClearStatus,
+  onClearAccount,
 }: {
   platform: PlatformFilter
   counts: Record<PlatformFilter, number>
   query: string
   status: WorkStatus | null
+  accountLabel: string | null
   onPlatformChange: (platform: PlatformFilter) => void
   onQueryChange: (query: string) => void
   onClearStatus: () => void
+  onClearAccount: () => void
 }) {
   const options: { value: PlatformFilter; label: string }[] = [
     { value: "all", label: `全部 ${counts.all}` },
@@ -54,6 +58,16 @@ export function WorksFilterBar({
               className="h-6 w-44 pl-7 text-xs md:text-xs"
             />
           </div>
+          {accountLabel && (
+            <>
+              <span data-works-account-chip className="inline-flex min-w-0 shrink-0">
+                <LabelChip>账号：{accountLabel}</LabelChip>
+              </span>
+              <IconButton label="移除账号筛选" size="icon-xs" onClick={onClearAccount}>
+                <X />
+              </IconButton>
+            </>
+          )}
           {status && (
             <>
               <span data-works-status-chip className="inline-flex min-w-0 shrink-0">

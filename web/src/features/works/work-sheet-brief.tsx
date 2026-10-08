@@ -26,7 +26,7 @@ export function WorkSheetBrief({ work }: { work: Work }) {
         onChange={(event) => setBrief(event.target.value)}
         onBlur={saveBrief}
       />
-      {work.workflowId === "blog-to-zhihu-answer" && (
+      {work.question != null && (
         <Input
           id="work-question"
           aria-label="挂的问题"

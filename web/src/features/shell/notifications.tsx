@@ -11,7 +11,8 @@ import { StatusIcon, type GlyphTone, type StatusGlyph } from "@/components/base/
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { notices, type IsoTime, type Notice, type NoticeTone, formatRelative } from "@leafpress/core"
 import { focusRingInset } from "@/lib/styles"
-import { useAccounts, useData, usePulls, useToday, useWorks } from "@/state/data"
+import { useNow } from "@/lib/local-clock"
+import { useAccounts, usePulls, useToday, useWorks } from "@/state/data"
 
 const TONE_LOOK: Record<NoticeTone, { glyph: StatusGlyph; tone: GlyphTone }> = {
   risk: { glyph: "alert", tone: "risk" },
@@ -41,7 +42,7 @@ export function Notifications() {
   const accounts = useAccounts()
   const pulls = usePulls()
   const today = useToday()
-  const now = useData((state) => state.boot?.now)
+  const now = useNow()
   const items = useMemo(() => notices({ works, accounts, pulls, today }), [works, accounts, pulls, today])
   const hasRisk = items.some((item) => item.tone === "risk")
   const close = () => setOpen(false)

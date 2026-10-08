@@ -17,8 +17,9 @@ import { useMemo, useState } from "react"
 
 import { AccountTag } from "@/components/base/account-tag"
 import { EmptyState } from "@/components/base/empty-state"
-import { Spinner, WorkStatusIcon } from "@/components/base/state-icons"
-import { useData } from "@/state/data"
+import { WorkStatusIcon } from "@/components/base/state-icons"
+import { useAccounts } from "@/state/data"
+import { useNow } from "@/lib/local-clock"
 import { focusRingInset } from "@/lib/styles"
 import { AgentLeaseStatus } from "./agent-lease"
 import { DONE_PAGE_SIZE, moreCount, workColumns } from "./works-model"
@@ -33,7 +34,6 @@ const COLUMNS: { label: string; className: string }[] = [
 ]
 
 function WorkRow({ work, account, now, onOpen }: { work: Work; account: Account | undefined; now?: string; onOpen: (id: string) => void }) {
-  const running = Boolean(work.lease && now && Date.parse(work.lease.expiresAt) > Date.parse(now))
   const workflow = workflowById(work.workflowId)
   const open = () => onOpen(work.id)
   if (!account) return null
@@ -68,12 +68,12 @@ function WorkRow({ work, account, now, onOpen }: { work: Work; account: Account 
       <td className="px-3">
         <div className="flex min-w-0 flex-col gap-0.5">
           <div className="flex min-w-0 items-center gap-1.5">
-            {running && <Spinner />}
             <span className={cn("truncate text-xs", work.status === "waiting" ? "text-warn" : "text-fg-2")}>
               {workflow ? progressText(work, workflow) : WORK_STATUS_LABEL[work.status]}
             </span>
           </div>
           {work.status === "doing" && <AgentLeaseStatus work={work} now={now} />}
+          {work.error && work.status === "doing" && <span className="text-xs text-bad">出错了</span>}
         </div>
       </td>
       <td className="px-3 text-xs text-fg-2 tabular">{formatRelative(work.updatedAt, now ?? work.updatedAt)}</td>
@@ -135,8 +135,8 @@ function Group({
 export function WorksList({ works, status, onOpen }: { works: Work[]; status: WorkStatus | null; onOpen: (id: string) => void }) {
   const groups = useMemo(() => workColumns(works, status), [works, status])
   const [limit, setLimit] = useState(DONE_PAGE_SIZE)
-  const accounts = useData((state) => state.boot?.accounts ?? [])
-  const now = useData((state) => state.boot?.now)
+  const accounts = useAccounts()
+  const now = useNow()
   if (groups.every((group) => group.items.length === 0)) return <EmptyState icon={FileText} title="没有符合条件的作品" className="py-16" />
   return (
     <div className="p-3 pb-20 lg:pb-3">

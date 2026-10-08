@@ -2,7 +2,8 @@
 
 import { accountSummary, type Account, type AccountSummary } from "@leafpress/core"
 import { Plus } from "lucide-react"
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
+import { useRouter, useSearchParams } from "next/navigation"
 import { toast } from "sonner"
 
 import { EmptyState } from "@/components/base/empty-state"
@@ -18,10 +19,12 @@ function summariesFor(accounts: Account[], input: Parameters<typeof accountSumma
 
 /** 账号卡片：账号与统计都来自本机服务。 */
 export function AccountsGrid() {
+  const router = useRouter()
+  const searchParams = useSearchParams()
   const accounts = useAccounts()
   const input = useMetricsInput()
   const summaries = useMemo(() => summariesFor(accounts, input), [accounts, input])
-  const [open, setOpen] = useState(false)
+  const [open, setOpen] = useState(() => searchParams.get("add") === "1")
   const [formKey, setFormKey] = useState(0)
 
   const openDialog = () => {
@@ -29,10 +32,15 @@ export function AccountsGrid() {
     setOpen(true)
   }
 
+  useEffect(() => {
+    if (searchParams.get("add") === "1") router.replace("/accounts/", { scroll: false })
+  }, [router, searchParams])
+
   const onAdd = async (account: NewAccount): Promise<boolean> => {
     try {
-      await addAccount(account)
+      const created = await addAccount(account)
       toast.success("加好了")
+      router.push(`/account/?id=${encodeURIComponent(created.id)}`)
       return true
     } catch (error) {
       toast(error instanceof Error ? error.message : "添加账号失败")
