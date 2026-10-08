@@ -9,9 +9,8 @@ import { AccountTag } from "@/components/base/account-tag"
 import { EmptyState } from "@/components/base/empty-state"
 import { Segmented } from "@/components/base/segmented"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { ACCOUNTS, PLATFORMS, accountById } from "@/data/accounts"
-import { formatCount } from "@/lib/format"
-import { metricText, topWorks, type RankBy } from "@/lib/metrics"
+import { formatCount, metricText, PLATFORMS, topWorks, type RankBy } from "@leafpress/core"
+import { useAccounts, useMetricsInput } from "@/state/data"
 import { focusRing } from "@/lib/styles"
 
 /** 排行只看前 10 名 */
@@ -35,9 +34,16 @@ const TD_NUM = "px-3 text-right tabular"
 export function TopWorks() {
   const [by, setBy] = useState<RankBy>("reach")
   const [account, setAccount] = useState("all")
+  const accounts = useAccounts()
+  const input = useMetricsInput()
+  const selectedAccount = accounts.some((item) => item.id === account) ? account : "all"
 
-  const items = useMemo(() => topWorks(by, TOP_LIMIT, account === "all" ? undefined : account), [by, account])
-  const metrics = account === "all" ? null : PLATFORMS[accountById(account).platform].metrics
+  const items = useMemo(
+    () => (input ? topWorks(input, by, TOP_LIMIT, selectedAccount === "all" ? undefined : selectedAccount) : []),
+    [input, by, selectedAccount],
+  )
+  const selectedAccountData = accounts.find((item) => item.id === selectedAccount)
+  const metrics = selectedAccountData ? PLATFORMS[selectedAccountData.platform].metrics : null
 
   return (
     <section id="top" aria-labelledby="top-title" className="overflow-hidden rounded-lg border border-line bg-card shadow-sm">
@@ -47,15 +53,15 @@ export function TopWorks() {
           作品排行
         </h2>
         <div className="ml-auto flex items-center gap-2">
-          <Select value={account} onValueChange={setAccount}>
+          <Select value={selectedAccount} onValueChange={setAccount}>
             <SelectTrigger size="sm" className="h-6 w-auto text-xs" aria-label="账号" data-top-account>
               <SelectValue />
             </SelectTrigger>
             <SelectContent position="popper" align="end">
               <SelectItem value="all">全部账号</SelectItem>
-              {ACCOUNTS.map((item) => (
+              {accounts.map((item) => (
                 <SelectItem key={item.id} value={item.id}>
-                  {PLATFORMS[item.platform].name}
+                  {item.name}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -120,7 +126,7 @@ export function TopWorks() {
                   {metrics ? (
                     metrics.map((metric) => (
                       <td key={metric.key} className={TD_NUM}>
-                        {metricText(item.work, metric.key)}
+                        {metricText(item.work, item.account.platform, metric.key)}
                       </td>
                     ))
                   ) : (
@@ -128,7 +134,7 @@ export function TopWorks() {
                       <td className="px-3">
                         <AccountTag account={item.account} />
                       </td>
-                      <td className={TD_NUM} title={item.account.readsLabel}>
+                      <td className={TD_NUM} title={PLATFORMS[item.account.platform].metrics[0]?.label}>
                         {formatCount(item.reach)}
                       </td>
                       <td className={TD_NUM}>{formatCount(item.interactions)}</td>

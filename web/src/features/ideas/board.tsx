@@ -1,44 +1,39 @@
 "use client"
 
+import { IDEA_STATUS_ORDER, type Idea, type ConvertSource } from "@leafpress/core"
 import { useRouter, useSearchParams } from "next/navigation"
 import { useMemo, useState } from "react"
 import { toast } from "sonner"
 
 import { ConfirmDialog } from "@/components/base/confirm-dialog"
 import { ConvertDialog } from "@/components/work/convert-dialog"
-import { IDEA_STATUS_ORDER } from "@/data/labels"
-import type { Idea } from "@/data/types"
-import type { ConvertSource } from "@/lib/work-engine"
-import { useIdeas } from "@/state/ideas"
-import { useWorks } from "@/state/works"
+import { deleteIdea } from "@/state/actions/ideas"
+import { useIdeas, useWorks } from "@/state/data"
 import { IdeaColumn } from "./board-column"
 import { IdeaSheet } from "./board-sheet"
 
-/**
- * 灵感看板：收件箱、值得写、已转作品三列。
- * 点卡片从右侧滑出编辑抽屉（和地址栏的 open 参数同步，链接发给别人也能直接打开），
- * 卡片可以拖到别的列，「转作品」选几个平台就生成几个作品。
- */
 export function IdeaBoard() {
   const router = useRouter()
   const openId = useSearchParams().get("open")
-  const ideas = useIdeas((state) => state.ideas)
-  const works = useWorks((state) => state.works)
+  const ideas = useIdeas()
+  const works = useWorks()
   const [convertSource, setConvertSource] = useState<ConvertSource | null>(null)
   const [deleting, setDeleting] = useState<Idea | null>(null)
-
   const worksById = useMemo(() => new Map(works.map((work) => [work.id, work])), [works])
   const openIdea = openId ? ideas.find((idea) => idea.id === openId) : undefined
 
   const setOpen = (id: string | null) => router.replace(id ? `/ideas/?open=${encodeURIComponent(id)}` : "/ideas/", { scroll: false })
   const convert = (idea: Idea) => setConvertSource({ kind: "idea", idea })
-
-  const confirmDelete = () => {
+  const confirmDelete = async () => {
     if (!deleting) return
-    useIdeas.getState().remove(deleting.id)
-    if (openId === deleting.id) setOpen(null)
-    setDeleting(null)
-    toast("已删除")
+    try {
+      await deleteIdea(deleting.id)
+      if (openId === deleting.id) setOpen(null)
+      setDeleting(null)
+      toast("已删除")
+    } catch (error) {
+      toast(error instanceof Error ? error.message : "删除灵感失败")
+    }
   }
 
   return (
@@ -65,7 +60,7 @@ export function IdeaBoard() {
         description={deleting?.text}
         confirmLabel="删除"
         destructive
-        onConfirm={confirmDelete}
+        onConfirm={() => void confirmDelete()}
       />
     </section>
   )

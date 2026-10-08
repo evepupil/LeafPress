@@ -1,4 +1,4 @@
-import type { Work } from "@/data/types"
+import type { Work } from "@leafpress/core"
 
 /** 一个账号手上还没做完的活：三种状态各有几个 */
 export interface TaskCounts {

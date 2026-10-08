@@ -2,9 +2,9 @@
   "name": "leafpress-web",
   "version": "0.1.0",
   "private": true,
-  "description": "LeafPress 自媒体工作台网页（原型，数据写死在 src/data）",
+  "description": "LeafPress 自媒体工作台网页（通过本机服务接口提供数据）",
   "scripts": {
-    "dev": "next dev -p 3210",
+    "dev": "next dev -p 3211 -H 127.0.0.1",
     "build": "next build",
     "lint": "eslint --max-warnings=0",
     "typecheck": "tsc --noEmit",

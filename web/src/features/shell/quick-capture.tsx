@@ -8,26 +8,31 @@ import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
-import { ACCOUNTS } from "@/data/accounts"
-import { useIdeas } from "@/state/ideas"
+import { addIdea } from "@/state/actions/ideas"
+import { useAccounts } from "@/state/data"
 import { useUi } from "@/state/ui"
 
-/** 「不挂账号」在下拉里的取值（下拉不接受空字符串） */
 const NO_ACCOUNT = "none"
 
-/** 表单只在弹窗打开时挂载，每次打开都是一份干净的草稿，提交或取消后自然清空 */
 function CaptureForm({ onClose }: { onClose: () => void }) {
-  const add = useIdeas((state) => state.add)
+  const accounts = useAccounts()
   const [text, setText] = useState("")
   const [accountId, setAccountId] = useState(NO_ACCOUNT)
-
+  const [saving, setSaving] = useState(false)
   const content = text.trim()
 
-  const submit = () => {
-    if (!content) return
-    add({ text: content, accountId: accountId === NO_ACCOUNT ? undefined : accountId, source: "quick" })
-    onClose()
-    toast.success("记下了")
+  const submit = async () => {
+    if (!content || saving) return
+    setSaving(true)
+    try {
+      await addIdea({ text: content, ...(accountId !== NO_ACCOUNT ? { accountId } : {}), source: "quick" })
+      onClose()
+      toast.success("记下了")
+    } catch (error) {
+      toast(error instanceof Error ? error.message : "保存灵感失败")
+    } finally {
+      setSaving(false)
+    }
   }
 
   return (
@@ -35,7 +40,7 @@ function CaptureForm({ onClose }: { onClose: () => void }) {
       noValidate
       onSubmit={(event) => {
         event.preventDefault()
-        submit()
+        void submit()
       }}
       className="contents"
     >
@@ -49,10 +54,9 @@ function CaptureForm({ onClose }: { onClose: () => void }) {
           value={text}
           onChange={(event) => setText(event.target.value)}
           onKeyDown={(event) => {
-            // ⌘ / Ctrl + 回车直接提交；输入法选词时的回车不算
             if (event.key === "Enter" && (event.metaKey || event.ctrlKey) && !event.nativeEvent.isComposing) {
               event.preventDefault()
-              submit()
+              void submit()
             }
           }}
         />
@@ -62,7 +66,7 @@ function CaptureForm({ onClose }: { onClose: () => void }) {
           </SelectTrigger>
           <SelectContent position="popper">
             <SelectItem value={NO_ACCOUNT}>不挂账号</SelectItem>
-            {ACCOUNTS.map((item) => (
+            {accounts.map((item) => (
               <SelectItem key={item.id} value={item.id}>
                 <AccountTag account={item} size="md" showPlatform />
               </SelectItem>
@@ -74,7 +78,7 @@ function CaptureForm({ onClose }: { onClose: () => void }) {
         <Button type="button" variant="outline" onClick={onClose}>
           取消
         </Button>
-        <Button type="submit" disabled={!content} data-quick-capture-submit>
+        <Button type="submit" disabled={!content || saving} data-quick-capture-submit>
           记下
         </Button>
       </DialogFooter>
@@ -82,11 +86,9 @@ function CaptureForm({ onClose }: { onClose: () => void }) {
   )
 }
 
-/** 记灵感弹窗：侧栏、命令面板、手机右下角的按钮和 N 键都打开它 */
 export function QuickCapture() {
   const open = useUi((state) => state.captureOpen)
   const setOpen = useUi((state) => state.setCaptureOpen)
-
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogContent className="gap-0 p-0 sm:max-w-[440px]">
@@ -94,7 +96,7 @@ export function QuickCapture() {
           <DialogTitle>记灵感</DialogTitle>
           <DialogDescription className="sr-only">用一句话记下灵感，可以挂到账号</DialogDescription>
         </DialogHeader>
-        <CaptureForm onClose={() => setOpen(false)} />
+        {open && <CaptureForm onClose={() => setOpen(false)} />}
       </DialogContent>
     </Dialog>
   )

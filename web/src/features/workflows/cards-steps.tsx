@@ -1,11 +1,10 @@
 import { cn } from "cn"
 import { Bot, Hand, Terminal, type LucideIcon } from "lucide-react"
 
-import { STEP_KIND_LABEL } from "@/data/labels"
-import type { StepKind, WorkflowStep } from "@/data/types"
+import { STEP_KIND_LABEL, type WorkflowStep } from "@leafpress/core"
 
 /** 步骤种类的图形：AI 做、自动做、要你动手 */
-const KIND_ICON: Record<StepKind, LucideIcon> = {
+const KIND_ICON: Record<WorkflowStep["kind"], LucideIcon> = {
   ai: Bot,
   code: Terminal,
   manual: Hand,

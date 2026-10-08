@@ -1,6 +1,7 @@
 "use client"
 
-import { Bot, ChevronUp, CircleCheck, Ellipsis, ExternalLink, Hand, Repeat, RotateCcw, Trash2 } from "lucide-react"
+import { type Work, type WorkStatus } from "@leafpress/core"
+import { ChevronUp, CircleCheck, Ellipsis, ExternalLink, Hand, Repeat, RotateCcw, Trash2 } from "lucide-react"
 import { toast } from "sonner"
 
 import { IconButton } from "@/components/base/icon-button"
@@ -11,37 +12,13 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import type { Work, WorkStatus } from "@/data/types"
-import { useWorks } from "@/state/works"
+import { moveWork } from "@/state/actions/works"
 import type { WorkHandlers } from "./works-model"
 
-/**
- * 卡片右上角的「更多」菜单：手机上拖不动卡片，挪列、让 AI 做都靠它；桌面上也是拖动之外的另一条路。
- * 菜单画在浮层里，但点击会沿组件树冒泡到卡片上（卡片整张可点），所以菜单内容和触发器都要拦住。
- */
-export function WorkCardMenu({
-  work,
-  frontId,
-  handlers,
-}: {
-  work: Work
-  /** 待实现队伍里排第一的作品编号（不受筛选影响）；本身就是第一时「排到最前」点不了 */
-  frontId: string | null
-  handlers: WorkHandlers
-}) {
-  const runAi = useWorks((state) => state.runAi)
-  const drop = useWorks((state) => state.drop)
-
-  const startAi = () => {
-    const result = runAi(work.id)
-    if (!result.ok) toast(result.reason)
+export function WorkCardMenu({ work, frontId, handlers }: { work: Work; frontId: string | null; handlers: WorkHandlers }) {
+  const move = (status: Exclude<WorkStatus, "doing">, beforeId: string | null = null) => {
+    void moveWork(work.id, status, beforeId).catch((error: unknown) => toast(error instanceof Error ? error.message : "移动作品失败"))
   }
-
-  const move = (status: WorkStatus, beforeId: string | null = null) => {
-    const result = drop(work.id, status, beforeId)
-    if (!result.ok) toast(result.reason)
-  }
-
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -58,9 +35,6 @@ export function WorkCardMenu({
       <DropdownMenuContent align="end" className="w-44" onClick={(event) => event.stopPropagation()}>
         {work.status === "todo" && (
           <>
-            <DropdownMenuItem onSelect={startAi}>
-              <Bot />让 AI 做
-            </DropdownMenuItem>
             <DropdownMenuItem disabled={frontId === null || work.id === frontId} onSelect={() => move("todo", frontId)}>
               <ChevronUp />
               排到最前

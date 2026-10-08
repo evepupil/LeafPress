@@ -9,10 +9,9 @@ import { BoardColumn } from "@/components/base/board"
 import { DropLine, WORK_DRAG, useBoardDrop } from "@/components/base/board-dnd"
 import { IconButton } from "@/components/base/icon-button"
 import { WorkStatusIcon } from "@/components/base/state-icons"
-import { WORK_STATUS_LABEL } from "@/data/labels"
-import type { Work, WorkStatus } from "@/data/types"
+import { WORK_STATUS_LABEL, type Work, type WorkStatus } from "@leafpress/core"
+import { moveWork } from "@/state/actions/works"
 import { focusRing } from "@/lib/styles"
-import { useWorks } from "@/state/works"
 import { WorkCard } from "./works-card"
 import {
   DONE_PAGE_SIZE,
@@ -39,11 +38,13 @@ function Column({
   onNewWork: () => void
 }) {
   const { status, items } = column
-  const drop = useWorks((state) => state.drop)
   const [limit, setLimit] = useState(DONE_PAGE_SIZE)
   const { over, beforeId, dropProps } = useBoardDrop(WORK_DRAG, (id, before) => {
-    const result = drop(id, status, before)
-    if (!result.ok) toast(result.reason)
+    if (status === "doing") {
+      toast("进行中由 agent 更新，不能手动移入")
+      return
+    }
+    void moveWork(id, status, before).catch((error: unknown) => toast(error instanceof Error ? error.message : "移动作品失败"))
   })
   // 已完成的会越攒越多，默认只放前 20 张
   const shown = status === "done" ? items.slice(0, limit) : items
@@ -97,8 +98,7 @@ function Column({
 }
 
 /**
- * 作品看板：四列从左到右是 AI 的待做、AI 在做、等你做、做完了。
- * 卡片拖到别的列就改状态（拖进「进行中」就是让 AI 做），在待实现里拖动排先后；手机上横向滑，挪列靠卡片菜单。
+ * 作品看板：四列从左到右是待实现、进行中、等你处理、已完成。进行中状态由 agent 更新；其他状态可通过服务端接口移动。
  */
 export function WorksBoard({
   works,

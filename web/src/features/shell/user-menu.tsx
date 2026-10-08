@@ -1,29 +1,26 @@
 "use client"
 
 import { cn } from "cn"
-import { Bot, Copy, ExternalLink, Keyboard, RotateCcw } from "lucide-react"
+import { Bot, Copy, ExternalLink, Keyboard } from "lucide-react"
 import { useRef, useState } from "react"
 import { toast } from "sonner"
 
-import { ConfirmDialog } from "@/components/base/confirm-dialog"
 import { IconButton } from "@/components/base/icon-button"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuSeparator,
   DropdownMenuShortcut,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { copyText } from "@/lib/platform"
 import { focusRing } from "@/lib/styles"
-import { resetAll } from "@/state/actions"
+import { exportBackup } from "@/state/actions/system"
+import { useData } from "@/state/data"
 import { useUi } from "@/state/ui"
 
 const BLOG_URL = "https://blog.chaosyn.com/"
-/** 所有作品的任务文件夹都在这下面，一个作品一个文件夹 */
-const TASKS_ROOT = "~/.leafpress/tasks/"
 /** 在 agent 里常说的几句 */
 const PHRASES = ["看看 LeafPress 有哪些待实现的作品，挑第一个做", "做一下 z-jev", "z-design-extraction 我发好了，继续"]
 
@@ -45,12 +42,12 @@ function CopyRow({ text, label, mono = false }: { text: string; label: string; m
   )
 }
 
-/** 右上角的头像菜单：交给 AI、快捷键、恢复初始数据、打开博客 */
+/** 右上角的头像菜单：交给 AI、导出备份、快捷键、打开博客 */
 export function UserMenu() {
   const setShortcutsOpen = useUi((state) => state.setShortcutsOpen)
+  const paths = useData((state) => state.boot?.paths)
   const triggerRef = useRef<HTMLButtonElement>(null)
   const [agentOpen, setAgentOpen] = useState(false)
-  const [resetOpen, setResetOpen] = useState(false)
 
   return (
     <>
@@ -76,10 +73,15 @@ export function UserMenu() {
             快捷键
             <DropdownMenuShortcut>?</DropdownMenuShortcut>
           </DropdownMenuItem>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem onSelect={() => setResetOpen(true)} data-reset-data>
-            <RotateCcw />
-            恢复初始数据
+          <DropdownMenuItem
+            onSelect={() => {
+              void exportBackup()
+                .then((result) => toast.success(`已导出到 ${result.dir}`))
+                .catch((error: unknown) => toast(error instanceof Error ? error.message : "导出失败"))
+            }}
+          >
+            <Copy />
+            导出备份
           </DropdownMenuItem>
           <DropdownMenuItem asChild>
             <a href={BLOG_URL} target="_blank" rel="noreferrer">
@@ -105,7 +107,11 @@ export function UserMenu() {
           <div className="flex flex-col gap-3 px-4 py-4">
             <DialogDescription>每个作品的要求、进度、要你做的事和你的反馈都在任务文件夹里，能读文件的 agent 都能接着做。</DialogDescription>
             <ul className="flex flex-col gap-1.5">
-              <CopyRow text={TASKS_ROOT} label="复制任务文件夹" mono />
+              {paths?.tasks ? (
+                <CopyRow text={paths.tasks} label="复制任务文件夹" mono />
+              ) : (
+                <li className="px-2.5 text-sm text-fg-2">连接本机服务后显示任务文件夹</li>
+              )}
             </ul>
             <p className="text-sm font-medium">在 agent 里这样说</p>
             <ul className="flex flex-col gap-1.5">
@@ -116,19 +122,6 @@ export function UserMenu() {
           </div>
         </DialogContent>
       </Dialog>
-
-      <ConfirmDialog
-        open={resetOpen}
-        onOpenChange={setResetOpen}
-        title="恢复初始数据？"
-        description="页面上改过的作品和灵感都会丢掉。"
-        confirmLabel="恢复"
-        destructive
-        onConfirm={() => {
-          resetAll()
-          toast.success("已恢复")
-        }}
-      />
     </>
   )
 }

@@ -1,5 +1,6 @@
 "use client"
 
+import { type Idea, type PlatformId, type Work, type WorkSource } from "@leafpress/core"
 import { cn } from "cn"
 import { Copy, Lightbulb } from "lucide-react"
 import Link from "next/link"
@@ -7,24 +8,29 @@ import { useRouter } from "next/navigation"
 
 import { IconButton } from "@/components/base/icon-button"
 import { PlatformMark } from "@/components/base/marks"
-import { accountById } from "@/data/accounts"
-import type { Idea, Work, WorkSource } from "@/data/types"
+import { useAccounts, useIdeas, useWorks } from "@/state/data"
 import { focusRing } from "@/lib/styles"
-import { useIdeas } from "@/state/ideas"
-import { useWorks } from "@/state/works"
 import { copyWithToast } from "./work-sheet-actions"
 import { FieldRow, VALUE_CELL } from "./work-sheet-parts"
 
-/** 可点的来源：整格悬停变浅灰，和旁边的下拉框一样大 */
 const LINK_CELL = cn(VALUE_CELL, "w-full text-left transition-colors duration-(--dur-fast) hover:bg-hover", focusRing)
 
-function SourceValue({ source, sourceWork, idea }: { source: WorkSource; sourceWork: Work | undefined; idea: Idea | undefined }) {
+function SourceValue({
+  source,
+  sourceWork,
+  idea,
+  platform,
+}: {
+  source: WorkSource
+  sourceWork: Work | undefined
+  idea: Idea | undefined
+  platform?: PlatformId
+}) {
   const router = useRouter()
-
   switch (source.kind) {
     case "idea":
       return idea ? (
-        <Link href={`/ideas/?open=${idea.id}`} title={idea.text} className={LINK_CELL}>
+        <Link href={`/ideas/?open=${encodeURIComponent(idea.id)}`} title={idea.text} className={LINK_CELL}>
           <Lightbulb className="size-3.5 shrink-0 text-fg-3" aria-hidden />
           <span className="truncate">{idea.text}</span>
         </Link>
@@ -39,10 +45,10 @@ function SourceValue({ source, sourceWork, idea }: { source: WorkSource; sourceW
           type="button"
           data-source-work={sourceWork.id}
           title={sourceWork.title}
-          onClick={() => router.replace(`/?open=${sourceWork.id}`, { scroll: false })}
+          onClick={() => router.replace(`/?open=${encodeURIComponent(sourceWork.id)}`, { scroll: false })}
           className={LINK_CELL}
         >
-          <PlatformMark platform={accountById(sourceWork.accountId).platform} size={16} />
+          {platform && <PlatformMark platform={platform} size={16} />}
           <span className="truncate">{sourceWork.title}</span>
         </button>
       ) : (
@@ -65,17 +71,19 @@ function SourceValue({ source, sourceWork, idea }: { source: WorkSource; sourceW
   }
 }
 
-/** 属性里的「来源」和「原稿」两行：这个作品从哪来、原稿在本机哪个位置 */
 export function WorkSheetOrigin({ work }: { work: Work }) {
   const source = work.source
-  const sourceWork = useWorks((state) => (source.kind === "work" ? state.works.find((item) => item.id === source.workId) : undefined))
-  const idea = useIdeas((state) => (source.kind === "idea" ? state.ideas.find((item) => item.id === source.ideaId) : undefined))
+  const works = useWorks()
+  const ideas = useIdeas()
+  const accounts = useAccounts()
+  const sourceWork = source.kind === "work" ? works.find((item) => item.id === source.workId) : undefined
+  const idea = source.kind === "idea" ? ideas.find((item) => item.id === source.ideaId) : undefined
+  const platform = sourceWork ? accounts.find((item) => item.id === sourceWork.accountId)?.platform : undefined
   const path = work.localPath ?? sourceWork?.localPath
-
   return (
     <>
       <FieldRow label="来源">
-        <SourceValue source={source} sourceWork={sourceWork} idea={idea} />
+        <SourceValue source={source} sourceWork={sourceWork} idea={idea} platform={platform} />
       </FieldRow>
       {path && (
         <FieldRow label="原稿">

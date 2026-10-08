@@ -4,8 +4,8 @@ import Link from "next/link"
 
 import { AccountTag } from "@/components/base/account-tag"
 import { Delta } from "@/components/base/delta"
-import { formatCount, formatPercent } from "@/lib/format"
-import { ACCOUNT_SUMMARIES } from "@/lib/metrics"
+import { accountHref, accountSummary, formatCount, formatPercent, type AccountSummary } from "@leafpress/core"
+import { useAccounts, useMetricsInput } from "@/state/data"
 import { focusRing } from "@/lib/styles"
 
 const TH = "h-8 px-3 font-normal whitespace-nowrap"
@@ -17,8 +17,10 @@ function rateText(interactions: number, reads: number): string {
 
 /** 分账号：多个号放在一张表里横着比，最后一行是合计 */
 export function AccountBreakdown() {
-  // 合计行：粉丝、涨幅、浏览、互动都是各账号相加（数据还没接的号都是 0）；浏览涨跌不同账号的基数不同，合计行不给
-  const total = ACCOUNT_SUMMARIES.reduce(
+  const accounts = useAccounts()
+  const input = useMetricsInput()
+  const summaries: AccountSummary[] = input ? accounts.map((account) => accountSummary(input, account)) : []
+  const total = summaries.reduce(
     (sum, item) => ({
       followers: sum.followers + item.followers,
       followers7d: sum.followers7d + item.followers7d,
@@ -64,10 +66,10 @@ export function AccountBreakdown() {
             </tr>
           </thead>
           <tbody>
-            {ACCOUNT_SUMMARIES.map((item) => (
+            {summaries.map((item) => (
               <tr key={item.account.id} data-breakdown-row={item.account.id} className="h-10 border-t border-line">
                 <td className="px-3">
-                  <Link href={`/accounts/${item.account.id}/`} className={focusRing}>
+                  <Link href={accountHref(item.account.id)} className={focusRing}>
                     <AccountTag account={item.account} size="md" showPlatform />
                   </Link>
                 </td>

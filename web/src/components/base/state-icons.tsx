@@ -1,9 +1,8 @@
 import { cn } from "cn"
 import { LoaderCircle } from "lucide-react"
 
-import { WORKFLOW_STATUS_LABEL, WORK_STATUS_LABEL } from "@/data/labels"
-import type { WorkStatus, WorkflowStatus } from "@/data/types"
-import type { StepState } from "@/lib/work-engine"
+import { WORK_STATUS_LABEL, type WorkStatus } from "@leafpress/core"
+import type { StepState } from "@leafpress/core"
 import { StatusIcon, type GlyphTone, type StatusGlyph } from "./status-icon"
 
 type Look = { glyph: StatusGlyph; tone: GlyphTone }
@@ -28,6 +27,10 @@ const STEP_LABEL: Record<StepState, string> = {
   waiting: "等你处理",
   pending: "未开始",
 }
+
+type WorkflowStatus = "ready" | "needs-setup"
+
+const WORKFLOW_STATUS_LABEL: Record<WorkflowStatus, string> = { ready: "可用", "needs-setup": "待配置" }
 
 const WORKFLOW: Record<WorkflowStatus, Look> = {
   ready: { glyph: "check", tone: "team" },

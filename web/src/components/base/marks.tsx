@@ -1,8 +1,7 @@
 import { cn } from "cn"
 import { Leaf } from "lucide-react"
 
-import { PLATFORMS } from "@/data/accounts"
-import type { LabelColor, PlatformId } from "@/data/types"
+import { PLATFORMS, type LabelColor, type PlatformId } from "@leafpress/core"
 
 /** 产品标识：深色方块里一片叶子 */
 export function LeafMark({ size = 20, className }: { size?: number; className?: string }) {

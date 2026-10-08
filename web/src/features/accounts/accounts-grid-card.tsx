@@ -1,5 +1,6 @@
 "use client"
 
+import { Plug } from "lucide-react"
 import Link from "next/link"
 import { type ReactNode, useMemo } from "react"
 
@@ -8,15 +9,21 @@ import { Delta } from "@/components/base/delta"
 import { LabelChip } from "@/components/base/label-chip"
 import { PlatformMark } from "@/components/base/marks"
 import { SourceBadge } from "@/components/base/source-badge"
-import { PLATFORMS } from "@/data/accounts"
-import { SETUP_STATE_LABEL, STAGE_LABEL } from "@/data/labels"
-import type { AccountStage, DataSource, LabelColor, PlatformId, SetupState } from "@/data/types"
-import { formatCount } from "@/lib/format"
-import { markdownSummary } from "@/lib/markdown"
-import type { AccountSummary } from "@/lib/metrics"
-import { setupView } from "@/lib/setup"
-import { useAccounts, useProfile } from "@/state/accounts"
-import type { NewAccount } from "./accounts-grid-dialog"
+import {
+  formatCount,
+  markdownSummary,
+  PLATFORMS,
+  SETUP_STATE_LABEL,
+  setupView,
+  STAGE_LABEL,
+  accountHref,
+  type AccountStage,
+  type AccountSummary,
+  type LabelColor,
+  type PlatformId,
+  type SetupState,
+} from "@leafpress/core"
+import { usePulls } from "@/state/data"
 import { AccountTasks } from "./accounts-grid-tasks"
 
 /** 阶段标签的色点：运营中绿、筹备中黄、暂停灰。按对象映射取值，不拼接 */
@@ -33,14 +40,6 @@ const SETUP_COLOR: Record<SetupState, LabelColor> = {
   unfinished: "amber",
 }
 
-/** 刚加的账号还没接：拿数据的工具、要配的东西都等接这个平台时再定 */
-const NEW_ACCOUNT_SOURCE: DataSource = { mode: "crawler", provider: "", schedule: "", status: "missing" }
-
-/**
- * 整张卡片都能点，又不让链接套链接（卡片里还有一条「手上的活」链接）：
- * 点开账号详情的链接只包住名字和平台，它的伪元素铺满整张卡片（外层是 relative）。
- * 键盘焦点的描边也画在这一层上，框住整张卡片。
- */
 const CARD_LINK =
   "min-w-0 outline-none after:absolute after:-inset-px after:rounded-lg focus-visible:after:outline-2 focus-visible:after:outline-solid focus-visible:after:outline-offset-1 focus-visible:after:outline-(--focus-ring)"
 
@@ -95,21 +94,20 @@ function Stat({ label, children }: { label: string; children: ReactNode }) {
 /** 现有账号的卡片：点卡片任何地方进账号详情，「手上的活」单独去作品页 */
 export function AccountCard({ summary }: { summary: AccountSummary }) {
   const { account: a, hasData, followers, followers7d, reads7d, readsChange, postsThisWeek, weeklyGain, stale, daysSincePublish } = summary
-  const profile = useProfile(a.id)
-  const config = useAccounts((state) => state.config[a.id])
-  const pull = useAccounts((state) => state.pulls[a.id])
-  const setup = useMemo(() => setupView(a, config, pull), [a, config, pull])
-  const intro = useMemo(() => markdownSummary(profile), [profile])
+  const pulls = usePulls()
+  const pull = pulls.find((item) => item.accountId === a.id)
+  const setup = useMemo(() => setupView(a, PLATFORMS[a.platform], { pull }), [a, pull])
+  const intro = useMemo(() => markdownSummary(a.profile), [a.profile])
   return (
     <div
       data-account-card={a.id}
       className="relative isolate flex min-w-0 flex-col gap-2.5 rounded-lg border border-line bg-card px-4 py-3 shadow-sm transition-[border-color] duration-(--dur-fast) hover:border-line-3"
     >
       <CardHead
-        href={`/accounts/${a.id}/`}
+        href={accountHref(a.id)}
         platform={a.platform}
         name={a.name}
-        subtitle={`${PLATFORMS[a.platform].name} · ${a.handle}`}
+        subtitle={`${PLATFORMS[a.platform].name} · ${a.handle ?? a.url ?? ""}`}
         chips={
           <>
             <LabelChip color={STAGE_COLOR[a.stage]}>{STAGE_LABEL[a.stage]}</LabelChip>
@@ -125,7 +123,7 @@ export function AccountCard({ summary }: { summary: AccountSummary }) {
       {intro && <p className="line-clamp-2 text-sm text-fg-2">{intro}</p>}
       {/* 数值加涨跌放在一行；格子窄时涨跌换到下一行，不撑破卡片 */}
       <div className="grid grid-cols-3 gap-2 border-t border-line pt-2.5">
-        <Stat label={a.audienceLabel}>
+        <Stat label={PLATFORMS[a.platform].audienceLabel}>
           <span className="flex flex-wrap items-baseline gap-x-1">
             <span className="text-sm font-medium tabular" data-account-followers>
               {hasData ? formatCount(followers) : "—"}
@@ -136,7 +134,7 @@ export function AccountCard({ summary }: { summary: AccountSummary }) {
         <Stat label="本周发布">
           <span className="text-sm font-medium tabular">{postsThisWeek}</span>
         </Stat>
-        <Stat label={`近 7 天${a.readsLabel}`}>
+        <Stat label={`近 7 天${PLATFORMS[a.platform].metrics[0]?.label ?? "浏览"}`}>
           <span className="flex flex-wrap items-baseline gap-x-1">
             <span className="text-sm font-medium tabular">{hasData ? formatCount(reads7d) : "—"}</span>
             {hasData && <Delta value={readsChange} />}
@@ -146,27 +144,17 @@ export function AccountCard({ summary }: { summary: AccountSummary }) {
       <AccountTasks accountId={a.id} platform={a.platform} />
       <div className="flex min-w-0 items-center gap-2">
         <SourceBadge source={setup.source} />
+        {setup.state !== "ready" && (
+          <Link
+            href={`${accountHref(a.id)}#setup`}
+            className="relative z-10 ml-auto inline-flex items-center gap-1 text-xs text-fg-2 hover:text-fg"
+          >
+            <Plug className="size-3.5" aria-hidden />
+            配置接入
+          </Link>
+        )}
         {hasData && <MiniBars values={weeklyGain} className="ml-auto" />}
       </div>
-    </div>
-  )
-}
-
-/** 弹窗里刚加的账号：虚线边框，不是链接（还没有详情页），只有身份信息和「还没有数据」 */
-export function NewAccountCard({ n, account }: { n: number; account: NewAccount }) {
-  return (
-    <div
-      data-account-card={`new-${n}`}
-      className="flex min-w-0 flex-col gap-2.5 rounded-lg border border-dashed border-line-3 bg-card px-4 py-3"
-    >
-      <CardHead
-        platform={account.platform}
-        name={account.name}
-        subtitle={`${PLATFORMS[account.platform].name} · 待定`}
-        chips={<LabelChip color={STAGE_COLOR.preparing}>{STAGE_LABEL.preparing}</LabelChip>}
-      />
-      {account.positioning && <p className="line-clamp-2 text-sm text-fg-2">{account.positioning}</p>}
-      <SourceBadge source={NEW_ACCOUNT_SOURCE} className="self-start" />
     </div>
   )
 }

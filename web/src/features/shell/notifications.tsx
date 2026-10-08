@@ -9,11 +9,9 @@ import { EmptyState } from "@/components/base/empty-state"
 import { IconButton } from "@/components/base/icon-button"
 import { StatusIcon, type GlyphTone, type StatusGlyph } from "@/components/base/status-icon"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { type Notice, type NoticeTone, notices } from "@/lib/board"
-import { formatRelative } from "@/lib/format"
+import { notices, type IsoTime, type Notice, type NoticeTone, formatRelative } from "@leafpress/core"
 import { focusRingInset } from "@/lib/styles"
-import { useAccounts } from "@/state/accounts"
-import { useWorks } from "@/state/works"
+import { useAccounts, useData, usePulls, useToday, useWorks } from "@/state/data"
 
 const TONE_LOOK: Record<NoticeTone, { glyph: StatusGlyph; tone: GlyphTone }> = {
   risk: { glyph: "alert", tone: "risk" },
@@ -22,7 +20,7 @@ const TONE_LOOK: Record<NoticeTone, { glyph: StatusGlyph; tone: GlyphTone }> = {
 
 const rowClass = cn("flex items-start gap-2 px-3 py-2 transition-colors duration-(--dur-fast) hover:bg-hover", focusRingInset)
 
-function NoticeRow({ item, onOpen }: { item: Notice; onOpen: () => void }) {
+function NoticeRow({ item, now, onOpen }: { item: Notice; now: IsoTime; onOpen: () => void }) {
   const look = TONE_LOOK[item.tone]
   return (
     <Link href={item.href} data-notification={item.id} onClick={onOpen} className={rowClass}>
@@ -31,7 +29,7 @@ function NoticeRow({ item, onOpen }: { item: Notice; onOpen: () => void }) {
         <span className="block truncate text-sm">{item.title}</span>
         <span className="block truncate text-xs text-fg-2">{item.detail}</span>
       </span>
-      <span className="shrink-0 text-xs text-fg-2 tabular">{formatRelative(item.at)}</span>
+      <span className="shrink-0 text-xs text-fg-2 tabular">{formatRelative(item.at, now)}</span>
     </Link>
   )
 }
@@ -39,9 +37,12 @@ function NoticeRow({ item, onOpen }: { item: Notice; onOpen: () => void }) {
 /** 窗口栏的铃铛：数据拉取失败、等你处理的作品；有出错的事时右上角亮红点 */
 export function Notifications() {
   const [open, setOpen] = useState(false)
-  const works = useWorks((state) => state.works)
-  const pulls = useAccounts((state) => state.pulls)
-  const items = useMemo(() => notices(works, pulls), [works, pulls])
+  const works = useWorks()
+  const accounts = useAccounts()
+  const pulls = usePulls()
+  const today = useToday()
+  const now = useData((state) => state.boot?.now)
+  const items = useMemo(() => notices({ works, accounts, pulls, today }), [works, accounts, pulls, today])
   const hasRisk = items.some((item) => item.tone === "risk")
   const close = () => setOpen(false)
 
@@ -64,7 +65,7 @@ export function Notifications() {
           <ul className="scroll-thin max-h-[min(420px,60vh)] overflow-y-auto">
             {items.map((item) => (
               <li key={item.id}>
-                <NoticeRow item={item} onOpen={close} />
+                <NoticeRow item={item} now={now ?? item.at} onOpen={close} />
               </li>
             ))}
           </ul>

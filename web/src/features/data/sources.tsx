@@ -3,31 +3,37 @@
 import { cn } from "cn"
 import { Clock, Database } from "lucide-react"
 import Link from "next/link"
+import { useState } from "react"
 import { toast } from "sonner"
 
+import { accountHref, DATA_MODE_LABEL, PLATFORMS, PULL_STATUS_LABEL, formatRelative, setupView, type Account } from "@leafpress/core"
 import { AccountTag } from "@/components/base/account-tag"
+import { EmptyState } from "@/components/base/empty-state"
 import { SourceBadge } from "@/components/base/source-badge"
 import { RunResultIcon } from "@/components/base/state-icons"
 import { Button } from "@/components/ui/button"
-import { ACCOUNTS } from "@/data/accounts"
-import { DATA_MODE_LABEL } from "@/data/labels"
-import type { Account } from "@/data/types"
-import { formatRelative } from "@/lib/format"
-import { effectiveSource } from "@/lib/setup"
 import { focusRing } from "@/lib/styles"
-import { pullNow } from "@/state/actions"
-import { useAccounts } from "@/state/accounts"
-import { useSchedules } from "@/state/schedules"
+import { pullNow } from "@/state/actions/data"
+import { useData, useAccounts, usePulls, useSchedules } from "@/state/data"
 
-function SourceRow({ account }: { account: Account }) {
-  const pull = useAccounts((state) => state.pulls[account.id])
-  const source = effectiveSource(account, pull)
+function SourceRow({ account, schedule }: { account: Account; schedule?: string }) {
+  const pulls = usePulls()
+  const pull = pulls.find((item) => item.accountId === account.id)
+  const source = setupView(account, PLATFORMS[account.platform], { pull, schedule }).source
+  const missingCapabilities = [PLATFORMS[account.platform].audienceLabel, ...PLATFORMS[account.platform].metrics.map((item) => item.label)]
+  const [retrying, setRetrying] = useState(false)
   const failed = source.status === "failed"
 
-  const retry = () => {
-    const result = pullNow([account.id])
-    if (result.ok) toast.success(result.note)
-    else toast(result.note)
+  const retry = async () => {
+    setRetrying(true)
+    try {
+      const result = await pullNow([account.id])
+      toast(result.note)
+    } catch (error) {
+      toast(error instanceof Error ? error.message : "拉取失败")
+    } finally {
+      setRetrying(false)
+    }
   }
 
   return (
@@ -35,19 +41,22 @@ function SourceRow({ account }: { account: Account }) {
       <div className="flex min-w-0 items-center gap-2">
         <AccountTag account={account} size="md" showPlatform />
         {failed && (
-          <Button variant="outline" size="sm" className="ml-auto" data-source-retry onClick={retry}>
+          <Button variant="outline" size="sm" className="ml-auto" data-source-retry onClick={() => void retry()} disabled={retrying}>
             重试
           </Button>
         )}
       </div>
       <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 text-xs text-fg-2">
         <span className="min-w-0 break-words">
-          {DATA_MODE_LABEL[source.mode]} · {source.provider}
+          {source.mode ? DATA_MODE_LABEL[source.mode] : PULL_STATUS_LABEL.missing}
+          {source.provider && ` · ${source.provider}`}
         </span>
-        <span className="inline-flex items-center gap-1">
-          <Clock className="size-3" aria-hidden />
-          {source.schedule}
-        </span>
+        {source.schedule && (
+          <span className="inline-flex items-center gap-1">
+            <Clock className="size-3" aria-hidden />
+            {source.schedule}
+          </span>
+        )}
         <SourceBadge source={source} />
       </div>
       {failed && (
@@ -58,8 +67,8 @@ function SourceRow({ account }: { account: Account }) {
       )}
       {source.status === "missing" && (
         <p className="text-xs text-fg-2">
-          {source.plan}。
-          <Link href={`/accounts/${account.id}/#setup`} className={cn("underline underline-offset-2 hover:text-fg", focusRing)}>
+          {`缺少数据获取工具，暂时无法获取${missingCapabilities.join("、")}。`}
+          <Link href={`${accountHref(account.id)}#setup`} className={cn("ml-1 underline underline-offset-2 hover:text-fg", focusRing)}>
             看接入
           </Link>
         </p>
@@ -68,13 +77,12 @@ function SourceRow({ account }: { account: Account }) {
   )
 }
 
-/**
- * 数据来源：最上面是定时的「拉作品数据」上次跑得怎么样；下面每个号的数据从哪来、什么时候拉、拉得怎么样。
- * 数据都靠工具拉，没有手填；拉取失败的号可以重试，要配的东西去账号的「接入」里填。
- */
 export function DataSources() {
-  // 定时工作流「拉作品数据」最近一次运行；视图栏的「现在拉一次」跑完会改它，这一行的时间跟着变成「刚刚」
-  const pullRun = useSchedules((state) => state.runs["data-pull"])
+  const accounts = useAccounts()
+  const schedules = useSchedules()
+  const schedule = schedules.find((item) => item.id === "data-pull")
+  const now = useData((state) => state.boot?.now)
+  const scheduleTime = schedule?.lastRunAt && now ? formatRelative(schedule.lastRunAt, now) : undefined
 
   return (
     <section id="sources" aria-labelledby="sources-title" className="overflow-hidden rounded-lg border border-line bg-card shadow-sm">
@@ -85,16 +93,22 @@ export function DataSources() {
         </h2>
       </div>
       <div data-pull-schedule className="flex flex-wrap items-center gap-2 border-b border-line px-3 py-2 text-xs">
-        <RunResultIcon result={pullRun.lastResult} />
-        <span className="text-fg">拉作品数据 · 每天 06:00</span>
-        <span className={pullRun.lastResult === "failed" ? "text-bad" : "text-fg-2"}>
-          {formatRelative(pullRun.lastRunAt)} · {pullRun.lastNote}
+        {schedule?.lastResult ? <RunResultIcon result={schedule.lastResult} /> : <Clock className="size-3.5 text-fg-2" aria-hidden />}
+        <span className="text-fg">
+          {schedule?.name ?? "拉作品数据"} · {schedule?.when ?? "未安排"}
+        </span>
+        <span className={schedule?.lastResult === "failed" ? "text-bad" : "text-fg-2"}>
+          {scheduleTime ? `${scheduleTime} · ${schedule?.lastNote ?? ""}` : schedule?.installed ? "尚未运行" : "未安装"}
         </span>
       </div>
       <ul className="divide-y divide-line">
-        {ACCOUNTS.map((account) => (
-          <SourceRow key={account.id} account={account} />
-        ))}
+        {accounts.length === 0 ? (
+          <li>
+            <EmptyState icon={Database} title="还没有数据来源" />
+          </li>
+        ) : (
+          accounts.map((account) => <SourceRow key={account.id} account={account} schedule={schedule?.when} />)
+        )}
       </ul>
     </section>
   )

@@ -1,7 +1,7 @@
 import { cn } from "cn"
 import type { ReactNode } from "react"
 
-import type { LabelColor } from "@/data/types"
+import type { LabelColor } from "@leafpress/core"
 
 /** 标签：白底 1px 边框，颜色只落在 6px 小圆点上（提炼：彩色面积很少） */
 export function LabelChip({

@@ -1,7 +1,5 @@
 import { ChartColumn, FileText, Lightbulb, NotebookPen, UsersRound, Workflow } from "lucide-react"
 
-import { ACCOUNTS } from "@/data/accounts"
-
 /** 侧栏第一组：六个页面。作品是首页。goKey 是「先按 G 再按它」的跳页键 */
 export const PAGES = [
   { key: "works", label: "作品", path: "/", icon: FileText, goKey: "w" },
@@ -58,7 +56,7 @@ function matchParams(params: URLSearchParams, expected: Readonly<Record<string, 
 /**
  * 判断高亮哪一行，优先级从高到低：
  * 1. 地址和某个视图一致（路径 + 参数；视图带锚点时锚点也要一致）→ 高亮视图
- * 2. /accounts/<编号> → 高亮侧栏里那个账号
+ * 2. /account?id=<编号> → 高亮侧栏里那个账号
  * 3. 路径前缀匹配的页面（作品页只在路径完全是 / 时匹配）
  */
 export function resolveNav(pathname: string, params: URLSearchParams, hash: string): NavTarget | null {
@@ -70,8 +68,8 @@ export function resolveNav(pathname: string, params: URLSearchParams, hash: stri
     if (matchParams(params, view.query)) return { kind: "view", key: view.key }
   }
 
-  const account = /^\/accounts\/([^/]+)$/.exec(path)
-  if (account && ACCOUNTS.some((item) => item.id === account[1])) return { kind: "account", id: account[1] }
+  const accountId = path === "/account" ? params.get("id") : null
+  if (accountId) return { kind: "account", id: accountId }
 
   const page = PAGES.find((item) => {
     const base = trimSlash(item.path)

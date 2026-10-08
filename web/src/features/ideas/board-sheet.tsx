@@ -1,9 +1,11 @@
 "use client"
 
+import { IDEA_SOURCE_LABEL, IDEA_STATUS_LABEL, WORK_STATUS_LABEL, formatRelative, type Idea, type Work } from "@leafpress/core"
 import { cn } from "cn"
 import { ArrowRight, Trash2 } from "lucide-react"
 import Link from "next/link"
 import { useEffect, useRef, useState } from "react"
+import { toast } from "sonner"
 
 import { Field } from "@/components/base/field"
 import { IconButton } from "@/components/base/icon-button"
@@ -13,17 +15,13 @@ import { WorkStatusIcon } from "@/components/base/state-icons"
 import { Button } from "@/components/ui/button"
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet"
 import { Textarea } from "@/components/ui/textarea"
-import { accountById } from "@/data/accounts"
-import { IDEA_SOURCE_LABEL, IDEA_STATUS_LABEL, WORK_STATUS_LABEL } from "@/data/labels"
-import type { Idea, Work } from "@/data/types"
-import { formatRelative } from "@/lib/format"
 import { focusRing } from "@/lib/styles"
 import { ignoreToastInteraction } from "@/lib/toast"
-import { useIdeas } from "@/state/ideas"
+import { updateIdea } from "@/state/actions/ideas"
+import { useAccount, useData } from "@/state/data"
 import { draftPatch, sourceDetailOf, worksOf } from "./board-model"
 import { AccountSelect } from "./capture-account"
 
-/** 草稿跟着已保存的值走：别处改了（比如页面刚读回浏览器里存的数据）就重新对齐，输入途中不受影响 */
 function useDraft(saved: string) {
   const [draft, setDraft] = useState(saved)
   const [seen, setSeen] = useState(saved)
@@ -34,41 +32,56 @@ function useDraft(saved: string) {
   return [draft, setDraft] as const
 }
 
-/** 抽屉主体：一句话、细节失焦保存，账号改了立刻保存。换一条灵感时整块重建，草稿不会串 */
-function IdeaDraft({ idea, works }: { idea: Idea; works: Work[] }) {
-  const update = useIdeas((state) => state.update)
-  const [text, setText] = useDraft(idea.text)
-  const [detail, setDetail] = useDraft(idea.detail)
-  const latest = useRef({ text, detail })
-  const detailOfSource = sourceDetailOf(idea)
+function IdeaWork({ work }: { work: Work }) {
+  const account = useAccount(work.accountId)
+  return (
+    <li className="-mx-2 flex h-8 items-center gap-2 rounded-md px-2 transition-colors duration-(--dur-fast) hover:bg-hover">
+      <WorkStatusIcon status={work.status} />
+      <Link href={`/?open=${work.id}`} title={work.title} className={cn("min-w-0 flex-1 truncate text-sm", focusRing)}>
+        {work.title}
+      </Link>
+      <span className="flex shrink-0 items-center gap-1.5 text-xs text-fg-2">
+        {account && <PlatformMark platform={account.platform} size={14} />}
+        {WORK_STATUS_LABEL[work.status]}
+      </span>
+    </li>
+  )
+}
 
+function IdeaDraft({ idea, works }: { idea: Idea; works: Work[] }) {
+  const [text, setText] = useDraft(idea.text)
+  const [detail, setDetail] = useDraft(idea.detail ?? "")
+  const latest = useRef({ text, detail })
+  const now = useData((state) => state.boot?.now)
+  const detailOfSource = sourceDetailOf(idea)
   useEffect(() => {
     latest.current = { text, detail }
   })
 
-  // 抽屉被 Esc、点外面或关闭按钮收起时，还没来得及失焦的修改也存下来
+  const save = async (nextText = text, nextDetail = detail) => {
+    const patch = draftPatch(idea, nextText, nextDetail)
+    if (!patch) return
+    try {
+      await updateIdea(idea.id, patch)
+      setText(patch.text ?? idea.text)
+      setDetail(patch.detail ?? idea.detail ?? "")
+    } catch (error) {
+      toast(error instanceof Error ? error.message : "保存灵感失败")
+    }
+  }
+
   useEffect(() => {
     const id = idea.id
     return () => {
-      const saved = useIdeas.getState().ideas.find((item) => item.id === id)
-      if (!saved) return
-      const patch = draftPatch(saved, latest.current.text, latest.current.detail)
-      if (patch) update(id, patch)
+      const patch = draftPatch(idea, latest.current.text, latest.current.detail)
+      if (patch) void updateIdea(id, patch).catch((error: unknown) => toast(error instanceof Error ? error.message : "保存灵感失败"))
     }
-  }, [idea.id, update])
-
-  const save = () => {
-    const patch = draftPatch(idea, text, detail)
-    if (patch) update(idea.id, patch)
-    // 清空的一句话还原，首尾多余的空格去掉
-    setText(patch?.text ?? idea.text)
-    setDetail(patch?.detail ?? idea.detail)
-  }
+  }, [idea])
 
   return (
     <div className="flex flex-col gap-3 px-4 py-3">
       <Field id="idea-text" label="一句话">
-        <Textarea id="idea-text" rows={2} value={text} onChange={(event) => setText(event.target.value)} onBlur={save} />
+        <Textarea id="idea-text" rows={2} value={text} onChange={(event) => setText(event.target.value)} onBlur={() => void save()} />
       </Field>
       <Field id="idea-detail" label="细节">
         <Textarea
@@ -78,19 +91,25 @@ function IdeaDraft({ idea, works }: { idea: Idea; works: Work[] }) {
           className="min-h-28"
           value={detail}
           onChange={(event) => setDetail(event.target.value)}
-          onBlur={save}
+          onBlur={() => void save()}
         />
       </Field>
       <Field id="idea-account" label="账号">
         <AccountSelect
           id="idea-account"
           value={idea.accountId}
-          onChange={(accountId) => update(idea.id, { accountId })}
+          onChange={(accountId) =>
+            void updateIdea(idea.id, { accountId: accountId ?? null }).catch((error: unknown) =>
+              toast(error instanceof Error ? error.message : "更新账号失败"),
+            )
+          }
           className="w-full"
         />
       </Field>
       <p className="text-xs text-fg-2 tabular">
-        {[IDEA_SOURCE_LABEL[idea.source], detailOfSource, formatRelative(idea.createdAt)].filter(Boolean).join(" · ")}
+        {[IDEA_SOURCE_LABEL[idea.source], detailOfSource, now ? formatRelative(idea.createdAt, now) : undefined]
+          .filter(Boolean)
+          .join(" · ")}
       </p>
       {works.length > 0 && (
         <section aria-labelledby="idea-works-title" className="flex flex-col gap-1">
@@ -99,19 +118,7 @@ function IdeaDraft({ idea, works }: { idea: Idea; works: Work[] }) {
           </h3>
           <ul className="flex flex-col">
             {works.map((work) => (
-              <li
-                key={work.id}
-                className="-mx-2 flex h-8 items-center gap-2 rounded-md px-2 transition-colors duration-(--dur-fast) hover:bg-hover"
-              >
-                <WorkStatusIcon status={work.status} />
-                <Link href={`/?open=${work.id}`} title={work.title} className={cn("min-w-0 flex-1 truncate text-sm", focusRing)}>
-                  {work.title}
-                </Link>
-                <span className="flex shrink-0 items-center gap-1.5 text-xs text-fg-2">
-                  <PlatformMark platform={accountById(work.accountId).platform} size={14} />
-                  {WORK_STATUS_LABEL[work.status]}
-                </span>
-              </li>
+              <IdeaWork key={work.id} work={work} />
             ))}
           </ul>
         </section>
@@ -120,10 +127,6 @@ function IdeaDraft({ idea, works }: { idea: Idea; works: Work[] }) {
   )
 }
 
-/**
- * 灵感编辑抽屉，从右侧滑出。打开的是地址栏 open 参数对应的那条灵感，找不到就不渲染。
- * 抽屉里改一句话、细节、账号；底部可以转作品或删除。
- */
 export function IdeaSheet({
   idea,
   worksById,
@@ -138,7 +141,6 @@ export function IdeaSheet({
   onDelete(idea: Idea): void
 }) {
   if (!idea) return null
-
   return (
     <Sheet open onOpenChange={(open) => !open && onClose()}>
       <SheetContent

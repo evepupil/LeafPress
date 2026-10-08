@@ -13,7 +13,7 @@ import { Notifications } from "./notifications"
 import { QuickCapture } from "./quick-capture"
 import { ShellFrame } from "./shell-frame"
 import type { ShortcutConfig } from "./shortcuts"
-import { StoreHydration } from "./store-hydration"
+import { DataSync } from "./data-sync"
 import { UserMenu } from "./user-menu"
 import { WorkbenchSidebar } from "./workbench-sidebar"
 
@@ -40,38 +40,40 @@ export function WorkbenchShell({ children }: { children: ReactNode }) {
   const setNewWorkOpen = useUi((state) => state.setNewWorkOpen)
 
   return (
-    <ShellFrame
-      crumb={{ icon: <LeafMark size={16} />, label: "自媒体" }}
-      sidebar={(onNavigate) => <WorkbenchSidebar onNavigate={onNavigate} />}
-      windowBar={{
-        searchLabel: "搜索作品、灵感、账号",
-        notifications: <Notifications />,
-        userMenu: <UserMenu />,
-      }}
-      overlays={
-        <>
-          <StoreHydration />
-          <CommandPalette />
-          <QuickCapture />
-          <NewWorkDialog />
-          {/* 手机上侧栏收进了抽屉，右下角留一个随时能记灵感的圆钮；桌面有侧栏按钮和 N 键 */}
-          <Button
-            size="icon-lg"
-            aria-label="记灵感"
-            className="fixed right-4 bottom-4 z-40 rounded-full shadow-md lg:hidden"
-            onClick={() => setCaptureOpen(true)}
-          >
-            <SquarePen />
-          </Button>
-        </>
-      }
-      shortcuts={{
-        go: GO_KEYS,
-        keys: { n: () => setCaptureOpen(true), c: () => setNewWorkOpen(true) },
-        help: HELP_ROWS,
-      }}
-    >
-      {children}
-    </ShellFrame>
+    <>
+      <DataSync />
+      <ShellFrame
+        crumb={{ icon: <LeafMark size={16} />, label: "自媒体" }}
+        sidebar={(onNavigate) => <WorkbenchSidebar onNavigate={onNavigate} />}
+        windowBar={{
+          searchLabel: "搜索作品、灵感、账号",
+          notifications: <Notifications />,
+          userMenu: <UserMenu />,
+        }}
+        overlays={
+          <>
+            <CommandPalette />
+            <QuickCapture />
+            <NewWorkDialog />
+            {/* 手机上侧栏收进了抽屉，右下角留一个随时能记灵感的圆钮；桌面有侧栏按钮和 N 键 */}
+            <Button
+              size="icon-lg"
+              aria-label="记灵感"
+              className="fixed right-4 bottom-4 z-40 rounded-full shadow-md lg:hidden"
+              onClick={() => setCaptureOpen(true)}
+            >
+              <SquarePen />
+            </Button>
+          </>
+        }
+        shortcuts={{
+          go: GO_KEYS,
+          keys: { n: () => setCaptureOpen(true), c: () => setNewWorkOpen(true) },
+          help: HELP_ROWS,
+        }}
+      >
+        {children}
+      </ShellFrame>
+    </>
   )
 }

@@ -9,35 +9,41 @@ import { IconButton } from "@/components/base/icon-button"
 import { Markdown } from "@/components/base/markdown"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
-import { profilePath } from "@/data/accounts"
 import { copyText } from "@/lib/platform"
-import { useAccounts, useProfile } from "@/state/accounts"
+import { saveProfile } from "@/state/actions/accounts"
+import { useAccount } from "@/state/data"
 
-/**
- * D2 账号档案：一份随便写的 Markdown。定位、写给谁、文风、禁用词、对标、目标、调整记录……想写什么写什么；
- * agent 写稿前整份读（作品详情的「复制给 AI」会带上它）。平时显示排好版的文字，点「编辑」改原文。
- */
 export function AccountProfile({ accountId }: { accountId: string }) {
-  const profile = useProfile(accountId)
-  const saveProfile = useAccounts((state) => state.saveProfile)
+  const account = useAccount(accountId)
+  const profile = account?.profile ?? ""
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState("")
+  const [saving, setSaving] = useState(false)
 
   const startEdit = () => {
     setDraft(profile)
     setEditing(true)
   }
 
-  const save = () => {
-    saveProfile(accountId, draft)
-    setEditing(false)
-    toast.success("档案已保存")
+  const save = async () => {
+    setSaving(true)
+    try {
+      await saveProfile(accountId, draft)
+      setEditing(false)
+      toast.success("档案已保存")
+    } catch (error) {
+      toast(error instanceof Error ? error.message : "保存档案失败")
+    } finally {
+      setSaving(false)
+    }
   }
 
   const copy = async () => {
     if (await copyText(profile)) toast.success("已复制")
     else toast("浏览器不让写剪贴板，请手动选中复制")
   }
+
+  if (!account) return <EmptyState title="没有这个账号" />
 
   return (
     <section
@@ -51,8 +57,8 @@ export function AccountProfile({ accountId }: { accountId: string }) {
         <h2 id="profile-title" className="shrink-0 text-sm font-medium">
           档案
         </h2>
-        <span className="hidden min-w-0 truncate font-mono text-xs text-fg-2 sm:inline" title={profilePath(accountId)}>
-          {profilePath(accountId)}
+        <span className="hidden min-w-0 truncate font-mono text-xs text-fg-2 sm:inline" title={account.profilePath}>
+          {account.profilePath}
         </span>
         <div className="ml-auto flex shrink-0 items-center gap-1.5">
           {editing ? (
@@ -60,7 +66,7 @@ export function AccountProfile({ accountId }: { accountId: string }) {
               <Button size="sm" variant="outline" onClick={() => setEditing(false)}>
                 取消
               </Button>
-              <Button size="sm" onClick={save} data-profile-save>
+              <Button size="sm" onClick={() => void save()} disabled={saving} data-profile-save>
                 保存
               </Button>
             </>
@@ -89,10 +95,9 @@ export function AccountProfile({ accountId }: { accountId: string }) {
             value={draft}
             onChange={(event) => setDraft(event.target.value)}
             onKeyDown={(event) => {
-              // ⌘ / Ctrl + 回车保存；输入法选词时的回车不算
               if (event.key === "Enter" && (event.metaKey || event.ctrlKey) && !event.nativeEvent.isComposing) {
                 event.preventDefault()
-                save()
+                void save()
               }
             }}
             className="min-h-[360px] font-mono text-xs leading-relaxed"

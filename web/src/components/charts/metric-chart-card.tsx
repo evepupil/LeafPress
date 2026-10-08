@@ -9,11 +9,18 @@ import { EmptyState } from "@/components/base/empty-state"
 import { Segmented } from "@/components/base/segmented"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
-import { accountById } from "@/data/accounts"
-import { METRIC_LABEL } from "@/data/labels"
-import { formatCount } from "@/lib/format"
-import { metricSeries, type MetricId, type MetricResult, type RangeId } from "@/lib/metrics"
+import {
+  METRIC_LABEL,
+  PLATFORMS,
+  formatCount,
+  metricSeries,
+  type MetricId,
+  type MetricResult,
+  type MetricsInput,
+  type RangeId,
+} from "@leafpress/core"
 import { focusRingInset } from "@/lib/styles"
+import { useMetricsInput } from "@/state/data"
 import { MetricPlot, type PlotKind } from "./metric-chart-card-plot"
 
 /**
@@ -43,11 +50,12 @@ const RANGE_NOTE: Record<RangeId, string> = {
 }
 
 /** 页签名：全部账号用统一叫法；单个账号的「粉丝」「阅读」按平台的说法（关注者、订阅、播放……） */
-function tabLabel(scope: string, metric: MetricId): string {
+function tabLabel(scope: string, metric: MetricId, input: MetricsInput): string {
   if (scope === "all") return METRIC_LABEL[metric]
-  const account = accountById(scope)
-  if (metric === "followers") return account.audienceLabel
-  if (metric === "reads") return account.readsLabel
+  const account = input.accounts.find((item) => item.id === scope)
+  if (!account) return METRIC_LABEL[metric]
+  if (metric === "followers") return PLATFORMS[account.platform].audienceLabel
+  if (metric === "reads") return PLATFORMS[account.platform].metrics[0]?.label ?? METRIC_LABEL.reads
   return METRIC_LABEL[metric]
 }
 
@@ -109,14 +117,16 @@ export function MetricChartCard({ scope, className }: { scope: string; className
   const [metric, setMetric] = useState<MetricId>("followers")
   const [range, setRange] = useState<RangeId>("12w")
   const [compare, setCompare] = useState(true)
+  const input = useMetricsInput()
 
   // 四个页签的名字和数据一起算好；只有账号或时间范围变了才重算，切页签、开关对比都不会重算
   const tabs = useMemo<TabData[]>(
-    () => METRICS.map((id) => ({ id, label: tabLabel(scope, id), result: metricSeries(scope, id, range) })),
-    [scope, range],
+    () => (input ? METRICS.map((id) => ({ id, label: tabLabel(scope, id, input), result: metricSeries(input, scope, id, range) })) : []),
+    [scope, range, input],
   )
   const current = tabs.find((tab) => tab.id === metric) ?? tabs[0]
-  // 本期和上一期每个点都是 0，才算没数据；只有上一期有数时仍然画图，让人看到是本期掉到了 0
+  if (!current) return <EmptyState icon={ChartLine} title="正在读取数据" className={className} />
+  // 本期和上一期每个点都是 0, 才算没数据；只有上一期有数时仍然画图，让人看到是本期掉到了 0
   const hasData = current.result.points.some((point) => point.value !== 0 || (point.compare ?? 0) !== 0)
   const compareId = `compare-${scope}`
 

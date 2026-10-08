@@ -1,4 +1,4 @@
-import { WORKFLOWS } from "@/data/workflows"
+import { WORKFLOWS } from "@leafpress/core"
 import { PageFrame } from "@/features/shell/page-frame"
 import { PickRules } from "@/features/workflows/pick-rules"
 import { ScheduledRuns } from "@/features/workflows/scheduled"

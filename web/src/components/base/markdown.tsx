@@ -1,11 +1,11 @@
 import { cn } from "cn"
 import { type ComponentProps, Fragment, type ReactNode } from "react"
 
-import { type Block, type Inline, parseMarkdown } from "@/lib/markdown"
+import { parseMarkdown, type Block, type Inline } from "@leafpress/core"
 
 /**
  * 把 Markdown 排成页面上的文字（账号档案用）。只用三档字号：标题靠字重和上下间距区分。
- * 解析在 @/lib/markdown，这里只把块变成 React 元素，不插入 HTML 字符串。
+ * 解析使用 @leafpress/core，这里只把块变成 React 元素，不插入 HTML 字符串。
  */
 
 function renderInline(items: Inline[]): ReactNode {

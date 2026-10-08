@@ -8,25 +8,12 @@ import { IconButton } from "@/components/base/icon-button"
 import { PlatformMark } from "@/components/base/marks"
 import { StatusIcon } from "@/components/base/status-icon"
 import { DropdownMenuItem, DropdownMenuShortcut } from "@/components/ui/dropdown-menu"
-import { ACCOUNTS } from "@/data/accounts"
-import { notices } from "@/lib/board"
-import { formatCount } from "@/lib/format"
-import { summaryOf } from "@/lib/metrics"
-import { useAccounts } from "@/state/accounts"
-import { useIdeas } from "@/state/ideas"
+import { accountHref, accountSummary, formatCount, notices } from "@leafpress/core"
+import { useAccounts, useIdeas, useMetricsInput, usePulls, useToday, useWorks } from "@/state/data"
 import { useUi } from "@/state/ui"
-import { useWorks } from "@/state/works"
 import { BrandMenu } from "./brand-menu"
 import { PAGES, VIEWS, resolveNav, viewHref, type PageKey, type ViewKey } from "./nav"
 import { NavRow, SectionTitle } from "./sidebar-parts"
-
-/** 账号行：数字是粉丝数。三个号都叫一叶之桐，靠平台标识区分 */
-const ACCOUNT_ROWS = ACCOUNTS.map((account) => ({
-  account,
-  href: `/accounts/${account.id}/`,
-  // 数据还没接的号不显示数字，不用 0 冒充
-  followers: summaryOf(account.id).hasData ? formatCount(summaryOf(account.id).followers) : undefined,
-}))
 
 const VIEW_ICON: Record<ViewKey, ReactNode> = {
   waiting: <StatusIcon glyph="dot" tone="progress" />,
@@ -62,13 +49,33 @@ export function WorkbenchSidebar({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname()
   const params = useSearchParams()
   const hash = useLocationHash()
-  const inboxCount = useIdeas((state) => state.ideas.filter((idea) => idea.status === "inbox").length)
-  const workCount = useWorks((state) => state.works.length)
-  const waitingCount = useWorks((state) => state.works.filter((work) => work.status === "waiting").length)
-  const todoCount = useWorks((state) => state.works.filter((work) => work.status === "todo").length)
-  // 数据异常：拉取失败的账号（页面上重新拉成功了就不算）；还没接数据的号不算异常
-  const pulls = useAccounts((state) => state.pulls)
-  const issueCount = useMemo(() => notices([], pulls).filter((item) => item.kind === "data").length, [pulls])
+  const accounts = useAccounts()
+  const ideas = useIdeas()
+  const works = useWorks()
+  const pulls = usePulls()
+  const today = useToday()
+  const metricsInput = useMetricsInput()
+  const inboxCount = ideas.filter((idea) => idea.status === "inbox").length
+  const workCount = works.length
+  const waitingCount = works.filter((work) => work.status === "waiting").length
+  const todoCount = works.filter((work) => work.status === "todo").length
+  const issueCount = useMemo(
+    () => notices({ works, accounts, pulls, today }).filter((item) => item.kind === "data").length,
+    [works, accounts, pulls, today],
+  )
+  const accountRows = useMemo(
+    () =>
+      accounts.map((account) => {
+        const summary = metricsInput ? accountSummary(metricsInput, account) : undefined
+        return {
+          account,
+          href: accountHref(account.id),
+          followers: summary?.hasData ? formatCount(summary.followers) : undefined,
+        }
+      }),
+    [accounts, metricsInput],
+  )
+
   const setCaptureOpen = useUi((state) => state.setCaptureOpen)
   const setShortcutsOpen = useUi((state) => state.setShortcutsOpen)
 
@@ -124,7 +131,7 @@ export function WorkbenchSidebar({ onNavigate }: { onNavigate?: () => void }) {
 
         <SectionTitle>账号</SectionTitle>
         <div className="flex flex-col gap-px">
-          {ACCOUNT_ROWS.map(({ account, href, followers }) => (
+          {accountRows.map(({ account, href, followers }) => (
             <NavRow
               key={account.id}
               href={href}

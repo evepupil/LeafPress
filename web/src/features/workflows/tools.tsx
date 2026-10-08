@@ -1,20 +1,11 @@
-import { cn } from "cn"
+import { WORKFLOWS } from "@leafpress/core"
+import { EmptyState } from "@/components/base/empty-state"
 import { Settings } from "lucide-react"
 
-import { WorkflowStatusIcon } from "@/components/base/state-icons"
-import { WORKFLOW_STATUS_LABEL } from "@/data/labels"
-import type { Tool } from "@/data/types"
-import { TOOLS } from "@/data/workflows"
+const TOOLS = [...new Set(WORKFLOWS.flatMap((workflow) => workflow.steps.flatMap((step) => (step.tool ? [step.tool] : []))))].sort((a, b) =>
+  a.localeCompare(b, "zh-CN"),
+)
 
-/** 工具类型的说法 */
-const KIND_LABEL: Record<Tool["kind"], string> = {
-  skill: "skill",
-  cli: "命令行",
-  api: "接口",
-  code: "代码",
-}
-
-/** 工具：工作流里用到的 skill、命令行、接口和代码，一行一个，看哪些还没配置好 */
 export function ToolTable() {
   return (
     <section id="tools" aria-labelledby="tools-title" className="overflow-hidden rounded-lg border border-line bg-card shadow-sm">
@@ -25,48 +16,23 @@ export function ToolTable() {
         </h2>
         <span className="text-sm text-fg-2 tabular">{TOOLS.length}</span>
       </div>
-      <div className="scroll-thin overflow-x-auto">
-        <table className="w-full min-w-[640px] table-fixed text-sm">
-          <thead>
-            <tr className="h-8 bg-raised text-xs text-fg-2">
-              <th scope="col" className="w-[180px] px-3 text-left font-normal">
-                名称
-              </th>
-              <th scope="col" className="w-[72px] px-3 text-left font-normal">
-                类型
-              </th>
-              <th scope="col" className="px-3 text-left font-normal">
-                说明
-              </th>
-              <th scope="col" className="w-[88px] px-3 text-left font-normal">
-                状态
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {TOOLS.map((tool) => (
-              <tr key={tool.name} data-tool-row className="h-9 border-t border-line">
-                <td className="truncate px-3 font-medium">{tool.name}</td>
-                <td className="px-3 text-fg-2">{KIND_LABEL[tool.kind]}</td>
-                <td className="truncate px-3 text-fg-2" title={tool.note}>
-                  {tool.note}
-                </td>
-                <td className="px-3">
-                  <span
-                    className={cn(
-                      "inline-flex items-center gap-1.5 whitespace-nowrap",
-                      tool.status === "needs-setup" ? "text-warn" : "text-fg-2",
-                    )}
-                  >
-                    <WorkflowStatusIcon status={tool.status} />
-                    {WORKFLOW_STATUS_LABEL[tool.status]}
-                  </span>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      {TOOLS.length === 0 ? (
+        <EmptyState icon={Settings} title="当前没有工具" />
+      ) : (
+        <ul className="grid gap-px sm:grid-cols-2">
+          {TOOLS.map((tool) => {
+            const uses = WORKFLOWS.filter((workflow) => workflow.steps.some((step) => step.tool === tool))
+            return (
+              <li key={tool} className="flex min-h-10 items-center gap-2 border-t border-line px-3 py-2">
+                <span className="min-w-0 truncate text-sm font-medium" title={tool}>
+                  {tool}
+                </span>
+                <span className="ml-auto min-w-0 text-right text-xs text-fg-2">{uses.map((workflow) => workflow.name).join("、")}</span>
+              </li>
+            )
+          })}
+        </ul>
+      )}
     </section>
   )
 }

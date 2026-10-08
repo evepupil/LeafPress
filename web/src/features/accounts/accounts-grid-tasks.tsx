@@ -5,10 +5,9 @@ import Link from "next/link"
 import { Fragment, useMemo } from "react"
 
 import { WorkStatusIcon } from "@/components/base/state-icons"
-import { WORK_STATUS_LABEL } from "@/data/labels"
-import type { PlatformId } from "@/data/types"
+import { WORK_STATUS_LABEL, type PlatformId } from "@leafpress/core"
 import { focusRing } from "@/lib/styles"
-import { useWorks } from "@/state/works"
+import { useWorks } from "@/state/data"
 import { isIdle, taskCounts, type TaskCounts } from "./accounts-grid-counts"
 
 /** 三组的先后：待实现 · 进行中 · 等你处理 */
@@ -20,7 +19,7 @@ const GROUPS: (keyof TaskCounts)[] = ["todo", "doing", "waiting"]
  * 整张卡片是靠名字链接铺满来点的，这条链接要高于那一层，所以带 relative z-10；只占内容那么宽，点卡片中间不会误点到它。
  */
 export function AccountTasks({ accountId, platform }: { accountId: string; platform: PlatformId }) {
-  const works = useWorks((state) => state.works)
+  const works = useWorks()
   const counts = useMemo(() => taskCounts(works, accountId), [works, accountId])
 
   return (

@@ -1,5 +1,6 @@
 "use client"
 
+import { IDEA_SOURCE_LABEL, formatRelative, type Idea, type Work } from "@leafpress/core"
 import { cn } from "cn"
 import { ArrowRight } from "lucide-react"
 import { useState } from "react"
@@ -8,10 +9,7 @@ import { AccountTag } from "@/components/base/account-tag"
 import { IDEA_DRAG, endCardDrag, startCardDrag } from "@/components/base/board-dnd"
 import { WorkChip } from "@/components/base/work-chip"
 import { Button } from "@/components/ui/button"
-import { accountById } from "@/data/accounts"
-import { IDEA_SOURCE_LABEL } from "@/data/labels"
-import type { Idea, Work } from "@/data/types"
-import { formatRelative } from "@/lib/format"
+import { useAccount, useData } from "@/state/data"
 import { focusRing } from "@/lib/styles"
 import { sourceDetailOf } from "./board-model"
 import { HOVER_REVEAL, IdeaMenu } from "./board-menu"
@@ -36,7 +34,8 @@ export function IdeaCard({
 }) {
   const [dragging, setDragging] = useState(false)
   const converted = idea.status === "converted"
-  const account = idea.accountId ? accountById(idea.accountId) : undefined
+  const account = useAccount(idea.accountId)
+  const now = useData((state) => state.boot?.now)
   const detail = sourceDetailOf(idea)
 
   return (
@@ -68,7 +67,7 @@ export function IdeaCard({
         )}
         <span className="ml-auto flex shrink-0 items-center gap-1">
           <IdeaMenu idea={idea} onConvert={onConvert} onDelete={onDelete} />
-          <span className="tabular">{formatRelative(idea.createdAt)}</span>
+          <span className="tabular">{now ? formatRelative(idea.createdAt, now) : ""}</span>
         </span>
       </div>
       <button

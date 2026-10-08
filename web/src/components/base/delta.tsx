@@ -1,7 +1,7 @@
 import { cn } from "cn"
 import { ArrowDownRight, ArrowUpRight } from "lucide-react"
 
-import { formatSigned, formatSignedPercent } from "@/lib/format"
+import { formatSigned, formatSignedPercent } from "@leafpress/core"
 
 /**
  * 涨跌：箭头 + 数字，好坏由指标方向决定。

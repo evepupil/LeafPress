@@ -1,10 +1,12 @@
 "use client"
 
 import { cn } from "cn"
+import { AlertTriangle, RefreshCw } from "lucide-react"
 import { useSyncExternalStore, type ReactNode } from "react"
 
 import { Toaster } from "@/components/ui/sonner"
 import { TooltipProvider } from "@/components/ui/tooltip"
+import { useData } from "@/state/data"
 import { useUi } from "@/state/ui"
 import { MobileNav } from "./mobile-nav"
 import { CrumbProvider, type ShellCrumb } from "./shell-context"
@@ -31,12 +33,36 @@ export interface ShellFrameProps {
  * 浏览器就绪后再渲染真实界面，避免两边内容对不上。
  */
 export function ShellFrame(props: ShellFrameProps) {
+  const status = useData((state) => state.status)
   const ready = useSyncExternalStore(
     subscribe,
     () => true,
     () => false,
   )
-  return ready ? <Frame {...props} /> : <ShellSkeleton />
+  return ready && status !== "loading" ? <Frame {...props} /> : <ShellSkeleton />
+}
+
+function ConnectionNotice() {
+  const error = useData((state) => state.error)
+  const retry = useData((state) => state.load)
+  if (!error) return null
+  return (
+    <div role="alert" className="flex shrink-0 flex-wrap items-center gap-x-2 gap-y-1 border-b border-line bg-raised px-3 py-2 text-sm">
+      <AlertTriangle className="size-4 shrink-0 text-bad" aria-hidden />
+      <span className="font-medium">连不上本机服务</span>
+      <span className="text-fg-2">在终端运行 leafpress serve</span>
+      {error.message !== "连接本机服务失败" && <span className="min-w-0 truncate text-fg-2">{error.message}</span>}
+      {error.hint && <span className="min-w-0 truncate text-fg-2">{error.hint}</span>}
+      <button
+        type="button"
+        className="ml-auto inline-flex h-7 shrink-0 items-center gap-1 rounded-md px-2 text-xs hover:bg-hover"
+        onClick={() => void retry()}
+      >
+        <RefreshCw className="size-3.5" />
+        重试
+      </button>
+    </div>
+  )
 }
 
 /**
@@ -54,7 +80,10 @@ function Frame({ crumb, sidebar, windowBar, overlays, shortcuts, children }: She
           <aside className={cn("hidden w-(--w-sidebar) shrink-0 lg:block", collapsed && "lg:hidden")}>{sidebar()}</aside>
           <main className={cn("flex min-w-0 flex-1 flex-col lg:pr-2 lg:pb-2", collapsed && "lg:pl-2")}>
             <div className="flex min-h-0 flex-1 flex-col overflow-hidden border-t border-line-2 bg-panel lg:rounded-lg lg:border lg:shadow-xs">
-              <CrumbProvider crumb={crumb}>{children}</CrumbProvider>
+              <CrumbProvider crumb={crumb}>
+                <ConnectionNotice />
+                {children}
+              </CrumbProvider>
             </div>
           </main>
         </div>

@@ -1,20 +1,16 @@
 "use client"
 
+import { formatCount, shortTitle } from "@leafpress/core"
 import { cn } from "cn"
 import { Users } from "lucide-react"
 import Link from "next/link"
-import { useMemo } from "react"
 
 import { AccountTag } from "@/components/base/account-tag"
 import { Delta } from "@/components/base/delta"
 import { EmptyState } from "@/components/base/empty-state"
-import { formatCount } from "@/lib/format"
-import { shortTitle } from "@/lib/metrics"
-import { weekReport } from "@/lib/report"
 import { focusRing } from "@/lib/styles"
-import { useReportWeek } from "@/state/report-week"
+import { useSelectedReport } from "./use-week-report"
 
-/** 表头：数字列右对齐，账号和最佳作品靠左 */
 const COLUMNS: { label: string; align: "left" | "right" }[] = [
   { label: "账号", align: "left" },
   { label: "粉丝", align: "right" },
@@ -24,17 +20,13 @@ const COLUMNS: { label: string; align: "left" | "right" }[] = [
   { label: "互动", align: "right" },
   { label: "最佳作品", align: "left" },
 ]
-
 const HEAD_ALIGN = { left: "text-left", right: "text-right" } as const
-
 const BEST_LINK = cn("block max-w-[200px] truncate rounded-sm text-xs hover:underline", focusRing)
 
-/** 分账号：一行一个号，横着比粉丝、发布、浏览和互动，只放客观的数；最后一行是合计。数据还没接的号写明 */
 export function ReportAccounts() {
-  const week = useReportWeek((state) => state.week)
-  const report = useMemo(() => weekReport(week), [week])
+  const { report } = useSelectedReport()
+  if (!report) return null
   const { rows, totals } = report
-
   return (
     <section
       id="accounts"
@@ -47,11 +39,9 @@ export function ReportAccounts() {
           分账号
         </h2>
       </div>
-
       {rows.length === 0 ? (
         <EmptyState icon={Users} title="这一周还没有账号" />
       ) : (
-        // 表格比手机屏宽，放进横向滚动的容器，页面本身不横向溢出
         <div className="overflow-x-auto">
           <table className="w-full min-w-[720px] text-sm">
             <thead className="bg-raised text-xs text-fg-2">

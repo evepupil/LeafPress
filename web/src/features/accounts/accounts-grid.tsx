@@ -1,22 +1,27 @@
 "use client"
 
+import { accountSummary, type Account, type AccountSummary } from "@leafpress/core"
 import { Plus } from "lucide-react"
-import { useState } from "react"
+import { useMemo, useState } from "react"
 import { toast } from "sonner"
 
+import { EmptyState } from "@/components/base/empty-state"
 import { Button } from "@/components/ui/button"
-import { ACCOUNT_SUMMARIES } from "@/lib/metrics"
-import { AccountCard, NewAccountCard } from "./accounts-grid-card"
+import { addAccount } from "@/state/actions/accounts"
+import { useAccounts, useMetricsInput } from "@/state/data"
+import { AccountCard } from "./accounts-grid-card"
 import { AddAccountDialog, type NewAccount } from "./accounts-grid-dialog"
 
-/**
- * A1 账号卡片：每个账号一张卡，点进详情；右上角可以先把新账号占个位。
- * 新加的账号只存在这一页的内存里，卡片追加在网格最后，刷新就没了。
- */
+function summariesFor(accounts: Account[], input: Parameters<typeof accountSummary>[0] | undefined): AccountSummary[] {
+  return input ? accounts.map((account) => accountSummary(input, account)) : []
+}
+
+/** 账号卡片：账号与统计都来自本机服务。 */
 export function AccountsGrid() {
-  const [added, setAdded] = useState<NewAccount[]>([])
+  const accounts = useAccounts()
+  const input = useMetricsInput()
+  const summaries = useMemo(() => summariesFor(accounts, input), [accounts, input])
   const [open, setOpen] = useState(false)
-  // 每次打开让弹窗换一个 key，表单就是一份新的，上次没提交的内容不会留下
   const [formKey, setFormKey] = useState(0)
 
   const openDialog = () => {
@@ -24,9 +29,15 @@ export function AccountsGrid() {
     setOpen(true)
   }
 
-  const addAccount = (account: NewAccount) => {
-    setAdded((current) => [...current, account])
-    toast.success("加好了")
+  const onAdd = async (account: NewAccount): Promise<boolean> => {
+    try {
+      await addAccount(account)
+      toast.success("加好了")
+      return true
+    } catch (error) {
+      toast(error instanceof Error ? error.message : "添加账号失败")
+      return false
+    }
   }
 
   return (
@@ -36,23 +47,33 @@ export function AccountsGrid() {
           全部账号
         </h2>
         <span className="text-sm text-fg-2 tabular" data-accounts-count>
-          {ACCOUNT_SUMMARIES.length + added.length}
+          {accounts.length}
         </span>
         <Button variant="outline" size="sm" className="ml-auto" onClick={openDialog} data-add-account>
           <Plus />
           加账号
         </Button>
       </div>
-      <div className="grid gap-(--gap-card) sm:grid-cols-2 xl:grid-cols-3">
-        {ACCOUNT_SUMMARIES.map((summary) => (
-          <AccountCard key={summary.account.id} summary={summary} />
-        ))}
-        {added.map((account, index) => (
-          // 只会往后追加、不会删除，所以序号就是稳定的编号
-          <NewAccountCard key={`new-${index + 1}`} n={index + 1} account={account} />
-        ))}
-      </div>
-      <AddAccountDialog key={formKey} open={open} onOpenChange={setOpen} onAdd={addAccount} />
+      {summaries.length > 0 ? (
+        <div className="grid gap-(--gap-card) sm:grid-cols-2 xl:grid-cols-3">
+          {summaries.map((summary) => (
+            <AccountCard key={summary.account.id} summary={summary} />
+          ))}
+        </div>
+      ) : (
+        <EmptyState
+          title={accounts.length === 0 ? "还没有账号" : "暂无账号数据"}
+          action={
+            accounts.length === 0 ? (
+              <Button variant="outline" size="sm" onClick={openDialog} data-empty-add-account>
+                <Plus />
+                加账号
+              </Button>
+            ) : undefined
+          }
+        />
+      )}
+      <AddAccountDialog key={formKey} open={open} onOpenChange={setOpen} onAdd={onAdd} />
     </section>
   )
 }

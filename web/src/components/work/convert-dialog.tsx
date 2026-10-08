@@ -1,5 +1,17 @@
 "use client"
 
+import {
+  PLATFORMS,
+  defaultBrief,
+  derivedFrom,
+  isUsable,
+  pickWorkflow,
+  type Account,
+  type ConvertSource,
+  type CreateWorksInput,
+  type Work,
+  type WorkSource,
+} from "@leafpress/core"
 import { cn } from "cn"
 import { Check, Lightbulb } from "lucide-react"
 import { useRouter } from "next/navigation"
@@ -12,35 +24,45 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { ACCOUNTS, PLATFORMS, accountById } from "@/data/accounts"
-import type { Work } from "@/data/types"
-import { derivedFrom } from "@/lib/board"
 import { focusRing } from "@/lib/styles"
-import { type ConvertSource, defaultBrief, workflowForConvert } from "@/lib/work-engine"
-import { convertToWorks } from "@/state/actions"
-import { useWorks } from "@/state/works"
+import { createWorks } from "@/state/actions/works"
+import { useAccounts, useWorks } from "@/state/data"
 
-/** 能选的账号：来源是作品时去掉它自己所在的账号 */
-function candidates(source: ConvertSource) {
-  return ACCOUNTS.filter((account) => source.kind !== "work" || account.id !== source.work.accountId)
+function workSource(source: ConvertSource): WorkSource {
+  if (source.kind === "idea") return { kind: "idea", ideaId: source.idea.id }
+  if (source.kind === "work") return { kind: "work", workId: source.work.id }
+  return { kind: "none" }
 }
 
-/** 默认勾上的账号：灵感挂了账号就勾它；博客作品默认勾知乎（还没转过的话） */
-function initialSelection(source: ConvertSource, works: Work[]): string[] {
+function candidates(source: ConvertSource, accounts: Account[]) {
+  return accounts.filter((account) => source.kind !== "work" || account.id !== source.work.accountId)
+}
+
+function workflowFor(source: ConvertSource, account: Account) {
+  const workflow = pickWorkflow(account.platform, workSource(source), source.kind === "work" ? source.platform : undefined)
+  return { workflow, ready: isUsable(workflow, account.settings) }
+}
+
+function initialSelection(source: ConvertSource, works: Work[], accounts: Account[]): string[] {
   if (source.kind === "idea") return source.idea.accountId ? [source.idea.accountId] : []
-  if (source.kind === "work" && accountById(source.work.accountId).platform === "blog") {
-    const done = derivedFrom(works, source.work.id).some((work) => work.accountId === "zhihu-yiye")
-    return done ? [] : ["zhihu-yiye"]
+  if (source.kind === "work" && source.platform === "blog") {
+    const done = derivedFrom(works, source.work.id).some(
+      (work) => accounts.find((account) => account.id === work.accountId)?.platform === "zhihu",
+    )
+    const account = accounts.find((item) => item.platform === "zhihu")
+    return done || !account ? [] : [account.id]
   }
   return []
 }
 
 function ConvertForm({ source, onClose, onDone }: { source: ConvertSource; onClose: () => void; onDone?: (works: Work[]) => void }) {
   const router = useRouter()
-  const works = useWorks((state) => state.works)
-  const [selected, setSelected] = useState<string[]>(() => initialSelection(source, works))
+  const works = useWorks()
+  const accounts = useAccounts()
+  const [selected, setSelected] = useState<string[]>(() => initialSelection(source, works, accounts))
   const [title, setTitle] = useState("")
   const [brief, setBrief] = useState(() => defaultBrief(source))
+  const [saving, setSaving] = useState(false)
   const isNew = source.kind === "new"
   const existing =
     source.kind === "work"
@@ -48,21 +70,38 @@ function ConvertForm({ source, onClose, onDone }: { source: ConvertSource; onClo
       : source.kind === "idea"
         ? works.filter((work) => source.idea.workIds.includes(work.id))
         : []
-  const ready = selected.length > 0 && (!isNew || title.trim().length > 0)
-
+  const ready = selected.length > 0 && (!isNew || title.trim().length > 0) && !saving
+  const options = candidates(source, accounts)
   const toggle = (accountId: string) =>
     setSelected((current) => (current.includes(accountId) ? current.filter((id) => id !== accountId) : [...current, accountId]))
 
-  const submit = () => {
+  const submit = async () => {
     if (!ready) return
-    // 按账号在侧栏里的顺序生成，编号和顺序每次一样
-    const ordered = ACCOUNTS.map((account) => account.id).filter((id) => selected.includes(id))
-    const created = convertToWorks(isNew ? { kind: "new", title } : source, ordered, brief)
-    onClose()
-    onDone?.(created)
-    toast.success(`${isNew ? "新建了" : "转成了"} ${created.length} 个作品，放进待实现`, {
-      action: { label: "打开", onClick: () => router.push(`/?open=${created[0].id}`) },
-    })
+    const ordered = accounts.map((account) => account.id).filter((id) => selected.includes(id))
+    const input: CreateWorksInput = {
+      source:
+        source.kind === "idea"
+          ? { kind: "idea", ideaId: source.idea.id }
+          : source.kind === "work"
+            ? { kind: "work", workId: source.work.id }
+            : { kind: "new", title: title.trim() },
+      accountIds: ordered,
+      brief,
+    }
+    setSaving(true)
+    try {
+      const created = await createWorks(input)
+      onClose()
+      onDone?.(created)
+      const first = created[0]
+      toast.success(`${isNew ? "新建了" : "转成了"} ${created.length} 个作品，放进待实现`, {
+        ...(first ? { action: { label: "打开", onClick: () => router.push(`/?open=${first.id}`) } } : {}),
+      })
+    } catch (error) {
+      toast(error instanceof Error ? error.message : "创建作品失败")
+    } finally {
+      setSaving(false)
+    }
   }
 
   return (
@@ -70,7 +109,7 @@ function ConvertForm({ source, onClose, onDone }: { source: ConvertSource; onClo
       noValidate
       onSubmit={(event) => {
         event.preventDefault()
-        submit()
+        void submit()
       }}
       className="contents"
     >
@@ -83,7 +122,7 @@ function ConvertForm({ source, onClose, onDone }: { source: ConvertSource; onClo
         )}
         {source.kind === "work" && (
           <p className="flex min-w-0 items-start gap-2 rounded-md bg-raised px-2.5 py-2 text-sm" data-convert-source>
-            <PlatformMark platform={accountById(source.work.accountId).platform} size={16} className="mt-px" />
+            <PlatformMark platform={source.platform} size={16} className="mt-px" />
             <span className="line-clamp-2 min-w-0">{source.work.title}</span>
           </p>
         )}
@@ -93,13 +132,12 @@ function ConvertForm({ source, onClose, onDone }: { source: ConvertSource; onClo
             <Input id="convert-title" autoFocus value={title} onChange={(event) => setTitle(event.target.value)} />
           </div>
         )}
-
         <fieldset className="flex flex-col gap-1.5">
           <legend className="mb-1.5 text-sm font-medium">发到哪些平台</legend>
           <div className="flex flex-col gap-px overflow-hidden rounded-md border border-line">
-            {candidates(source).map((account) => {
+            {options.map((account) => {
               const checked = selected.includes(account.id)
-              const { workflow } = workflowForConvert(isNew ? { kind: "new", title } : source, account.id)
+              const { workflow, ready: usable } = workflowFor(source, account)
               const already = existing.filter((work) => work.accountId === account.id).length
               return (
                 <button
@@ -131,16 +169,15 @@ function ConvertForm({ source, onClose, onDone }: { source: ConvertSource; onClo
                     </span>
                     {already > 0 && <span className="block text-xs text-fg-2">已有 {already} 个</span>}
                   </span>
-                  <span className={cn("shrink-0 text-xs", workflow.status === "ready" ? "text-fg-2" : "text-warn")} data-convert-workflow>
+                  <span className={cn("shrink-0 text-xs", usable ? "text-fg-2" : "text-warn")} data-convert-workflow>
                     {workflow.name}
-                    {workflow.status === "needs-setup" && " · 要配置"}
+                    {!usable && " · 要配置"}
                   </span>
                 </button>
               )
             })}
           </div>
         </fieldset>
-
         <div className="flex flex-col gap-1.5">
           <Label htmlFor="convert-brief">要求</Label>
           <Textarea
@@ -157,18 +194,13 @@ function ConvertForm({ source, onClose, onDone }: { source: ConvertSource; onClo
           取消
         </Button>
         <Button type="submit" disabled={!ready} data-convert-submit>
-          {selected.length > 0 ? `${isNew ? "新建" : "转成"} ${selected.length} 个作品` : isNew ? "新建" : "转作品"}
+          {saving ? "正在创建…" : selected.length > 0 ? `${isNew ? "新建" : "转成"} ${selected.length} 个作品` : isNew ? "新建" : "转作品"}
         </Button>
       </DialogFooter>
     </form>
   )
 }
 
-/**
- * 转作品弹窗：灵感转作品、已发作品转到别的平台、直接新建作品都用它。
- * 选几个账号就生成几个作品（一个作品只对应一个平台），每个账号后面写着会自动配的工作流。
- * source 为空时关闭；表单只在打开时挂载，每次打开都是干净的。
- */
 export function ConvertDialog({
   source,
   onClose,
@@ -185,7 +217,14 @@ export function ConvertDialog({
           <DialogTitle>{source?.kind === "new" ? "新建作品" : "转作品"}</DialogTitle>
           <DialogDescription className="sr-only">选要发的平台，每个平台生成一个作品</DialogDescription>
         </DialogHeader>
-        {source && <ConvertForm source={source} onClose={onClose} onDone={onDone} />}
+        {source && (
+          <ConvertForm
+            key={`${source.kind}-${source.kind === "idea" ? source.idea.id : source.kind === "work" ? source.work.id : source.title}`}
+            source={source}
+            onClose={onClose}
+            onDone={onDone}
+          />
+        )}
       </DialogContent>
     </Dialog>
   )

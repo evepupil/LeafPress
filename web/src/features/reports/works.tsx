@@ -1,26 +1,21 @@
 "use client"
 
+import { PLATFORMS, formatCount, weekdayLabel } from "@leafpress/core"
 import { cn } from "cn"
 import { FileText } from "lucide-react"
 import Link from "next/link"
-import { useMemo } from "react"
 
 import { EmptyState } from "@/components/base/empty-state"
 import { PlatformMark } from "@/components/base/marks"
-import { PLATFORMS } from "@/data/accounts"
-import { formatCount, weekdayLabel } from "@/lib/format"
-import { weekReport } from "@/lib/report"
 import { focusRing } from "@/lib/styles"
-import { useReportWeek } from "@/state/report-week"
+import { useSelectedReport } from "./use-week-report"
 
 const TITLE_LINK = cn("min-w-0 flex-1 truncate rounded-sm text-sm hover:underline", focusRing)
 
-/** 这周发的：这一周里真正发出去的作品，按发布日从早到晚，右边是它目前累计的阅读 */
 export function ReportWorks() {
-  const week = useReportWeek((state) => state.week)
-  const report = useMemo(() => weekReport(week), [week])
+  const { report } = useSelectedReport()
+  if (!report) return null
   const { published } = report
-
   return (
     <section id="works" aria-labelledby="report-works-title" className="overflow-hidden rounded-lg border border-line bg-card shadow-sm">
       <div className="flex h-10 items-center gap-2 border-b border-line px-3">
@@ -30,7 +25,6 @@ export function ReportWorks() {
         </h2>
         <span className="text-sm text-fg-2 tabular">{published.length}</span>
       </div>
-
       {published.length === 0 ? (
         <EmptyState icon={FileText} title="这周没有发布" />
       ) : (
@@ -41,7 +35,6 @@ export function ReportWorks() {
               data-report-work={item.work.id}
               className="flex min-h-11 min-w-0 items-center gap-2 border-b border-line px-3 py-1.5 last:border-b-0"
             >
-              {/* 平台标识和平台名挨在一起，当作一个整体 */}
               <span className="inline-flex shrink-0 items-center gap-1.5">
                 <PlatformMark platform={item.account.platform} size={14} />
                 <span className="shrink-0 text-xs text-fg-2">{PLATFORMS[item.account.platform].name}</span>

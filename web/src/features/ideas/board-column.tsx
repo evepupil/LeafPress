@@ -3,14 +3,13 @@
 import { cn } from "cn"
 import { ArrowRight, Inbox, Star } from "lucide-react"
 import { Fragment, useMemo, useState, type ReactNode } from "react"
+import { toast } from "sonner"
 
 import { BoardColumn } from "@/components/base/board"
 import { DropLine, IDEA_DRAG, useBoardDrop } from "@/components/base/board-dnd"
-import { IDEA_STATUS_LABEL } from "@/data/labels"
-import type { Idea, IdeaStatus, Work } from "@/data/types"
-import { sortIdeas } from "@/lib/board"
+import { IDEA_STATUS_LABEL, sortIdeas, type Idea, type IdeaStatus, type Work } from "@leafpress/core"
 import { focusRing } from "@/lib/styles"
-import { useIdeas } from "@/state/ideas"
+import { moveIdea } from "@/state/actions/ideas"
 import { IdeaCard } from "./board-card"
 import { worksOf } from "./board-model"
 
@@ -51,7 +50,7 @@ export function IdeaColumn({
       if (idea) onConvert(idea)
       return
     }
-    useIdeas.getState().drop(id, status, before)
+    void moveIdea(id, status, before).catch((error: unknown) => toast(error instanceof Error ? error.message : "移动灵感失败"))
   })
 
   const shown = status === "converted" ? items.slice(0, limit) : items

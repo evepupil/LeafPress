@@ -1,7 +1,6 @@
 import { cn } from "cn"
 
-import { PLATFORMS } from "@/data/accounts"
-import type { Account } from "@/data/types"
+import { PLATFORMS, type Account } from "@leafpress/core"
 import { PlatformMark } from "./marks"
 
 /** 账号名牌：平台标识 + 名字，可选再跟平台名（三个号都叫一叶之桐时靠它区分） */

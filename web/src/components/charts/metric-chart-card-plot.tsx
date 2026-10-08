@@ -13,8 +13,7 @@ import {
   type BarShapeProps,
 } from "recharts"
 
-import { formatCount } from "@/lib/format"
-import type { SeriesPoint } from "@/lib/metrics"
+import { formatCount, type SeriesPoint } from "@leafpress/core"
 
 /**
  * 主图卡里的走势图：面积图（粉丝、阅读、互动）或柱状图（发布）。
