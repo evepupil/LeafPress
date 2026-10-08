@@ -1,6 +1,6 @@
 # 记录库 · SQLite 存储
 
-> 模块定位：LeafPress 全部业务数据的落盘与查询：账号、配置项、灵感、作品（含记录、反馈、租约令牌）、数据快照、拉取记录、复盘笔记、变更序号 · 对应代码：`src/store/` · 所属里程碑：[M0 地基](../roadmap.md#m0-地基)（打开与升级）、[M1 底座](../roadmap.md#m1-底座)（新模型） · 状态：进行中（M1 换新模型） · 最近更新：2026-10-08
+> 模块定位：LeafPress 全部业务数据的落盘与查询：账号、配置项、灵感、作品（含记录、反馈、租约令牌）、数据快照、拉取记录、复盘笔记、变更序号 · 对应代码：`src/store/` · 所属里程碑：[M0 地基](../roadmap.md#m0-地基)（打开与升级）、[M1 底座](../roadmap.md#m1-底座)（新模型） · 状态：已完成（M1 新模型） · 最近更新：2026-10-09
 
 ## 职责与边界
 
@@ -22,7 +22,7 @@
 
 ### 打开与升级（沿用第一阶段）
 
-- 第一阶段的 `open.ts`、`migrations.ts` 在 M1 地基时删掉了，**从 git 历史恢复**（提交 `a7c517c` 里的 `src/store/open.ts`、`src/store/migrations.ts`），升级的做法一字不改：先设 `busy_timeout = 5000` 再切 WAL（遇忙重试）、`foreign_keys = ON`；有待升级且库原来就有数据时，事务外用 `VACUUM INTO` 备份到 `<库文件所在目录>/backups/<库文件名>.bak-v<版本>-<时间到毫秒>-<进程号>`（M1 起放进 backups，和架构设计一致；目录不存在先建）；`BEGIN IMMEDIATE` 后重读 `user_version`，别的进程已经升完就跳过；每个脚本连同 `user_version` 在同一个事务里；版本号必须从 1 连续；库的版本比代码高时报 `MIGRATION_FAILED`。
+- 第一阶段的 `open.ts`、`migrations.ts` 在 M1 地基时删掉了，**从 git 历史恢复**（提交 `a7c517c` 里的 `src/store/open.ts`、`src/store/migrations.ts`），升级的做法一字不改：先设 `busy_timeout = 5000` 再切 WAL（遇忙重试）、`foreign_keys = ON`；有待升级且库原来就有数据时，事务外用 `VACUUM INTO` 备份到 `<库文件所在目录>/backups/<库文件名>.bak-v<版本>-<时间到毫秒>-<进程号>`（M1 起放进 backups，和架构设计一致；目录不存在先建）；`BEGIN IMMEDIATE` 后重读 `user_version`，别的进程已经升完就跳过，并删掉自己刚做的备份（它不代表这次升级前的状态），报告的 from 用重读的版本、不带备份路径；**所有待执行的脚本连同 `user_version` 放在同一个事务里一次执行完**（M1 改：别的进程看不到中间版本，两个进程同时首次建库、同时升级时不会给空库或已升完的库做备份）；新建的库不做备份；版本号必须从 1 连续；库的版本比代码高时报 `MIGRATION_FAILED`。
 - 升级脚本的形状沿用：`{ version: number; name: string; sql: string }`。
 
 ### 表结构（升级脚本第 2 版）
@@ -325,6 +325,8 @@ export interface Store {
 - **变更序号**：任何 Repo 的写方法（insert、update、remove、set、clear、markExpired、put*、add、save）都在同一个事务里把 `meta.seq` 加一；`putAccountDay`、`putWorkSnapshot` 还要把 `snapshot_seq` 加一。不在外层事务里被调用时，写和加一要包在一个事务里（用 `sql.ts` 的 `withTransaction`）。
 - **序号**：`nextSerial` 在事务里读 `serial_<name>`、加一、写回、返回新值；两个进程同时取也不会重复。
 - **作品**：`update` 追加记录时先 `SELECT COUNT(*)` 再插入多出来的部分，必须和行更新在同一个事务里。`list` 一次查出全部记录和反馈再按作品分组，不要每个作品查一次。
+- **读也要一致**：作品、灵感的 `list`、`get` 要查好几张表；不在外层事务里时，几条查询包在一个读事务里（`BEGIN` … `COMMIT`），否则别的进程恰好在中间提交，会读到记录和反馈条数对不上的作品（评审压测复现过）。
+- **数字必须是有限数**：作品的 totals、快照的 totals、账号每天的数字列遇到 NaN、无穷大直接抛 `STORE_FAILED`（JSON 会把它们写成 null，读回来时整张表都读不出来）。
 - **快照**：`workSnapshots` 的「起点」用一条 SQL 取每个作品 from 之前 day 最大的一条。
 - **复盘**：`save` 写入的 `updatedAt` 原样保存。
 - **错误**：SQL 出错、JSON 解析失败一律包成 `LeafPressError("STORE_FAILED")`，message 说明是哪张表哪一列，不带值。
@@ -339,7 +341,18 @@ export interface Store {
 
 ## 当前实现
 
-第一阶段的打开、升级、事务公共件、只读查看已完成（见改动历史）；M1 的新表和 Repo 待实现。
+| 文件 | 内容 |
+|---|---|
+| `open.ts` | 打开库、组装各 Repo、事务（嵌套时在外层事务里执行，同步异步都检查）、`backupTo` |
+| `migrations.ts`、`migration-sql.ts` | 两版升级脚本（第 1 版原样保留）、升级逻辑（事务外备份到 backups/，进锁重读，全部脚本一个事务） |
+| `sql.ts`、`repo-common.ts` | 事务公共件、读事务、JSON 列、空值和有限数检查 |
+| `meta.ts` | 变更序号、编号序号 |
+| `accounts.ts`、`settings.ts`、`ideas.ts`、`works.ts`、`works-mapping.ts`、`snapshots.ts`、`pulls.ts`、`notes.ts` | 各 Repo |
+| `inspect.ts` | 体检用的只读查看 |
+
+单测和集成测试共 43 个：包括真实子进程的「两个进程同时取号、同时改同一个作品」「4 写 1 读时读到的作品记录和反馈条数始终一致」「多个进程同时首次建库、同时从第 1 版升级」「另一个连接开着读事务时备份仍包含全部已提交数据」。经一轮独立评审（Claude 家的模型，压测 8 写进程 × 150 轮不丢更新、300 次并发建库和升级不出错），修了读取不一致、非有限数、升级备份误导、嵌套事务拦异步四处。
+
+取号（`nextSerial`）也让变更序号加一（接口注释写的是「任何写操作都加一」），保持这样。
 
 ## 验证方式
 
@@ -373,3 +386,4 @@ export interface Store {
 | 2026-10-05 | 发布记录加 `note` 列存「待核实」原因 |
 | 2026-10-05 | 按实现评审修改：续约和交还不比较到期时间；只读查看改为直接读文件头；并发打开与升级的规则；事务边界；版本排序；测试必须用真实的 `openStore` 环境和多连接验证核心保证 |
 | 2026-10-08 | M1：换成新模型（账号、配置项、灵感、作品与记录、快照、拉取记录、复盘、变更序号）；第一阶段的原稿、版本、发布记录、运行表删除；升级脚本第 2 版删旧建新 |
+| 2026-10-09 | M1 实现完成；按评审修改：多表读取包读事务、拒绝非有限数、待执行的升级脚本一个事务跑完、进锁后发现别人升完就删掉自己的备份、嵌套事务也拦异步回调；升级备份放进 backups/ |
