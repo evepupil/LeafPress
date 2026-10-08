@@ -23,9 +23,9 @@ describe("只读检查记录库", () => {
   it("文件不存在时不创建目录或数据库", async () => {
     await withTempDir((directory) => {
       const missing = join(directory, "not-created", "store.sqlite");
-      expect(inspectStore(missing, 1)).toEqual({
+      expect(inspectStore(missing, 2)).toEqual({
         exists: false,
-        expectedVersion: 1,
+        expectedVersion: 2,
       });
       expect(existsSync(join(directory, "not-created"))).toBe(false);
       expect(existsSync(missing)).toBe(false);
@@ -57,10 +57,10 @@ describe("只读检查记录库", () => {
       const filesBefore = (await readdir(directory)).sort();
       const before = await sha256File(dbFile);
 
-      expect(inspectStore(dbFile, 1)).toEqual({
+      expect(inspectStore(dbFile, 2)).toEqual({
         exists: true,
         version: 1,
-        expectedVersion: 1,
+        expectedVersion: 2,
       });
       expect((await readdir(directory)).sort()).toEqual(filesBefore);
       expect(await sha256File(dbFile)).toBe(before);
@@ -79,10 +79,10 @@ describe("只读检查记录库", () => {
         expect(statSync(`${dbFile}-wal`).size).toBeGreaterThan(0);
         const filesBefore = (await readdir(directory)).sort();
 
-        expect(inspectStore(dbFile, 1)).toEqual({
+        expect(inspectStore(dbFile, 2)).toEqual({
           exists: true,
           version: 3,
-          expectedVersion: 1,
+          expectedVersion: 2,
         });
         expect((await readdir(directory)).sort()).toEqual(filesBefore);
       } finally {
@@ -98,10 +98,10 @@ describe("只读检查记录库", () => {
       writer.exec("PRAGMA user_version = 3");
       writer.close();
 
-      expect(inspectStore(dbFile, 1)).toEqual({
+      expect(inspectStore(dbFile, 2)).toEqual({
         exists: true,
         version: 3,
-        expectedVersion: 1,
+        expectedVersion: 2,
       });
     });
   });

@@ -7,6 +7,7 @@ export type SqlRow = Record<string, SQLOutputValue>;
 export interface TransactionFunctions {
   transaction<T>(fn: () => T): T;
   withTransaction<T>(fn: () => T): T;
+  withReadTransaction<T>(fn: () => T): T;
 }
 
 export interface StoreContext extends TransactionFunctions {
@@ -95,6 +96,28 @@ export function encodeJson(
   }
 }
 
+export function validateFiniteNumber(
+  value: number,
+  table: string,
+  column: string,
+): void {
+  if (!Number.isFinite(value)) {
+    throw storeFailed(`记录库表「${table}」列「${column}」必须是有限数字。`);
+  }
+}
+
+export function validateFiniteNumbers(
+  values: Readonly<Record<string, number>>,
+  table: string,
+  column: string,
+): void {
+  if (Object.values(values).some((value) => !Number.isFinite(value))) {
+    throw storeFailed(
+      `记录库表「${table}」JSON 列「${column}」必须只含有限数字。`,
+    );
+  }
+}
+
 export function decodeJson<T>(
   value: SQLOutputValue | undefined,
   table: string,
@@ -121,6 +144,7 @@ export function createTransactionFunctions(
     if (db.isTransaction) {
       throw storeFailed("记录库事务不支持嵌套调用。");
     }
+    assertSynchronousCallback(fn);
 
     try {
       db.exec("BEGIN IMMEDIATE");
@@ -128,11 +152,7 @@ export function createTransactionFunctions(
       throw storeFailed("无法开始记录库事务。", cause);
     }
     try {
-      const result = fn();
-      if (isPromiseLike(result)) {
-        void Promise.resolve(result).catch(() => undefined);
-        throw storeFailed("事务回调不能是异步函数。");
-      }
+      const result = ensureSynchronousResult(fn());
       db.exec("COMMIT");
       return result;
     } catch (error) {
@@ -147,10 +167,56 @@ export function createTransactionFunctions(
     }
   }
 
+  function runNestedTransaction<T>(fn: () => T): T {
+    assertSynchronousCallback(fn);
+    return ensureSynchronousResult(fn());
+  }
+
+  function runReadTransaction<T>(fn: () => T): T {
+    assertSynchronousCallback(fn);
+    if (db.isTransaction) return fn();
+    try {
+      db.exec("BEGIN");
+    } catch (cause) {
+      throw storeFailed("无法开始记录库只读事务。", cause);
+    }
+    try {
+      const result = ensureSynchronousResult(fn());
+      db.exec("COMMIT");
+      return result;
+    } catch (error) {
+      if (db.isTransaction) {
+        try {
+          db.exec("ROLLBACK");
+        } catch {
+          // 保留原始异常，回滚失败不能覆盖导致事务失败的原因。
+        }
+      }
+      throw error;
+    }
+  }
+
+  function assertSynchronousCallback(fn: () => unknown): void {
+    if (Object.prototype.toString.call(fn) === "[object AsyncFunction]") {
+      throw storeFailed("事务回调不能是异步函数。");
+    }
+  }
+
+  function ensureSynchronousResult<T>(result: T): T {
+    if (isPromiseLike(result)) {
+      void Promise.resolve(result).catch(() => undefined);
+      throw storeFailed("事务回调不能是异步函数。");
+    }
+    return result;
+  }
+
   return {
     transaction: runTransaction,
     withTransaction<T>(fn: () => T): T {
-      return db.isTransaction ? fn() : runTransaction(fn);
+      return db.isTransaction ? runNestedTransaction(fn) : runTransaction(fn);
+    },
+    withReadTransaction<T>(fn: () => T): T {
+      return runReadTransaction(fn);
     },
   };
 }
