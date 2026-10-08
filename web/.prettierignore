@@ -1,0 +1,7 @@
+.fleet/
+out/
+.next/
+node_modules/
+pnpm-lock.yaml
+*.md
+next-env.d.ts
