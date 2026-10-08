@@ -72,11 +72,18 @@ describe("resolveHome：数据目录解析", () => {
 });
 
 describe("homePaths：目录下各用途路径", () => {
-  it("config.json、leafpress.db、runs 都在数据目录下", () => {
+  it("返回配置、凭证、数据库、档案、任务、备份和日志路径", () => {
     const paths = homePaths("C:/press");
-    expect(paths.home).toBe(resolve("C:/press"));
-    expect(paths.configFile).toBe(resolve("C:/press", "config.json"));
-    expect(paths.dbFile).toBe(resolve("C:/press", "leafpress.db"));
-    expect(paths.runsDir).toBe(resolve("C:/press", "runs"));
+    const home = resolve("C:/press");
+    expect(paths).toEqual({
+      home,
+      configFile: resolve(home, "config.json"),
+      credentialsFile: resolve(home, "credentials.json"),
+      dbFile: resolve(home, "leafpress.db"),
+      accountsDir: resolve(home, "accounts"),
+      tasksDir: resolve(home, "tasks"),
+      backupsDir: resolve(home, "backups"),
+      logsDir: resolve(home, "logs"),
+    });
   });
 });

@@ -1,430 +1,334 @@
-import { afterAll, afterEach, describe, expect, it, vi } from "vitest";
+import { statSync } from "node:fs";
 import { mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
-import type * as fsPromises from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { afterEach, describe, expect, it } from "vitest";
 
-import { loadConfig, writeConfigIfAbsent } from "../../src/config/load.js";
-import type { LeafPressConfig } from "../../src/config/schema.js";
+import {
+  inspectConfig,
+  loadConfig,
+  upgradeLegacyConfig,
+  writeConfig,
+  writeConfigIfAbsent,
+} from "../../src/config/load.js";
+import {
+  DEFAULT_CONFIG,
+  type LeafPressConfig,
+} from "../../src/config/schema.js";
 import { LeafPressError } from "../../src/shared/errors.js";
 
-/**
- * 故障注入开关：测原子提交的失败路径用。
- * vi.mock 把 fs/promises 的 link / writeFile 换成会看这个开关的包装：
- * script 非 null 时第 script.skip+1 次调用开始抛 script.code 错误，之前照常放行。
- */
-interface FaultScript {
-  code: string;
-  skip: number;
-  /** 已经拦到过的调用次数；由 injectFsError 建脚本时清零 */
-  calls: number;
-}
-const faultScripts: {
-  link?: FaultScript | null;
-  writeFile?: FaultScript | null;
-} = {};
-
-vi.mock("node:fs/promises", async (importOriginal) => {
-  const actual = await importOriginal<typeof fsPromises>();
-  const wrap = <A extends unknown[]>(
-    name: "link" | "writeFile",
-    real: (...args: A) => Promise<unknown>,
-  ) => {
-    // 计数器挂在脚本上，injectFsError 换脚本时一并清零，
-    // 避免「上一条脚本计数器残留导致新脚本跳过位置不对」
-    return (...args: A): Promise<unknown> => {
-      const script = faultScripts[name];
-      if (script) {
-        if (script.calls >= script.skip) {
-          script.calls += 1;
-          const failure = new Error(`${name} 注入失败`) as Error & {
-            code: string;
-          };
-          failure.code = script.code;
-          return Promise.reject(failure);
-        }
-        script.calls += 1;
-      }
-      return real(...args);
-    };
-  };
-  return {
-    ...actual,
-    link: wrap("link", actual.link),
-    writeFile: wrap("writeFile", actual.writeFile),
-  };
-});
-
-/** 给某个函数挂上故障脚本：第 skip+1 次调用开始报错；返回摘除函数 */
-function injectFsError(
-  method: "link" | "writeFile",
-  code: string,
-  skip = 0,
-): () => void {
-  faultScripts[method] = { code, skip, calls: 0 };
-  return () => {
-    faultScripts[method] = null;
-  };
-}
-
-/** 每个用例自己建目录，afterEach 逐个删掉，不留垃圾 */
 const dirs: string[] = [];
 
 afterEach(async () => {
-  while (dirs.length > 0) {
-    const dir = dirs.pop();
-    if (dir !== undefined) {
-      await rm(dir, { recursive: true, force: true });
-    }
-  }
+  await Promise.all(
+    dirs.splice(0).map((dir) => rm(dir, { recursive: true, force: true })),
+  );
 });
 
-// 兜底：万一某个用例中断没清干净，结束时再扫一次
-afterAll(async () => {
-  for (const dir of dirs) {
-    await rm(dir, { recursive: true, force: true });
-  }
-});
-
-/** 建一个临时 home 目录（自动登记清理） */
 async function makeHome(): Promise<string> {
-  const dir = await mkdtemp(join(tmpdir(), "leafpress-config-"));
+  const dir = await mkdtemp(join(tmpdir(), "leafpress-config-v2-"));
   dirs.push(dir);
   return dir;
 }
 
-/** 一个合法的最小配置 */
-const VALID = {
-  version: 1,
-  blog: {
-    repoPath: "C:/code/some-blog",
-    contentDir: "content/posts",
-    remote: "origin",
-    branch: "main",
-    primaryLocaleDir: "zh",
-    siteUrl: "https://example.com",
-  },
-  materials: { projects: ["C:/code/project-a"] },
-  zhihu: {},
-  browser: {},
-} as const;
+function validConfig(): LeafPressConfig {
+  return {
+    version: 2,
+    server: { port: 4321 },
+    browser: { executablePath: "C:/tools/browser.exe" },
+    schedule: { dataPullAt: "23:59" },
+    lease: { minutes: 45 },
+  };
+}
 
-const asConfig = (value: unknown): LeafPressConfig =>
-  JSON.parse(JSON.stringify(value)) as LeafPressConfig;
-
-describe("loadConfig：读配置", () => {
-  it("文件不存在时抛 CONFIG_MISSING，hint 提示先 init", async () => {
-    const dir = await makeHome();
-    try {
-      await loadConfig(dir);
-      expect.unreachable("应该抛错");
-    } catch (error) {
-      expect(error).toBeInstanceOf(LeafPressError);
-      const e = error as LeafPressError;
-      expect(e.code).toBe("CONFIG_MISSING");
-      expect(e.message).toContain("config.json");
-      expect(e.hint).toBe("先运行 leafpress init");
+async function expectInvalid(
+  home: string,
+  raw: string,
+  secret?: string,
+): Promise<void> {
+  await writeFile(join(home, "config.json"), raw, "utf8");
+  try {
+    loadConfig(home);
+    expect.unreachable("应抛 CONFIG_INVALID");
+  } catch (error) {
+    expect(error).toBeInstanceOf(LeafPressError);
+    const failure = error as LeafPressError;
+    expect(failure.code).toBe("CONFIG_INVALID");
+    expect(failure.cause).toBeUndefined();
+    if (secret !== undefined) {
+      expect(failure.message).not.toContain(secret);
+      expect(failure.hint ?? "").not.toContain(secret);
     }
-  });
+  }
+}
 
-  it("JSON 损坏时抛 CONFIG_INVALID，message 说明不是合法 JSON，cause 不含输入片段", async () => {
-    const dir = await makeHome();
-    // 密钥值故意埋在文件开头：如果 cause.message 带输入片段就会露馅
-    const raw = `"SECRET-leak-via-cause-zz9" { 不是JSON`;
-    await writeFile(join(dir, "config.json"), raw, "utf8");
-    try {
-      await loadConfig(dir);
-      expect.unreachable("应该抛错");
-    } catch (error) {
-      const e = error as LeafPressError;
-      expect(e).toBeInstanceOf(LeafPressError);
-      expect(e.code).toBe("CONFIG_INVALID");
-      expect(e.message).toContain("JSON");
-      expect(e.hint ?? "").not.toContain("SECRET-leak-via-cause-zz9");
-      // cause 要么没有，要么存在但里面（含 message）也不带原始输入
-      if (e.cause !== undefined) {
-        // cause 要么是 Error（取 message），要么序列化成 JSON 再检查
-        const causeText =
-          e.cause instanceof Error ? e.cause.message : JSON.stringify(e.cause);
-        expect(causeText).not.toContain("SECRET-leak-via-cause-zz9");
-        expect(causeText).not.toContain("不是JSON");
-      }
-    }
-  });
-
-  it("开头带 UTF-8 BOM 时能正常读：合法配置原样读回", async () => {
-    const dir = await makeHome();
-    const raw = `\uFEFF${JSON.stringify(VALID)}`;
-    await writeFile(join(dir, "config.json"), raw, "utf8");
-    const loaded = await loadConfig(dir);
-    expect(loaded).toEqual(asConfig(VALID));
-  });
-
-  it("开头带 UTF-8 BOM 且 JSON 损坏时仍抛 CONFIG_INVALID，而不是被 BOM 蒙混过关", async () => {
-    const dir = await makeHome();
-    await writeFile(join(dir, "config.json"), `\uFEFF{ 坏掉的`, "utf8");
-    await expect(loadConfig(dir)).rejects.toMatchObject({
-      code: "CONFIG_INVALID",
-    });
-  });
-
-  it("出现未知字段时抛 CONFIG_INVALID，message 报出字段路径", async () => {
-    const dir = await makeHome();
-    await writeFile(
-      join(dir, "config.json"),
-      JSON.stringify({
-        version: 1,
-        blog: { repoPath: "C:/b", remotes: "拼错的名字" },
-      }),
-      "utf8",
-    );
-    try {
-      await loadConfig(dir);
-      expect.unreachable("应该抛错");
-    } catch (error) {
-      const e = error as LeafPressError;
-      expect(e.code).toBe("CONFIG_INVALID");
-      expect(e.message).toContain("blog.remotes");
-    }
-  });
-
-  it("siteUrl 不合法时抛 CONFIG_INVALID，message 用中文说明", async () => {
-    const dir = await makeHome();
-    await writeFile(
-      join(dir, "config.json"),
-      JSON.stringify({
-        version: 1,
-        blog: { repoPath: "C:/b", siteUrl: "example.com 没有协议" },
-      }),
-      "utf8",
-    );
-    try {
-      await loadConfig(dir);
-      expect.unreachable("应该抛错");
-    } catch (error) {
-      const e = error as LeafPressError;
-      expect(e.code).toBe("CONFIG_INVALID");
-      expect(e.message).toContain("blog.siteUrl");
-      expect(e.message).toContain("不是合法的网址");
-    }
-  });
-
-  it("缺省字段自动补默认值", async () => {
-    const dir = await makeHome();
-    await writeFile(
-      join(dir, "config.json"),
-      JSON.stringify({ version: 1, blog: { repoPath: "C:/b" } }),
-      "utf8",
-    );
-    const config = await loadConfig(dir);
-    expect(config.blog.contentDir).toBe("content/posts");
-    expect(config.blog.remote).toBe("origin");
-    expect(config.blog.branch).toBe("main");
-    expect(config.blog.primaryLocaleDir).toBe("zh");
-    expect(config.blog.siteUrl).toBeUndefined();
-    expect(config.materials).toEqual({ projects: [] });
-    expect(config.zhihu).toEqual({});
-    expect(config.browser).toEqual({});
-  });
-
-  it("正常配置原样读回", async () => {
-    const dir = await makeHome();
-    await writeFile(
-      join(dir, "config.json"),
-      JSON.stringify({
-        version: 1,
-        blog: { repoPath: VALID.blog.repoPath },
-        materials: VALID.materials,
-      }),
-      "utf8",
-    );
-    const config = await loadConfig(dir);
-    expect(config.version).toBe(1);
-    expect(config.blog.repoPath).toBe("C:/code/some-blog");
-    expect(config.materials.projects).toEqual(["C:/code/project-a"]);
-  });
-});
-
-describe("loadConfig：校验失败不泄露字段值", () => {
-  it("值很特别的字段写错类型时，message 里只有字段路径和问题，没有值", async () => {
-    const dir = await makeHome();
-    // 这些值一看就是故意挑的，如果出现在错误信息里就是泄漏
-    await writeFile(
-      join(dir, "config.json"),
-      JSON.stringify({
-        version: 1,
-        blog: {
-          repoPath: { nested: "LEAK-repoPath-value-zz9" },
-          siteUrl: "LEAK-siteUrl-value-zz9",
-          contentDir: 42,
-        },
-        zhihu: { developerAccessSecret: 12345 },
-      }),
-      "utf8",
-    );
-    try {
-      await loadConfig(dir);
-      expect.unreachable("应该抛错");
-    } catch (error) {
-      const e = error as LeafPressError;
-      expect(e.code).toBe("CONFIG_INVALID");
-      expect(e.message).toContain("blog.repoPath");
-      expect(e.message).toContain("blog.siteUrl");
-      expect(e.message).not.toContain("LEAK-repoPath-value-zz9");
-      expect(e.message).not.toContain("LEAK-siteUrl-value-zz9");
-      expect(e.message).not.toContain("12345");
-    }
-  });
-});
-
-describe("writeConfigIfAbsent：首次写配置", () => {
-  it("目录不存在时先建目录再写入，格式为两空格缩进加末尾换行", async () => {
+describe("配置 v2", () => {
+  it("文件不存在时给出默认配置，且 inspect 只报告不存在", async () => {
     const home = await makeHome();
-    const nested = join(home, "not-yet-created");
-    const config = asConfig(VALID);
-    const result = await writeConfigIfAbsent(nested, config);
-
-    expect(result.created).toBe(true);
-    expect(result.path).toBe(join(nested, "config.json"));
-
-    const raw = await readFile(result.path, "utf8");
-    expect(raw.startsWith('{\n  "version": 1,')).toBe(true);
-    expect(raw.endsWith("\n")).toBe(true);
-
-    // 写出来的内容能原样读回
-    const loaded = await loadConfig(nested);
-    expect(loaded).toEqual(config);
-  });
-
-  it("写完后不留临时文件", async () => {
-    const home = await makeHome();
-    await writeConfigIfAbsent(home, asConfig(VALID));
-    const entries = await readdir(home);
-    expect(
-      entries.every((name) => !name.includes(".tmp-")),
-      `不应有临时文件残留，实际：${entries.join("、")}`,
-    ).toBe(true);
-    expect(entries).toContain("config.json");
-  });
-
-  it("文件已存在时不动它，返回 created: false", async () => {
-    const home = await makeHome();
-    const existing = "手改过的内容";
-    await writeFile(join(home, "config.json"), existing, "utf8");
-    const result = await writeConfigIfAbsent(home, asConfig(VALID));
-
-    expect(result.created).toBe(false);
-    expect(await readFile(join(home, "config.json"), "utf8")).toBe(existing);
-  });
-
-  it("并发调用两次只有一次 created: true，另一次 created: false 且不抛错", async () => {
-    const home = await makeHome();
-    const config = asConfig(VALID);
-    // 同目录并发两次「首次写入」，不能互抛错误
-    const results = await Promise.all([
-      writeConfigIfAbsent(home, config),
-      writeConfigIfAbsent(home, config),
-    ]);
-    expect(results.map((r) => r.created).sort()).toEqual([false, true]);
-
-    // 内容是完整的合法配置（两轮写入内容相同，谁赢都一样）
-    const loaded = await loadConfig(home);
-    expect(loaded).toEqual(config);
-  });
-
-  it("传入不合法的配置抛 LeafPressError(CONFIG_INVALID)，message 逐条列字段路径且不含值，不写文件", async () => {
-    const home = await makeHome();
-    const bad = {
+    expect(loadConfig(home)).toEqual({
       version: 2,
-      blog: { repoPath: "" },
-    } as unknown as LeafPressConfig;
+      server: { port: 3210 },
+      browser: {},
+      schedule: { dataPullAt: "06:00" },
+      lease: { minutes: 120 },
+    });
+    expect(inspectConfig(home)).toEqual({ exists: false });
+    expect(DEFAULT_CONFIG).toEqual(loadConfig(home));
+  });
+
+  it("读取完整 v2 配置并识别版本", async () => {
+    const home = await makeHome();
+    await writeFile(
+      join(home, "config.json"),
+      JSON.stringify(validConfig()),
+      "utf8",
+    );
+    expect(loadConfig(home)).toEqual(validConfig());
+    expect(inspectConfig(home)).toEqual({ exists: true, version: 2 });
+  });
+
+  it("整段缺省时分别补齐所有内部默认值", async () => {
+    const home = await makeHome();
+    await writeFile(join(home, "config.json"), '{"version":2}', "utf8");
+    expect(loadConfig(home)).toEqual(DEFAULT_CONFIG);
+  });
+
+  it("接受所有数值和时间边界，保留非空浏览器路径原值", async () => {
+    const home = await makeHome();
+    const minimums: LeafPressConfig = {
+      version: 2,
+      server: { port: 1024 },
+      browser: { executablePath: " edge.exe " },
+      schedule: { dataPullAt: "00:00" },
+      lease: { minutes: 5 },
+    };
+    await writeFile(
+      join(home, "config.json"),
+      JSON.stringify(minimums),
+      "utf8",
+    );
+    expect(loadConfig(home)).toEqual(minimums);
+
+    const maximums: LeafPressConfig = {
+      version: 2,
+      server: { port: 65535 },
+      browser: {},
+      schedule: { dataPullAt: "23:59" },
+      lease: { minutes: 1440 },
+    };
+    await writeFile(
+      join(home, "config.json"),
+      JSON.stringify(maximums),
+      "utf8",
+    );
+    expect(loadConfig(home)).toEqual(maximums);
+  });
+
+  it("未知字段、端口越界和错误时间格式均报告路径且不回显字段值", async () => {
+    const home = await makeHome();
+    const special = "LEAK-value-9a83";
+    await expectInvalid(
+      home,
+      JSON.stringify({ version: 2, unexpected: special }),
+      special,
+    );
     try {
-      await writeConfigIfAbsent(home, bad);
-      expect.unreachable("应该抛错");
+      loadConfig(home);
     } catch (error) {
-      const e = error as LeafPressError;
-      expect(e).toBeInstanceOf(LeafPressError);
-      expect(e.code).toBe("CONFIG_INVALID");
-      expect(e.message).toContain("version");
-      expect(e.message).toContain("blog.repoPath");
-      // 不能是 zod 原始异常（到了命令行会变成「内部错误」加 JSON）
-      expect(e.message).not.toContain("Expected");
-      expect(e.message).not.toContain("received");
+      expect((error as Error).message).toContain("unexpected");
     }
+
+    await expectInvalid(
+      home,
+      JSON.stringify({ version: 2, server: { port: 99999 } }),
+      "99999",
+    );
     try {
-      await loadConfig(home);
-      expect.unreachable("文件不应该被写出来");
+      loadConfig(home);
     } catch (error) {
-      // 没写出来：还是 CONFIG_MISSING
-      expect((error as LeafPressError).code).toBe("CONFIG_MISSING");
+      expect((error as Error).message).toContain("server.port");
+    }
+
+    await expectInvalid(
+      home,
+      JSON.stringify({ version: 2, server: { port: 1023 } }),
+      "1023",
+    );
+    await expectInvalid(
+      home,
+      JSON.stringify({ version: 2, lease: { minutes: 1441 } }),
+      "1441",
+    );
+    await expectInvalid(
+      home,
+      JSON.stringify({ version: 2, browser: { executablePath: "   " } }),
+      "   ",
+    );
+    await expectInvalid(
+      home,
+      JSON.stringify({ version: 2, schedule: { dataPullAt: "24:00" } }),
+      "24:00",
+    );
+    try {
+      loadConfig(home);
+    } catch (error) {
+      expect((error as Error).message).toContain("schedule.dataPullAt");
     }
   });
 
-  it("写入前校验不过时 message 不含字段值（值可能是密钥）", async () => {
+  it("损坏 JSON 的错误不含原始内容", async () => {
     const home = await makeHome();
-    const bad = {
+    await expectInvalid(
+      home,
+      '"SECRET-json-fragment-31" { bad',
+      "SECRET-json-fragment-31",
+    );
+  });
+
+  it("合法 v1 只迁移 browser.executablePath，不读取、写出或报出密钥", async () => {
+    const home = await makeHome();
+    const secret = "SECRET-legacy-zhihu-77a";
+    const legacy = {
       version: 1,
-      blog: { repoPath: "LEAK-repo-zz9", siteUrl: "LEAK-url-zz9" },
-      zhihu: { developerAccessSecret: "LEAK-secret-zz9" },
-    } as unknown as LeafPressConfig;
+      blog: { repoPath: "DO-NOT-MIGRATE" },
+      materials: { projects: ["DO-NOT-MIGRATE"] },
+      zhihu: { developerAccessSecret: secret },
+      browser: { executablePath: "C:/browser.exe", ignored: "hidden" },
+    };
+    await writeFile(join(home, "config.json"), JSON.stringify(legacy), "utf8");
+    const loaded = loadConfig(home);
+    expect(loaded).toEqual({
+      ...DEFAULT_CONFIG,
+      browser: { executablePath: "C:/browser.exe" },
+    });
+    expect(JSON.stringify(loaded)).not.toContain(secret);
+    expect(await readFile(join(home, "config.json"), "utf8")).toBe(
+      JSON.stringify(legacy),
+    );
+    expect(inspectConfig(home)).toEqual({ exists: true, version: 1 });
+  });
+
+  it("inspectConfig 仅识别非法 v1 的版本，不回传旧字段", async () => {
+    const home = await makeHome();
+    const secret = "SECRET-inspect-invalid-v1-29";
+    await writeFile(
+      join(home, "config.json"),
+      JSON.stringify({
+        version: 1,
+        browser: { executablePath: { value: secret } },
+        zhihu: { developerAccessSecret: secret },
+      }),
+      "utf8",
+    );
+
+    const inspection = inspectConfig(home);
+    expect(inspection).toEqual({ exists: true, version: 1 });
+    expect(JSON.stringify(inspection)).not.toContain(secret);
     try {
-      await writeConfigIfAbsent(home, bad);
-      expect.unreachable("应该抛错");
+      loadConfig(home);
+      expect.unreachable("非法 v1 浏览器路径应拒绝加载");
     } catch (error) {
-      const e = error as LeafPressError;
-      expect(e.code).toBe("CONFIG_INVALID");
-      expect(e.message).not.toContain("LEAK-repo-zz9");
-      expect(e.message).not.toContain("LEAK-url-zz9");
-      expect(e.message).not.toContain("LEAK-secret-zz9");
+      const failure = error as LeafPressError;
+      expect(failure.code).toBe("CONFIG_INVALID");
+      expect(failure.message).not.toContain(secret);
+      expect(failure.hint ?? "").not.toContain(secret);
     }
   });
 
-  it("link 报 ENOTSUP 时走退路排他写入，能正常创建", async () => {
+  it("写入先校验、原子替换并使用两空格缩进和末尾换行", async () => {
     const home = await makeHome();
-    const config = asConfig(VALID);
-    const restore = injectFsError("link", "ENOTSUP");
+    writeConfig(home, validConfig());
+    expect(loadConfig(home)).toEqual(validConfig());
+    expect((await readdir(home)).sort()).toEqual(["config.json"]);
+
+    const updated = { ...validConfig(), server: { port: 5555 } };
+    writeConfig(home, updated);
+    const original = await readFile(join(home, "config.json"), "utf8");
+    expect(original).toBe(`${JSON.stringify(updated, null, 2)}\n`);
+    expect(loadConfig(home)).toEqual(updated);
+
+    expect(() =>
+      writeConfig(home, { ...validConfig(), server: { port: 99999 } }),
+    ).toThrowError(LeafPressError);
+    expect(await readFile(join(home, "config.json"), "utf8")).toBe(original);
+
+    const invalidWriteSecret = "SECRET-invalid-write-value-71";
+    let writeFailure: unknown;
     try {
-      const result = await writeConfigIfAbsent(home, config);
-      expect(result.created).toBe(true);
-      const loaded = await loadConfig(home);
-      expect(loaded).toEqual(config);
-    } finally {
-      restore();
+      writeConfig(home, {
+        ...validConfig(),
+        unexpected: invalidWriteSecret,
+      } as LeafPressConfig);
+    } catch (error) {
+      writeFailure = error;
     }
+    expect(writeFailure).toBeInstanceOf(LeafPressError);
+    expect((writeFailure as LeafPressError).code).toBe("CONFIG_INVALID");
+    expect((writeFailure as LeafPressError).message).not.toContain(
+      invalidWriteSecret,
+    );
+    expect((writeFailure as LeafPressError).hint ?? "").not.toContain(
+      invalidWriteSecret,
+    );
+    expect(await readFile(join(home, "config.json"), "utf8")).toBe(original);
   });
 
-  it("退路写入报 EIO 时抛出错误，且目标、临时文件都不残留", async () => {
+  it("writeConfigIfAbsent 不覆盖已有配置", async () => {
     const home = await makeHome();
-    const restoreLink = injectFsError("link", "ENOTSUP");
-    // 第 1 次 writeFile（写临时文件）放行，第 2 次（退路写目标）报 EIO
-    const restoreWrite = injectFsError("writeFile", "EIO", 1);
-    try {
-      await expect(
-        writeConfigIfAbsent(home, asConfig(VALID)),
-      ).rejects.toMatchObject({ code: "EIO" });
-    } finally {
-      restoreLink();
-      restoreWrite();
-    }
-    // 半截 config.json 必须清掉，否则后续 init 会误判「已存在」
-    const entries = await readdir(home);
-    expect(entries).toEqual([]);
+    const first = writeConfigIfAbsent(home, validConfig());
+    expect(first).toEqual({ created: true, path: join(home, "config.json") });
+    const before = await readFile(first.path, "utf8");
+    expect(writeConfigIfAbsent(home, DEFAULT_CONFIG)).toEqual({
+      created: false,
+      path: first.path,
+    });
+    expect(await readFile(first.path, "utf8")).toBe(before);
   });
 
-  it("link 报 EPERM 时直接抛错不走退路，目标文件不存在", async () => {
+  it("显式升级 v1 时先保留原文件备份再写 v2；新配置不迁移旧字段", async () => {
     const home = await makeHome();
-    const restoreLink = injectFsError("link", "EPERM");
-    // 第 1 次 writeFile（写临时文件）放行；退路若被走到，第 2 次会报 EIO。
-    // 断言抛出的是 link 的 EPERM 而不是 EIO，就说明没走退路
-    const restoreWrite = injectFsError("writeFile", "EIO", 1);
-    try {
-      await expect(
-        writeConfigIfAbsent(home, asConfig(VALID)),
-      ).rejects.toMatchObject({ code: "EPERM" });
-    } finally {
-      restoreLink();
-      restoreWrite();
-    }
-    expect(await readdir(home)).toEqual([]);
+    const secret = "SECRET-backup-only-b88";
+    const original = JSON.stringify({
+      version: 1,
+      zhihu: { developerAccessSecret: secret },
+      browser: {},
+    });
+    await writeFile(join(home, "config.json"), original, "utf8");
+    const result = upgradeLegacyConfig(home);
+    expect(result.upgraded).toBe(true);
+    expect(result.backupPath).toBe(join(home, "config.v1.json.bak"));
+    expect(await readFile(result.backupPath!, "utf8")).toBe(original);
+    expect(JSON.stringify(result)).not.toContain(secret);
+    if (process.platform !== "win32")
+      expect(statSync(result.backupPath!).mode & 0o777).toBe(0o600);
+    expect(loadConfig(home)).toEqual(DEFAULT_CONFIG);
+    expect(await readFile(join(home, "config.json"), "utf8")).not.toContain(
+      secret,
+    );
+    expect(upgradeLegacyConfig(home)).toEqual({ upgraded: false });
+  });
+
+  it("升级备份文件名冲突时使用带时间戳的新文件名", async () => {
+    const home = await makeHome();
+    await writeFile(join(home, "config.v1.json.bak"), "existing", "utf8");
+    await writeFile(
+      join(home, "config.json"),
+      '{"version":1,"browser":{}}',
+      "utf8",
+    );
+    const result = upgradeLegacyConfig(home);
+    expect(result.upgraded).toBe(true);
+    expect(result.backupPath).toMatch(/config\.v1\.json\.bak-\d{8}-\d{6}$/);
+    expect(await readFile(result.backupPath!, "utf8")).toBe(
+      '{"version":1,"browser":{}}',
+    );
+  });
+
+  it("v2 配置不被升级函数改动", async () => {
+    const home = await makeHome();
+    const raw = JSON.stringify(validConfig());
+    await writeFile(join(home, "config.json"), raw, "utf8");
+    expect(upgradeLegacyConfig(home)).toEqual({ upgraded: false });
+    expect(await readFile(join(home, "config.json"), "utf8")).toBe(raw);
   });
 });
