@@ -3,6 +3,11 @@
 > 所有实现会话动手前先读完本文件，再读 `design/` 下属于自己那一页的规格。本文件和 `design/*.md` 是契约，**实现会话不得修改**。
 > 规格分两层：本文件定全站的东西，**每路必读全文**；`design/<页面>.md` 写逐区块规格，**每路只读自己那一页**。
 > 这是第二版：第一版只能看不能动，这一版围绕「灵感 → 作品（任务）→ 工作流 → 要你动手的步骤 → 归档」把动作做出来。
+> 第三版改动（2026-10-08，以这里为准）：账号的定位、写给谁、栏目、对标、调整记录合成一份自由写的 **Markdown 档案**；
+> **栏目和目标整套去掉**（栏目占比、每周发几篇、粉丝目标），页面只显示客观数据，周报不给建议；
+> 数据都靠工具拉，**没有手填**，拿数据的工具还没做的号（B站、小红书）没有数据，显示「—」或「数据还没接」；
+> 每个号加一块 **「接入」**：作品产出的工作流、数据获取的工具、要配的东西（可在页面上填）；
+> **各平台的数据项不一样**（知乎：浏览、点赞、收藏、评论、分享；博客：访问、访客、评论；B站：播放、点赞、投币、收藏、分享、弹幕、评论；小红书：浏览、点赞、收藏、评论、分享），作品的数据按平台自己的数据项显示。
 
 ---
 
@@ -50,8 +55,8 @@
 |---|---|---|---|---|---|
 | 作品（首页） | `/` | 看 AI 和自己各有哪些活，处理等自己的事，编辑作品 | 看板四列 + 卡片点开详情；「等你处理」卡片里直接提交反馈 | 1 个工作区（看板 / 列表 / 详情抽屉） | L1 看板、L2 详情 |
 | 灵感 | `/ideas/` | 记灵感、改灵感、挑值得写的、转成作品 | 速记框 + 三列灵感看板（可拖、可点开编辑、可转作品） | 3 | L3 |
-| 账号 | `/accounts/` | 看在做哪些号、方向、各号手上有多少活 | 账号卡片 | 3 | L5 |
-| 账号详情 | `/accounts/[id]/` | 看一个号的方向档案、数据和作品 | 方向档案（可编辑） | 6 | L5 |
+| 账号 | `/accounts/` | 看在做哪些号、各号手上有多少活、接得怎么样 | 账号卡片 + 接入情况表 | 2 | L5 |
+| 账号详情 | `/accounts/[id]/` | 看一个号的档案、数据、接入和作品 | 档案（Markdown，可编辑）+ 接入（可填配置） | 5 | L5 |
 | 工作流 | `/workflows/` | 看有哪些发布工作流、怎么自动配、定时工作流跑得怎样 | 工作流卡片 | 4 | L4 |
 | 数据 | `/data/` | 看走势、排行、数据来源 | 主图卡切换指标 | 5 | L6 |
 | 周报 | `/reports/` | 看一周小结、写复盘 | 周切换 + 小结 | 7 | L6 |
@@ -79,7 +84,7 @@
 **地址栏参数**一律用 `useSearchParams` 读、`useRouter().replace` 改（不 push，返回键不会一格一格退）。
 
 可用图标白名单（lucide-react 1.48.0 里都有，只用这些）：
-`LayoutDashboard FileText Files UsersRound UserRound Lightbulb Workflow ChartColumn ChartLine NotebookPen CalendarRange CalendarDays Search Bell Plus SquarePen ChevronRight ChevronLeft ChevronDown ChevronUp ArrowUpRight ArrowDownRight ArrowLeft ArrowRight ArrowUpDown ExternalLink Link Link2 Copy Check CheckCheck X Clock Timer Play Pause RefreshCw RotateCcw CircleAlert TriangleAlert Info Sparkles Bot Video Image Images Film Mic Captions Scissors Clapperboard Newspaper PenLine Pencil BookOpen Bookmark Inbox Archive Tag Hash Target Flag Eye Heart ThumbsUp MessageSquare MessageCircle Star Share2 TrendingUp TrendingDown Download Upload Filter ListFilter SlidersHorizontal LayoutGrid List Kanban Menu PanelLeft Keyboard Settings Database CloudDownload Server Terminal Command Leaf Calendar CircleDot Circle Ellipsis Trash2 Send Repeat History FolderGit2 GitCommitHorizontal Globe Rss Feather Layers WandSparkles Hourglass CircleCheck CircleX LoaderCircle Users Mail Quote ScrollText ClipboardCheck ClipboardList ListChecks Gauge Activity Zap Hand Tv MonitorPlay Smartphone Folder FolderOpen GripVertical MoveRight`。
+`LayoutDashboard FileText Files UsersRound UserRound Lightbulb Workflow ChartColumn ChartLine NotebookPen CalendarRange CalendarDays Search Bell Plus SquarePen ChevronRight ChevronLeft ChevronDown ChevronUp ArrowUpRight ArrowDownRight ArrowLeft ArrowRight ArrowUpDown ExternalLink Link Link2 Copy Check CheckCheck X Clock Timer Play Pause RefreshCw RotateCcw CircleAlert TriangleAlert Info Sparkles Bot Video Image Images Film Mic Captions Scissors Clapperboard Newspaper PenLine Pencil BookOpen Bookmark Inbox Archive Tag Hash Target Flag Eye Heart ThumbsUp MessageSquare MessageCircle Star Share2 TrendingUp TrendingDown Download Upload Filter ListFilter SlidersHorizontal LayoutGrid List Kanban Menu PanelLeft Keyboard Settings Database CloudDownload Server Terminal Command Leaf Calendar CircleDot Circle Ellipsis Trash2 Send Repeat History FolderGit2 GitCommitHorizontal Globe Rss Feather Layers WandSparkles Hourglass CircleCheck CircleX LoaderCircle Users Mail Quote ScrollText ClipboardCheck ClipboardList ListChecks Gauge Activity Zap Hand Tv MonitorPlay Smartphone Folder FolderOpen GripVertical MoveRight Plug NotebookText`。
 需要别的形状就手写内联 SVG。
 
 ---
@@ -103,7 +108,7 @@
 | `text-good` / `text-bad` / `text-warn` | #1f8a53 / #cf3035 / #8a6100 | 涨跌和警示**文字**，只用在 12～13px 小字上 |
 | `bg-ink` / `text-ink` | #2b2b31 | 图表主色、进度条、勾选框选中 |
 | `var(--team)` #2f9e62、`var(--progress)` #e5a50a、`var(--done)` #6e56cf、`var(--risk)` #e5484d、`var(--idle)` #a1a1a9 | | 状态图形和小色点，**只做图形，不做文字** |
-| `var(--label-*)`（red orange amber green teal blue indigo violet pink gray） | | 平台标识方块、栏目色点、标签色点 |
+| `var(--label-*)`（red orange amber green teal blue indigo violet pink gray） | | 平台标识方块、标签色点 |
 
 平台颜色取 `PLATFORMS[platform].color`：博客 green、知乎 blue、B站 pink、小红书 red。
 **「等你处理」的强调**只用两样：卡片边框 `border-progress/40`（悬停 `hover:border-progress/70`），和 `text-warn` 的小字。不加黄色底块。
@@ -147,11 +152,11 @@ web/
 |---|---|
 | `/` | `WorksPage`（`src/features/works/works-page.tsx`，整页一个工作区，自己返回 `PageFrame`） |
 | `/ideas/` | `PageFrame title="灵感" meta={<IdeasMeta />}`；上面一行两格 `IdeaCapture`、`IdeaHarvest`（`lg:grid-cols-2`），下面 `IdeaBoard` |
-| `/accounts/` | `AccountsGrid`、`DirectionMatrix`、`PrepBoard`（同第一版） |
-| `/accounts/[id]/` | `AccountHeader`、`DirectionCard`、`AccountTrend`、`ColumnTable`（左两格宽）；`AccountSource`、`AccountWorks`（右一格），同第一版 |
+| `/accounts/` | `AccountsGrid`、`SetupTable`（接入情况） |
+| `/accounts/[id]/` | `AccountHeader`、`AccountProfile`（档案）、`AccountTrend`（左两格宽）；`AccountSetup`（接入）、`AccountWorks`（右一格） |
 | `/workflows/` | `PageFrame title="工作流"`；`WorkflowCards`；下面一行两格 `ScheduledRuns`、`PickRules`（`xl:grid-cols-2`）；最下 `ToolTable` |
 | `/data/` | 同第一版：`DataTrend`、`AccountBreakdown` + `DataSources`、`TopWorks`；视图栏 `PullNowButton` |
-| `/reports/` | 同第一版：`ReportDigest`、`ReportAccounts`、`ReportWorks` + `ReportColumns`、`ReportNotes`、右栏 `ReportHistory`；视图栏 `ReportWeekNav` |
+| `/reports/` | `ReportDigest`、`ReportAccounts`、`ReportWorks`、`ReportNotes`、右栏 `ReportHistory`；视图栏 `ReportWeekNav`（栏目表现已去掉） |
 
 每个区块组件**具名导出 + 默认导出双份**，自带最外层容器（`<section>`）、锚点 `id`；外层网格、间距由页面文件负责，区块不加外边距。区块组件不接收参数，例外：账号详情的区块接收 `accountId: string`；`WorkSheet` 见 `design/作品.md`。
 
@@ -195,7 +200,7 @@ web/
 
 - 侧栏页面：作品 `/`（数字 = 作品总数，跟着页面变）、灵感（收件箱条数）、账号、工作流、数据、周报。账号分组：4 个账号，数字是粉丝数。视图分组：「等你处理」→ `/?status=waiting`、「待实现」→ `/?status=todo`、「数据异常」→ `/data/#sources`，数字实时。
 - 窗口栏搜索（⌘K）：操作（记一条灵感、新建作品、让 AI 挑一个做）、最近的作品（输入后搜全部作品）、灵感、页面、账号、工作流。选作品跳 `/?open=<编号>`，选灵感跳 `/ideas/?open=<编号>`。
-- 铃铛：`notices(works)`：数据拉取失败、等你处理的作品、该手填的数据。
+- 铃铛：`notices(works, pulls)`：数据拉取失败、等你处理的作品（页面上重新拉成功了，拉取失败的提醒就没了；拿数据的工具还没做的号不算异常）。
 - 头像菜单：交给 AI（任务文件夹位置 + 在 agent 里怎么说）、快捷键、恢复初始数据（清掉浏览器里存的作品和灵感）、打开博客。
 - 快捷键：N 记灵感、C 新建作品（打开 `useUi().newWorkOpen` 对应的 `ConvertDialog`）、G 再按 W/I/A/F/D/R 跳页、⌘K 搜索、`[` 折叠侧栏、`?` 快捷键。
 - `StoreHydration`：页面挂载后才读浏览器里存的作品和灵感（静态页面先按初始数据渲染）。
@@ -226,9 +231,18 @@ useIdeas: {
   harvest(): Idea[]             // 跑灵感，一般走 runSchedule
 }
 
+// src/state/accounts.ts —— 账号上页面能改的东西。存在 localStorage（键 leafpress:accounts）
+useAccounts: {
+  profiles: Record<账号编号, string>                 // 改过的账号档案（Markdown）；没改过的用 useProfile(id) 取初始的
+  config: Record<账号编号, Record<配置项, string>>   // 接入里填过的配置值，填了就算配好
+  pulls: Record<账号编号, PullRecord>                // 页面上「现在拉一次」的结果，盖过数据快照里的那次
+  saveProfile(id, text), setConfig(id, key, value), recordPulls(outcomes, at)
+}
+
 // src/state/actions.ts —— 要同时改几份数据的动作
 convertToWorks(source, accountIds, brief): Work[]   // 生成作品；来源是灵感时灵感挪到「已转作品」并记下作品编号
-runSchedule(id): string                             // 定时工作流现在跑一次，返回 toast 文字；跑灵感会真的往收件箱放 2 条
+runSchedule(id): string                             // 定时工作流现在跑一次，返回 toast 文字；跑灵感会真的往收件箱放 2 条；拉数据按接入里的配置拉
+pullNow(accountIds?): { ok, note }                  // 拉一次数据（全部或某几个号），结果记进 useAccounts.pulls
 resetAll(): void
 
 // src/state/schedules.ts —— 定时工作流最近一次运行（不存）
@@ -259,7 +273,9 @@ useUi: { commandOpen, captureOpen, newWorkOpen, shortcutsOpen, mobileNavOpen, si
 | `workflowUsage(works, workflowId)`、`derivedFrom(works, workId)` | 同上 | 工作流在用 / 已完成个数；由某作品转出去的作品 |
 | `sortIdeas(ideas, status)` | 同上 | 灵感一列里的先后 |
 | `notices(works)` | 同上 | 提醒 |
-| `summaryOf`、`ACCOUNT_SUMMARIES`、`metricSeries`、`columnRows`、`topWorks`、`rankedWork`、`publishedWorks`、`metricText`、`shortTitle`、`accountLabel`、`platformName` | `@/lib/metrics` | 数据快照上的统计（账号、数据页） |
+| `summaryOf`（带 `hasData`）、`ACCOUNT_SUMMARIES`、`metricSeries`、`topWorks(by: "reach" \| "interactions" \| "growth")`、`rankedWork`（`reach`、`interactions`、`growth`）、`publishedWorks`、`metricsOf(work)`、`metricText(work, 数据项 key)`、`shortTitle`、`accountLabel`、`platformName` | `@/lib/metrics` | 数据快照上的统计（账号、数据页）；作品的数据项按平台取 |
+| `setupView(account, values?, pull?)`、`setupItems`、`effectiveSource`、`pullData` | `@/lib/setup` | 接入：接好了 / 有问题 / 没接完、还缺什么；按页面上填的配置拉一次数据 |
+| `parseMarkdown`、`markdownSummary` | `@/lib/markdown` | 账号档案的 Markdown 解析和一句话简介 |
 | `weekReport`、`REPORT_WEEKS` | `@/lib/report` | 周报 |
 
 **数据快照和页面状态分开**：粉丝、阅读、排行、周报读的是 `src/data`（相当于每天定时拉回来的数据），不跟着页面上的改动变；看板、详情、侧栏数字、提醒读 `useWorks` / `useIdeas`。页面上刚完成的作品，数据格显示「还没有数据」。
@@ -329,7 +345,8 @@ pnpm format:check  # 主控最后统一格式化
 | 博客 39 篇中文文章的标题、slug、发布日期、标签、字数、图片数、代码块数、本地路径 | **真实**，来自 `C:\code\yeton-blog\content\posts\zh` |
 | 博客链接 `https://blog.chaosyn.com/posts/<slug>/` | **真实**格式 |
 | 博客访问量、评论数、订阅数 | **编的** |
-| 知乎账号「一叶之桐」、四个栏目、文风规矩和禁用词 | **真实**，来自知乎写作 skill |
+| 知乎账号「一叶之桐」、档案里的写什么、文风规矩和禁用词 | **真实**，来自知乎写作 skill |
+| 博客的数据项（Umami 的访问、访客，giscus 的评论） | **真实**的统计和评论系统；数值是**编的** |
 | 《ChatGPT 网页版接入自建MCP》已发到知乎 | **真实**；发布日期和数据是**编的** |
 | 其余知乎作品、回答挂的问题、知乎数据、关注者数；知乎链接 `demo-` 开头 | **编的** |
 | B站、小红书两个筹备中的号 | **编的** |
