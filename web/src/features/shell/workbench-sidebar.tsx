@@ -9,13 +9,14 @@ import { PlatformMark } from "@/components/base/marks"
 import { StatusIcon } from "@/components/base/status-icon"
 import { DropdownMenuItem, DropdownMenuShortcut } from "@/components/ui/dropdown-menu"
 import { ACCOUNTS } from "@/data/accounts"
-import { WORKS } from "@/data/works"
+import { notices } from "@/lib/board"
 import { formatCount } from "@/lib/format"
 import { summaryOf } from "@/lib/metrics"
 import { useIdeas } from "@/state/ideas"
 import { useUi } from "@/state/ui"
+import { useWorks } from "@/state/works"
 import { BrandMenu } from "./brand-menu"
-import { PAGES, VIEWS, VIEW_COUNTS, resolveNav, viewHref, type PageKey, type ViewKey } from "./nav"
+import { PAGES, VIEWS, resolveNav, viewHref, type PageKey, type ViewKey } from "./nav"
 import { NavRow, SectionTitle } from "./sidebar-parts"
 
 /** 账号行：数字是粉丝数。三个号都叫一叶之桐，靠平台标识区分 */
@@ -26,10 +27,13 @@ const ACCOUNT_ROWS = ACCOUNTS.map((account) => ({
 }))
 
 const VIEW_ICON: Record<ViewKey, ReactNode> = {
-  waiting: <StatusIcon glyph="half" tone="progress" />,
-  pending: <StatusIcon glyph="dot" tone="progress" />,
+  waiting: <StatusIcon glyph="dot" tone="progress" />,
+  todo: <StatusIcon glyph="ring" tone="idle" />,
   issues: <StatusIcon glyph="alert" tone="risk" />,
 }
+
+/** 数据异常：拉取失败、手填超过 7 天的账号（跟数据快照走，和页面上的作品无关） */
+const ISSUE_COUNT = notices([]).filter((item) => item.kind === "data" || item.kind === "manual").length
 
 function subscribeHash(onChange: () => void): () => void {
   window.addEventListener("hashchange", onChange)
@@ -60,12 +64,16 @@ export function WorkbenchSidebar({ onNavigate }: { onNavigate?: () => void }) {
   const params = useSearchParams()
   const hash = useLocationHash()
   const inboxCount = useIdeas((state) => state.ideas.filter((idea) => idea.status === "inbox").length)
+  const workCount = useWorks((state) => state.works.length)
+  const waitingCount = useWorks((state) => state.works.filter((work) => work.status === "waiting").length)
+  const todoCount = useWorks((state) => state.works.filter((work) => work.status === "todo").length)
   const setCaptureOpen = useUi((state) => state.setCaptureOpen)
   const setShortcutsOpen = useUi((state) => state.setShortcutsOpen)
 
   const active = resolveNav(pathname, params, hash)
   // 页面行旁边的数字：作品总数、灵感收件箱里还没处理的条数（清空后不显示）
-  const pageCounts: Partial<Record<PageKey, number>> = { works: WORKS.length, ideas: inboxCount > 0 ? inboxCount : undefined }
+  const pageCounts: Partial<Record<PageKey, number>> = { works: workCount, ideas: inboxCount > 0 ? inboxCount : undefined }
+  const viewCounts: Record<ViewKey, number> = { waiting: waitingCount, todo: todoCount, issues: ISSUE_COUNT }
 
   // 手机上侧栏在抽屉里：先收起抽屉，再打开弹窗
   const openCapture = () => {
@@ -135,7 +143,7 @@ export function WorkbenchSidebar({ onNavigate }: { onNavigate?: () => void }) {
               href={viewHref(view)}
               icon={VIEW_ICON[view.key]}
               label={view.label}
-              count={VIEW_COUNTS[view.key]}
+              count={viewCounts[view.key]}
               active={active?.kind === "view" && active.key === view.key}
               onNavigate={onNavigate}
             />

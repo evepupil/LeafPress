@@ -12,7 +12,7 @@ export default function NotFound() {
         title="这个页面不存在"
         action={
           <Button asChild variant="outline" size="sm">
-            <Link href="/">回到总览</Link>
+            <Link href="/">回到作品</Link>
           </Button>
         }
       />

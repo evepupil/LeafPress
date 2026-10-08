@@ -17,7 +17,7 @@ export function LeafMark({ size = 20, className }: { size?: number; className?: 
   )
 }
 
-/** 平台标识：平台色小方块 + 一个字（知、博、公、B、红） */
+/** 平台标识：平台色小方块 + 一个字（博、知、B、红） */
 export function PlatformMark({ platform, size = 16, className }: { platform: PlatformId; size?: number; className?: string }) {
   const item = PLATFORMS[platform]
   return (

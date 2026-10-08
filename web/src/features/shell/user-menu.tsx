@@ -1,10 +1,11 @@
 "use client"
 
 import { cn } from "cn"
-import { Bot, Check, Copy, ExternalLink, Keyboard } from "lucide-react"
-import { useEffect, useRef, useState } from "react"
+import { Bot, Copy, ExternalLink, Keyboard, RotateCcw } from "lucide-react"
+import { useRef, useState } from "react"
 import { toast } from "sonner"
 
+import { ConfirmDialog } from "@/components/base/confirm-dialog"
 import { IconButton } from "@/components/base/icon-button"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import {
@@ -15,69 +16,41 @@ import {
   DropdownMenuShortcut,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { Input } from "@/components/ui/input"
 import { copyText } from "@/lib/platform"
 import { focusRing } from "@/lib/styles"
+import { resetAll } from "@/state/actions"
 import { useUi } from "@/state/ui"
 
-/** 本机服务给 AI 助手连的地址 */
-const MCP_URL = "http://localhost:3210/mcp"
 const BLOG_URL = "https://blog.chaosyn.com/"
-/** 复制成功后，按钮上的对勾停留多久 */
-const COPIED_MS = 1600
+/** 所有作品的任务文件夹都在这下面，一个作品一个文件夹 */
+const TASKS_ROOT = "~/.leafpress/tasks/"
+/** 在 agent 里常说的几句 */
+const PHRASES = ["看看 LeafPress 有哪些待实现的作品，挑第一个做", "做一下 z-jev", "z-design-extraction 我发好了，继续"]
 
-/** 弹窗内容只在打开时挂载，所以每次打开都是「还没复制」 */
-function ConnectBody() {
-  const inputRef = useRef<HTMLInputElement>(null)
-  const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const [copied, setCopied] = useState(false)
+async function copy(text: string) {
+  if (await copyText(text)) toast.success("已复制")
+  else toast("浏览器不让写剪贴板，请手动选中复制")
+}
 
-  // 弹窗关掉时清掉还没走完的计时
-  useEffect(
-    () => () => {
-      if (timer.current !== null) clearTimeout(timer.current)
-    },
-    [],
-  )
-
-  const copy = async () => {
-    if (!(await copyText(MCP_URL))) {
-      // 浏览器不让写剪贴板（比如用局域网地址打开）：把地址选中，让人自己复制
-      inputRef.current?.select()
-      toast("已选中地址，按 Ctrl+C 复制")
-      return
-    }
-    setCopied(true)
-    toast.success("已复制")
-    if (timer.current !== null) clearTimeout(timer.current)
-    timer.current = setTimeout(() => setCopied(false), COPIED_MS)
-  }
-
+function CopyRow({ text, label, mono = false }: { text: string; label: string; mono?: boolean }) {
   return (
-    <div className="flex flex-col gap-3 px-4 py-4">
-      <DialogDescription>在 Claude Code 里说一句话就能记灵感、查数据、登记发布</DialogDescription>
-      <div className="flex items-center gap-1.5">
-        <Input
-          ref={inputRef}
-          readOnly
-          value={MCP_URL}
-          aria-label="MCP 地址"
-          className="min-w-0 flex-1 font-mono"
-          onFocus={(event) => event.target.select()}
-        />
-        <IconButton label="复制地址" size="icon" variant="outline" onClick={() => void copy()}>
-          {copied ? <Check className="text-done" /> : <Copy />}
-        </IconButton>
-      </div>
-    </div>
+    <li className="flex min-h-9 items-center gap-2 rounded-md border border-line bg-card pr-1 pl-2.5">
+      <span className={cn("min-w-0 flex-1 truncate text-sm", mono && "font-mono text-xs")} title={text}>
+        {text}
+      </span>
+      <IconButton label={label} size="icon-sm" onClick={() => void copy(text)}>
+        <Copy />
+      </IconButton>
+    </li>
   )
 }
 
-/** 右上角的头像菜单：连接 AI 助手、快捷键、打开博客 */
+/** 右上角的头像菜单：交给 AI、快捷键、恢复初始数据、打开博客 */
 export function UserMenu() {
   const setShortcutsOpen = useUi((state) => state.setShortcutsOpen)
   const triggerRef = useRef<HTMLButtonElement>(null)
-  const [connectOpen, setConnectOpen] = useState(false)
+  const [agentOpen, setAgentOpen] = useState(false)
+  const [resetOpen, setResetOpen] = useState(false)
 
   return (
     <>
@@ -94,9 +67,9 @@ export function UserMenu() {
           叶
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-56">
-          <DropdownMenuItem onSelect={() => setConnectOpen(true)}>
+          <DropdownMenuItem onSelect={() => setAgentOpen(true)}>
             <Bot />
-            连接 AI 助手
+            交给 AI
           </DropdownMenuItem>
           <DropdownMenuItem onSelect={() => setShortcutsOpen(true)}>
             <Keyboard />
@@ -104,6 +77,10 @@ export function UserMenu() {
             <DropdownMenuShortcut>?</DropdownMenuShortcut>
           </DropdownMenuItem>
           <DropdownMenuSeparator />
+          <DropdownMenuItem onSelect={() => setResetOpen(true)} data-reset-data>
+            <RotateCcw />
+            恢复初始数据
+          </DropdownMenuItem>
           <DropdownMenuItem asChild>
             <a href={BLOG_URL} target="_blank" rel="noreferrer">
               <ExternalLink />
@@ -113,14 +90,9 @@ export function UserMenu() {
         </DropdownMenuContent>
       </DropdownMenu>
 
-      <Dialog open={connectOpen} onOpenChange={setConnectOpen}>
+      <Dialog open={agentOpen} onOpenChange={setAgentOpen}>
         <DialogContent
-          className="gap-0 p-0 sm:max-w-[440px]"
-          onOpenAutoFocus={(event) => {
-            // 免得一打开地址就被整段选中：焦点先放在弹窗本身，按 Tab 再进输入框
-            event.preventDefault()
-            if (event.currentTarget instanceof HTMLElement) event.currentTarget.focus()
-          }}
+          className="gap-0 p-0 sm:max-w-[480px]"
           // 弹窗是从头像菜单里点开的，关掉后焦点回到头像
           onCloseAutoFocus={(event) => {
             event.preventDefault()
@@ -128,11 +100,35 @@ export function UserMenu() {
           }}
         >
           <DialogHeader className="border-b border-line px-4 py-3">
-            <DialogTitle>连接 AI 助手</DialogTitle>
+            <DialogTitle>交给 AI</DialogTitle>
           </DialogHeader>
-          <ConnectBody />
+          <div className="flex flex-col gap-3 px-4 py-4">
+            <DialogDescription>每个作品的要求、进度、要你做的事和你的反馈都在任务文件夹里，能读文件的 agent 都能接着做。</DialogDescription>
+            <ul className="flex flex-col gap-1.5">
+              <CopyRow text={TASKS_ROOT} label="复制任务文件夹" mono />
+            </ul>
+            <p className="text-sm font-medium">在 agent 里这样说</p>
+            <ul className="flex flex-col gap-1.5">
+              {PHRASES.map((phrase) => (
+                <CopyRow key={phrase} text={phrase} label={`复制「${phrase}」`} />
+              ))}
+            </ul>
+          </div>
         </DialogContent>
       </Dialog>
+
+      <ConfirmDialog
+        open={resetOpen}
+        onOpenChange={setResetOpen}
+        title="恢复初始数据？"
+        description="页面上改过的作品和灵感都会丢掉。"
+        confirmLabel="恢复"
+        destructive
+        onConfirm={() => {
+          resetAll()
+          toast.success("已恢复")
+        }}
+      />
     </>
   )
 }
