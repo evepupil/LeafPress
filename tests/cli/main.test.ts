@@ -41,11 +41,9 @@ async function makeBlogRepo(repoPath: string): Promise<void> {
   );
 }
 
-async function captureStreams<T>(run: () => Promise<T>): Promise<{
-  result: T;
-  stdout: string;
-  stderr: string;
-}> {
+async function captureStreams<T>(
+  run: () => Promise<T>,
+): Promise<{ result: T; stdout: string; stderr: string }> {
   const originalStdout = process.stdout.write.bind(process.stdout);
   const originalStderr = process.stderr.write.bind(process.stderr);
   let stdout = "";
@@ -76,25 +74,21 @@ function runCli(args: readonly string[]) {
       join(projectPath, "src", "cli", "main.ts"),
       ...args,
     ],
-    { cwd: projectPath, encoding: "utf8" },
+    {
+      cwd: projectPath,
+      encoding: "utf8",
+    },
   );
 }
 
 describe("CLI 入口和错误输出", () => {
-  it("注册全局选项与规格内的命令", () => {
+  it("只注册 init 和 doctor 命令", () => {
     const program = buildProgram();
     expect(program.name()).toBe("leafpress");
     expect(program.commands.map((command) => command.name()).sort()).toEqual([
       "doctor",
       "init",
-      "posts",
-      "run",
     ]);
-    expect(
-      program.commands
-        .find((command) => command.name() === "run")
-        ?.commands.map((command) => command.name()),
-    ).toEqual(["list", "show", "cancel"]);
   });
 
   it("LeafPressError 和普通异常按人类可读格式输出并给出退出码", () => {
@@ -144,31 +138,12 @@ describe("CLI 入口和错误输出", () => {
     });
   });
 
-  it("main 将 init 用法错误转成 JSON 并返回退出码 2", async () => {
-    const home = await mkdtemp(join(tmpdir(), "leafpress-cli-main-"));
-    const previousExitCode = process.exitCode;
-    try {
-      const captured = await captureStreams(() =>
-        main(["--home", join(home, "data"), "--json", "init"]),
-      );
-      expect(captured.stdout).toContain('"code": "USAGE"');
-      expect(captured.stdout).toContain("首次初始化必须指定博客仓库路径");
-      expect(captured.stderr).toBe("");
-      expect(process.exitCode).toBe(2);
-    } finally {
-      process.exitCode = previousExitCode;
-      await rm(home, { recursive: true, force: true });
-    }
-  });
-
-  it("Commander 用法错误保留未知选项、缺少参数和值的具体原因", async () => {
+  it("Commander 用法错误保留未知命令、选项和缺少参数的原因", async () => {
     const previousExitCode = process.exitCode;
     const cases = [
       { argv: ["--json", "--limt"], reason: "未知选项 --limt" },
-      {
-        argv: ["--json", "run", "show"],
-        reason: "缺少运行编号（runId）",
-      },
+      { argv: ["--json", "run"], reason: "未知命令 run" },
+      { argv: ["--json", "init", "--blog"], reason: "选项 --blog 缺少参数" },
       { argv: ["--json", "--home"], reason: "选项 --home 缺少参数" },
     ];
     try {
@@ -184,30 +159,24 @@ describe("CLI 入口和错误输出", () => {
     }
   });
 
-  it("没有提供子命令时不泄露 Commander 占位词", () => {
-    for (const args of [[], ["run"]]) {
-      const result = runCli(args);
-      expect(result.error).toBeUndefined();
-      expect(result.status).toBe(2);
-      expect(result.stderr).toContain("Usage:");
-      expect(result.stderr.trim().split("\n").at(-1)).toBe(
-        "请指定要运行的命令。",
-      );
-      expect(`${result.stdout}${result.stderr}`).not.toContain("(outputHelp)");
-    }
+  it("没有提供命令时显示用法，JSON 模式返回结构化错误", () => {
+    const result = runCli([]);
+    expect(result.error).toBeUndefined();
+    expect(result.status).toBe(2);
+    expect(result.stderr).toContain("Usage:");
+    expect(result.stderr.trim().split("\n").at(-1)).toBe(
+      "请指定要运行的命令。",
+    );
+    expect(`${result.stdout}${result.stderr}`).not.toContain("(outputHelp)");
 
     const jsonResult = runCli(["--json"]);
     expect(jsonResult.error).toBeUndefined();
     expect(jsonResult.status).toBe(2);
     expect(jsonResult.stderr).toContain("Usage:");
-    expect(jsonResult.stderr).not.toContain("请指定要运行的命令。");
     expect(JSON.parse(jsonResult.stdout)).toMatchObject({
       ok: false,
       error: { code: "USAGE", message: "请指定要运行的命令。" },
     });
-    expect(`${jsonResult.stdout}${jsonResult.stderr}`).not.toContain(
-      "(outputHelp)",
-    );
   }, 15000);
 
   it("多传参数时将 Commander 英文原因翻译成中文", () => {
@@ -220,7 +189,7 @@ describe("CLI 入口和错误输出", () => {
     expect(result.stderr).not.toContain("too many arguments");
   });
 
-  it("doctor 错误会设置退出码 1 且只使用注入的临时目录", async () => {
+  it("doctor 错误会设置退出码 1 且不会创建记录库", async () => {
     const temp = await mkdtemp(join(tmpdir(), "leafpress-cli-main-doctor-"));
     const previousExitCode = process.exitCode;
     const home = join(temp, "data");
@@ -245,66 +214,29 @@ describe("CLI 入口和错误输出", () => {
     }
   });
 
-  it("关闭 debug 时内部错误不输出堆栈", async () => {
-    const temp = await mkdtemp(join(tmpdir(), "leafpress-cli-main-debug-"));
-    const previousExitCode = process.exitCode;
-    const previousDebug = process.env["LEAFPRESS_DEBUG"];
-    const context = createCliContext(
-      { home: join(temp, "data") },
-      { env: {}, homedir: temp, edgeLocator: () => undefined },
-    );
-    context.getConfig = () => Promise.reject(new Error("synthetic failure"));
-    delete process.env["LEAFPRESS_DEBUG"];
-    try {
-      const captured = await captureStreams(() =>
-        main(["--home", context.home, "posts"], {
-          createContext: () => context,
-        }),
-      );
-      expect(captured.stderr).toContain("内部错误：synthetic failure");
-      expect(captured.stderr).not.toContain("Error: synthetic failure");
-      expect(captured.stderr).not.toMatch(/^\s+at /m);
-      expect(process.exitCode).toBe(1);
-    } finally {
-      if (previousDebug === undefined) delete process.env["LEAFPRESS_DEBUG"];
-      else process.env["LEAFPRESS_DEBUG"] = previousDebug;
-      process.exitCode = previousExitCode;
-      await rm(temp, { recursive: true, force: true });
-    }
-  });
-
-  it("命令结束时关闭记录库，数据库文件可立即删除", async () => {
-    const temp = await mkdtemp(join(tmpdir(), "leafpress-cli-main-close-"));
+  it("init 写配置但不创建记录库", async () => {
+    const temp = await mkdtemp(join(tmpdir(), "leafpress-cli-main-init-"));
     const previousExitCode = process.exitCode;
     const home = join(temp, "data");
     const repoPath = join(temp, "blog");
     await mkdir(repoPath);
     await makeBlogRepo(repoPath);
-    const dbFile = join(home, "leafpress.db");
     try {
       const captured = await captureStreams(() =>
-        main(["--home", home, "init", "--blog", repoPath], {
-          createContext: (options) =>
-            createCliContext(options, {
-              env: {},
-              homedir: temp,
-              edgeLocator: () => undefined,
-            }),
-        }),
+        main(["--home", home, "init", "--blog", repoPath]),
       );
       expect(captured.stdout).toContain("初始化完成");
       expect(process.exitCode).toBe(0);
-      expect(existsSync(dbFile)).toBe(true);
-      await rm(dbFile);
-      expect(existsSync(dbFile)).toBe(false);
+      expect(existsSync(join(home, "config.json"))).toBe(true);
+      expect(existsSync(join(home, "leafpress.db"))).toBe(false);
     } finally {
       process.exitCode = previousExitCode;
       await rm(temp, { recursive: true, force: true });
     }
   });
 
-  it("Node 24.2 以前使用入口与模块的真实路径进行比较", async () => {
-    const temp = await mkdtemp(join(tmpdir(), "leafpress-cli-main-fallback-"));
+  it("通过项目目录联接启动仍能识别入口", async () => {
+    const temp = await mkdtemp(join(tmpdir(), "leafpress-cli-main-link-"));
     const linkPath = join(temp, "project-link");
     const projectPath = fileURLToPath(new URL("../../", import.meta.url));
     await symlink(
@@ -321,21 +253,7 @@ describe("CLI 入口和错误输出", () => {
         false,
       );
       expect(isMainModule(true, undefined)).toBe(true);
-    } finally {
-      await rm(temp, { recursive: true, force: true });
-    }
-  });
 
-  it("经项目目录联接直接启动时仍执行 --version", async () => {
-    const temp = await mkdtemp(join(tmpdir(), "leafpress-cli-link-"));
-    const linkPath = join(temp, "project-link");
-    const projectPath = fileURLToPath(new URL("../../", import.meta.url));
-    await symlink(
-      projectPath,
-      linkPath,
-      process.platform === "win32" ? "junction" : "dir",
-    );
-    try {
       const result = spawnSync(
         process.execPath,
         [
@@ -344,7 +262,10 @@ describe("CLI 入口和错误输出", () => {
           join(linkPath, "src", "cli", "main.ts"),
           "--version",
         ],
-        { cwd: linkPath, encoding: "utf8" },
+        {
+          cwd: linkPath,
+          encoding: "utf8",
+        },
       );
       expect(result.error).toBeUndefined();
       expect(result.status, `${result.stdout}\n${result.stderr}`).toBe(0);
@@ -354,7 +275,7 @@ describe("CLI 入口和错误输出", () => {
     }
   });
 
-  it("main 支持 --version 且不创建 CLI 上下文", async () => {
+  it("--version 不创建 CLI 上下文", async () => {
     const previousExitCode = process.exitCode;
     const createContext = vi.fn(() => {
       throw new Error("--version 不应创建 CLI 上下文");

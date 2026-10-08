@@ -3,4 +3,5 @@ coverage/
 .codegraph/
 pnpm-lock.yaml
 docs/
+packages/
 web/

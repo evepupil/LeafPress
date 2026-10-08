@@ -9,24 +9,9 @@
 import type { ExecFn } from "../../shared/exec.js";
 import { runGit } from "./git-run.js";
 import { isDirty, readCurrentBranch } from "./repo-status.js";
-import { redactUrlCredentials } from "./url-redact.js";
+import type { SyncResult } from "./types.js";
 
-/** 同步结果（types.ts 的 SyncResult 加上中间信息） */
-export interface SyncOutcome {
-  action:
-    | "fast-forwarded"
-    | "up-to-date"
-    | "skipped-dirty"
-    | "skipped-ahead"
-    | "skipped-diverged"
-    | "failed";
-  branch: string;
-  behindBefore: number;
-  aheadBefore: number;
-  message: string;
-}
-
-/** 非错误的杂音行：bash 的 /tmp 警告之类，不配代表失败原因 */
+import { redactUrlCredentials } from "./url-redact.js"; /** 非错误的杂音行：bash 的 /tmp 警告之类，不配代表失败原因 */
 const NOISE_LINE_RE = /^bash(\.exe)?:\s*warning:/i;
 
 /**
@@ -58,7 +43,7 @@ export async function syncRepo(
   repoPath: string,
   remote: string,
   branch: string,
-): Promise<SyncOutcome> {
+): Promise<SyncResult> {
   /** 远程跟踪分支的全限定名：短名 origin/main 可能被本地同名分支抢走 */
   const remoteRef = `refs/remotes/${remote}/${branch}`;
   // 1. 当前分支必须是配置的分支，否则不动

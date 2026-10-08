@@ -16,7 +16,7 @@ import type {
   SourceIssue,
   SourceListing,
   SourceSummary,
-} from "../types.js";
+} from "./types.js";
 import { LeafPressError } from "../../shared/errors.js";
 import { loadSource, locateSourceFile } from "./source-load.js";
 import {

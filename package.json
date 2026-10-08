@@ -14,15 +14,16 @@
   },
   "scripts": {
     "dev": "tsx src/cli/main.ts",
-    "build": "tsc -p tsconfig.build.json",
+    "build": "pnpm --filter @leafpress/core build && tsc -p tsconfig.build.json && node scripts/check-core-resolution.mjs",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "lint": "eslint . --max-warnings=0",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "test": "vitest run",
-    "gate": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm build"
+    "gate": "pnpm --filter @leafpress/core gate && pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm build && pnpm --filter leafpress-web gate"
   },
   "dependencies": {
+    "@leafpress/core": "workspace:*",
     "commander": "15.0.0",
     "gray-matter": "4.0.3",
     "js-yaml": "4.1.1",

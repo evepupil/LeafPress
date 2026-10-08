@@ -12,7 +12,7 @@ import { join, resolve } from "node:path";
 import yaml from "js-yaml";
 import matter from "gray-matter";
 
-import type { ParsedSource, SourceSummary } from "../types.js";
+import type { ParsedSource, SourceSummary } from "./types.js";
 import { analyzeBody } from "./body.js";
 import { parseFrontmatter } from "./frontmatter.js";
 import { isSourceExtension, slugOf } from "./source-scan.js";

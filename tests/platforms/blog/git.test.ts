@@ -29,7 +29,7 @@ import {
   readRepoStatus,
   type RepoStatus,
 } from "../../../src/platforms/blog/repo-status.js";
-import type { SyncResult } from "../../../src/platforms/types.js";
+import type { SyncResult } from "../../../src/platforms/blog/types.js";
 
 /**
  * 一条用例要连着起十几个真实 git 进程。Windows 上单个进程就要几百毫秒，

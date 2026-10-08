@@ -4,7 +4,16 @@ import globals from "globals";
 import tseslint from "typescript-eslint";
 
 export default defineConfig([
-  { ignores: ["dist/", "coverage/", "node_modules/", ".codegraph/", "web/"] },
+  {
+    ignores: [
+      "dist/",
+      "coverage/",
+      "node_modules/",
+      ".codegraph/",
+      "packages/",
+      "web/",
+    ],
+  },
   js.configs.recommended,
   tseslint.configs.recommendedTypeChecked,
   {
@@ -22,7 +31,7 @@ export default defineConfig([
     },
   },
   {
-    files: ["**/*.js"],
+    files: ["**/*.js", "**/*.mjs"],
     extends: [tseslint.configs.disableTypeChecked],
   },
 ]);

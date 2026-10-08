@@ -8,6 +8,7 @@
     "strict": true,
     "noUncheckedIndexedAccess": true,
     "noImplicitOverride": true,
+    "allowImportingTsExtensions": true,
     "noFallthroughCasesInSwitch": true,
     "verbatimModuleSyntax": true,
     "isolatedModules": true,
@@ -18,7 +19,10 @@
     "sourceMap": true,
     "rootDir": ".",
     "outDir": "dist",
-    "noEmit": true
+    "noEmit": true,
+    "paths": {
+      "@leafpress/core": ["./packages/core/src/index.ts"]
+    }
   },
   "include": ["src", "tests", "*.ts"]
 }

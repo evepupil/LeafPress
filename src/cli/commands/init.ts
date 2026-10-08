@@ -1,4 +1,4 @@
-/** init 命令：首次写配置并初始化记录库。 */
+/** init 命令：首次写配置。 */
 import { existsSync, mkdirSync, statSync } from "node:fs";
 import { resolve, join } from "node:path";
 import type { Command } from "commander";
@@ -17,7 +17,6 @@ export interface InitResult {
   readonly created: boolean;
   readonly home: string;
   readonly configFile: string;
-  readonly dbFile: string;
   readonly nextStep: string;
 }
 
@@ -132,26 +131,22 @@ export async function executeInit(
     created = written.created;
   }
 
-  // 初始化和重复执行都确保数据库建好；doctor 则不会经过这个写入路径。
-  context.getStore();
   return {
     created,
     home: context.paths.home,
     configFile: context.paths.configFile,
-    dbFile: context.paths.dbFile,
     nextStep: "运行 leafpress doctor 检查环境",
   };
 }
 
 export function renderInit(result: InitResult): string {
   if (!result.created) {
-    return `配置已存在，没有改动\n配置文件：${result.configFile}\n记录库：${result.dbFile}`;
+    return `配置已存在，没有改动\n配置文件：${result.configFile}`;
   }
   return [
     "初始化完成",
     `数据目录：${result.home}`,
     `配置文件：${result.configFile}`,
-    `记录库：${result.dbFile}`,
     result.nextStep,
   ].join("\n");
 }

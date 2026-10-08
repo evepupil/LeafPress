@@ -4,6 +4,7 @@ const nextConfig: NextConfig = {
   output: "export",
   trailingSlash: true,
   images: { unoptimized: true },
+  transpilePackages: ["@leafpress/core"],
 }
 
 export default nextConfig

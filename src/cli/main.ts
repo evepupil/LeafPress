@@ -9,8 +9,6 @@ import { createCliContext } from "./context.js";
 import type { CliContext, CliGlobalOptions } from "./context.js";
 import { register as registerInit } from "./commands/init.js";
 import { register as registerDoctor } from "./commands/doctor.js";
-import { register as registerPosts } from "./commands/posts.js";
-import { register as registerRun } from "./commands/run.js";
 import { isLeafPressError, LeafPressError } from "../shared/errors.js";
 import type { ErrorCode } from "../shared/errors.js";
 import { renderError } from "./output.js";
@@ -101,8 +99,6 @@ export function buildProgram(options: BuildProgramOptions = {}): Command {
 
   registerInit(program, getContext);
   registerDoctor(program, getContext);
-  registerPosts(program, getContext);
-  registerRun(program, getContext);
   return program;
 }
 
@@ -116,9 +112,6 @@ function commanderUsageMessage(error: CommanderError): string {
     const argument = /missing required argument ['"]([^'"]+)['"]/i.exec(
       detail,
     )?.[1];
-    if (argument === "runId") {
-      return "命令行参数不正确：缺少运行编号（runId）。";
-    }
     if (argument !== undefined) {
       return `命令行参数不正确：缺少必需参数 ${argument}。`;
     }
@@ -196,8 +189,6 @@ export async function main(
     stream.write(`${output.text}\n`);
     if (output.stack !== undefined) process.stderr.write(`${output.stack}\n`);
     process.exitCode = isUsage ? 2 : output.exitCode;
-  } finally {
-    context?.close();
   }
 }
 

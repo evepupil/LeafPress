@@ -1,20 +1,9 @@
-/** CLI 运行上下文：统一解析路径，并按需缓存下层模块实例。 */
+/** CLI 运行上下文：统一解析路径与配置。 */
 import { homedir as osHomedir } from "node:os";
 
 import { loadConfig } from "../config/load.js";
 import { homePaths, resolveHome } from "../config/home.js";
 import type { LeafPressConfig } from "../config/schema.js";
-import { openStore } from "../store/open.js";
-import type { Store } from "../store/types.js";
-import {
-  createDefaultRegistry,
-  type PlatformRegistry,
-} from "../platforms/registry.js";
-import {
-  createWorkflowEngine,
-  type WorkflowEngine,
-} from "../workflows/engine.js";
-import { WORKFLOWS } from "../workflows/catalog.js";
 import { locateEdge, type LocateEdgeOptions } from "../assets/browser.js";
 
 export interface CliGlobalOptions {
@@ -36,16 +25,11 @@ export interface CliContext {
   readonly home: string;
   readonly paths: ReturnType<typeof homePaths>;
   getConfig(): Promise<LeafPressConfig>;
-  getStore(): Store;
-  getRegistry(): Promise<PlatformRegistry>;
-  getEngine(): WorkflowEngine;
   findEdge(configuredPath?: string): string | undefined;
   readonly exitCode: number;
   setExitCode(code: number): void;
-  close(): void;
 }
 
-/** 只创建命令本次实际需要的下层对象，避免 doctor 误开写数据库。 */
 export function createCliContext(
   globalOptions: CliGlobalOptions,
   dependencies: CliContextDependencies = {},
@@ -63,9 +47,6 @@ export function createCliContext(
   const edgeLocator = dependencies.edgeLocator ?? locateEdge;
 
   let configPromise: Promise<LeafPressConfig> | undefined;
-  let store: Store | undefined;
-  let registryPromise: Promise<PlatformRegistry> | undefined;
-  let engine: WorkflowEngine | undefined;
   let exitCode = 0;
 
   return {
@@ -77,31 +58,6 @@ export function createCliContext(
     getConfig(): Promise<LeafPressConfig> {
       configPromise ??= loadConfig(home);
       return configPromise;
-    },
-    getStore(): Store {
-      store ??= openStore(paths.dbFile);
-      return store;
-    },
-    getRegistry(): Promise<PlatformRegistry> {
-      registryPromise ??= this.getConfig().then((config) =>
-        createDefaultRegistry({
-          blog: {
-            repoPath: config.blog.repoPath,
-            contentDir: config.blog.contentDir,
-            remote: config.blog.remote,
-            branch: config.blog.branch,
-          },
-        }),
-      );
-      return registryPromise;
-    },
-    getEngine(): WorkflowEngine {
-      engine ??= createWorkflowEngine({
-        store: this.getStore().runs,
-        workflows: WORKFLOWS,
-        runsDir: paths.runsDir,
-      });
-      return engine;
     },
     findEdge(configuredPath?: string): string | undefined {
       return edgeLocator({
@@ -115,9 +71,6 @@ export function createCliContext(
     },
     setExitCode(code: number): void {
       exitCode = code;
-    },
-    close(): void {
-      store?.close();
     },
   };
 }

@@ -2,15 +2,21 @@ import { closeSync, openSync, readSync, statSync } from "node:fs";
 import { DatabaseSync } from "node:sqlite";
 
 import { LeafPressError } from "../shared/errors.js";
-import type { StoreInspection } from "./types.js";
-import { expectedStoreVersion, MIGRATIONS } from "./migrations.js";
+
+export interface StoreInspection {
+  readonly exists: boolean;
+  readonly version?: number;
+  readonly expectedVersion: number;
+}
 
 const SQLITE_HEADER = Buffer.from("SQLite format 3\0", "ascii");
 const SQLITE_HEADER_BYTES = 100;
 const USER_VERSION_OFFSET = 60;
 
-export function inspectStore(dbFile: string): StoreInspection {
-  const expectedVersion = expectedStoreVersion(MIGRATIONS);
+export function inspectStore(
+  dbFile: string,
+  expectedVersion: number,
+): StoreInspection {
   try {
     const fileSize = getFileSize(dbFile);
     if (fileSize === undefined) return { exists: false, expectedVersion };

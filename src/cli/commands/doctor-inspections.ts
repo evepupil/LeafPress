@@ -1,8 +1,4 @@
 /** doctor 的只读检查器：将下层模块结果整理成统一检查项。 */
-import { join } from "node:path";
-
-import { inspectStore } from "../../store/inspect.js";
-import type { StoreInspection } from "../../store/types.js";
 import { readRepoStatus } from "../../platforms/blog/repo-status.js";
 import type { ExecFn } from "../../shared/exec.js";
 import { execCommand } from "../../shared/exec.js";
@@ -26,7 +22,6 @@ export interface DoctorResult {
 
 export interface DoctorDependencies {
   readonly nodeVersion?: string;
-  readonly inspect?: (dbFile: string) => StoreInspection;
   readonly repoStatus?: typeof readRepoStatus;
   readonly exec?: ExecFn;
 }
@@ -45,21 +40,12 @@ export function describeDoctorError(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
-export function errorCodeOrName(error: unknown): string {
-  if (typeof error === "object" && error !== null && "code" in error) {
-    const code = (error as { code?: unknown }).code;
-    if (typeof code === "string") return code;
-  }
-  return error instanceof Error ? error.name : "未知错误";
-}
-
 export async function safeCheck(
   id: string,
   label: string,
   run: () => DoctorCheck | Promise<DoctorCheck>,
   failureLevel: DoctorLevel = "warn",
   hint?: string,
-  describeError: (error: unknown) => string = describeDoctorError,
 ): Promise<DoctorCheck> {
   try {
     return await run();
@@ -68,7 +54,7 @@ export async function safeCheck(
       id,
       label,
       failureLevel,
-      `检查失败：${describeError(error)}`,
+      `检查失败：${describeDoctorError(error)}`,
       hint,
     );
   }
@@ -79,61 +65,6 @@ export function configFailure(error: unknown): DoctorCheck {
     return doctorCheck("config", "配置", "error", error.message, error.hint);
   }
   return doctorCheck("config", "配置", "error", describeDoctorError(error));
-}
-
-export function inspectDatabase(
-  dbFile: string,
-  inspect: (path: string) => StoreInspection = inspectStore,
-): DoctorCheck {
-  try {
-    const result = inspect(dbFile);
-    if (!result.exists) {
-      return doctorCheck(
-        "store",
-        "记录库",
-        "warn",
-        "记录库尚未创建。",
-        "运行 leafpress init 创建记录库。",
-      );
-    }
-    const version = result.version;
-    if (version === undefined) {
-      return doctorCheck(
-        "store",
-        "记录库",
-        "error",
-        "无法读取记录库版本。",
-        "检查记录库文件是否有效。",
-      );
-    }
-    if (version < result.expectedVersion) {
-      return doctorCheck(
-        "store",
-        "记录库",
-        "warn",
-        `表结构版本为 ${version}，当前代码支持版本 ${result.expectedVersion}。`,
-        "下次运行其他命令时会自动备份并升级记录库。",
-      );
-    }
-    if (version > result.expectedVersion) {
-      return doctorCheck(
-        "store",
-        "记录库",
-        "error",
-        `表结构版本为 ${version}，高于当前代码支持的版本 ${result.expectedVersion}。`,
-        "请升级 LeafPress 后再访问记录库。",
-      );
-    }
-    return doctorCheck("store", "记录库", "ok", `表结构版本 ${version}。`);
-  } catch (error) {
-    return doctorCheck(
-      "store",
-      "记录库",
-      "error",
-      `读取记录库失败：${describeDoctorError(error)}`,
-      "请确认记录库文件是有效的 SQLite 数据库。",
-    );
-  }
 }
 
 export async function inspectBlog(
@@ -176,7 +107,6 @@ export async function inspectBlog(
       "博客仓库",
       "ok",
       `分支 ${branch}；${tracking}；本地多 ${status.ahead} 个提交、少 ${status.behind} 个。`,
-      "需要拉取最新内容时运行 leafpress posts --sync。",
     );
   } catch (error) {
     return doctorCheck(
@@ -187,53 +117,4 @@ export async function inspectBlog(
       "检查 git 是否可用，以及配置里的 blog.repoPath。",
     );
   }
-}
-
-export async function inspectPosts(context: CliContext): Promise<DoctorCheck> {
-  try {
-    const registry = await context.getRegistry();
-    const sources = registry.get("blog").sources;
-    if (sources === undefined) {
-      throw new LeafPressError("INTERNAL", "博客平台没有原稿来源。");
-    }
-    const listing = await sources.list();
-    const byLocale = new Map<string, number>();
-    for (const source of listing.sources) {
-      const localeDir = source.ref.split("/")[0] ?? "（未知目录）";
-      byLocale.set(localeDir, (byLocale.get(localeDir) ?? 0) + 1);
-    }
-    const counts = [...byLocale]
-      .sort(([a], [b]) => a.localeCompare(b))
-      .map(([locale, count]) => `${locale} ${count} 篇`);
-    const issueCount = listing.issues.length;
-    const detail = [
-      counts.length === 0 ? "没有找到原稿" : `各语言目录：${counts.join("，")}`,
-      ...(issueCount === 0 ? [] : [`有 ${issueCount} 篇原稿存在元数据问题`]),
-    ].join("；");
-    const hint =
-      issueCount === 0
-        ? undefined
-        : listing.issues
-            .map((issue) => `${issue.path}：${issue.message}`)
-            .join("\n");
-    return doctorCheck(
-      "blog-posts",
-      "博客原稿",
-      issueCount === 0 ? "ok" : "warn",
-      detail,
-      hint,
-    );
-  } catch (error) {
-    return doctorCheck(
-      "blog-posts",
-      "博客原稿",
-      "error",
-      `无法列出博客原稿：${describeDoctorError(error)}`,
-      "检查 blog.repoPath 和 blog.contentDir，以及原稿目录权限。",
-    );
-  }
-}
-
-export function skillPath(homedir: string, skill: string): string {
-  return join(homedir, ".claude", "skills", skill, "SKILL.md");
 }
