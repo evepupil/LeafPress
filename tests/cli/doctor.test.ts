@@ -3,9 +3,15 @@ import { DatabaseSync } from "node:sqlite";
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { createCliContext } from "../../src/cli/context.js";
-import { executeDoctor, renderDoctor } from "../../src/cli/commands/doctor.js";
+import {
+  executeDoctor,
+  renderDoctor,
+  type DoctorScheduleApi,
+} from "../../src/cli/commands/doctor.js";
+import { taskNameFor, type TaskStatus } from "../../src/schedule/index.js";
+import type { ExecFn } from "../../src/shared/exec.js";
 
 let tempDir: string | undefined;
 afterEach(async () => {
@@ -15,8 +21,12 @@ afterEach(async () => {
   }
 });
 
-function context(home: string, userHome: string) {
-  return createCliContext({ home }, { env: {}, homedir: userHome });
+function context(
+  home: string,
+  userHome: string,
+  platform: NodeJS.Platform = "linux",
+) {
+  return createCliContext({ home }, { env: {}, homedir: userHome, platform });
 }
 
 function storeVersion(file: string, version: number): void {
@@ -26,12 +36,14 @@ function storeVersion(file: string, version: number): void {
 }
 
 describe("doctor", () => {
-  it("逐项返回七个检查并覆盖正常状态", async () => {
+  it("逐项返回八个检查并覆盖正常状态", async () => {
     tempDir = await mkdtemp(join(tmpdir(), "leafpress-cli-doctor-ok-"));
     const home = join(tempDir, "data");
     const userHome = join(tempDir, "user");
     await mkdir(home, { recursive: true });
     await mkdir(join(tempDir, "repo", "web", "out"), { recursive: true });
+    const entryPath = join(tempDir, "repo", "dist", "cli", "main.js");
+    await mkdir(join(tempDir, "repo", "dist", "cli"), { recursive: true });
     await mkdir(join(userHome, ".claude", "skills", "leafpress"), {
       recursive: true,
     });
@@ -40,16 +52,41 @@ describe("doctor", () => {
       "ok",
       "utf8",
     );
+    await writeFile(entryPath, "ok", "utf8");
     await writeFile(
       join(userHome, ".claude", "skills", "leafpress", "SKILL.md"),
       "ok",
       "utf8",
     );
     storeVersion(join(home, "leafpress.db"), 2);
-    const result = await executeDoctor(context(home, userHome), {
+    const taskNameForMock = vi.fn(taskNameFor);
+    const scheduleStatus = vi.fn<DoctorScheduleApi["scheduleStatus"]>(() =>
+      Promise.resolve({
+        installed: true,
+        enabled: true,
+        home,
+        nodePath: process.execPath,
+        entryPath,
+        nextRunAt: "2026-10-10T06:00:00+08:00",
+      }),
+    );
+    const exec = vi.fn<ExecFn>(() =>
+      Promise.resolve({ stdout: "", stderr: "", exitCode: 0, timedOut: false }),
+    );
+    const result = await executeDoctor(context(home, userHome, "win32"), {
       nodeVersion: "24.2.0",
       repoRoot: join(tempDir, "repo"),
       edgeLocator: () => "C:/Edge/msedge.exe",
+      exec,
+      scheduleModule: () =>
+        Promise.resolve({
+          taskNameFor: taskNameForMock,
+          readScheduleState: () => ({
+            version: 1,
+            dataPull: { installed: true, at: "06:00" },
+          }),
+          scheduleStatus,
+        }),
     });
     expect(result.checks.map((item) => item.id)).toEqual([
       "node",
@@ -59,6 +96,7 @@ describe("doctor", () => {
       "web",
       "skill",
       "browser",
+      "schedule",
     ]);
     expect(result.checks.map((item) => item.level)).toEqual([
       "ok",
@@ -68,8 +106,15 @@ describe("doctor", () => {
       "ok",
       "ok",
       "ok",
+      "ok",
     ]);
     expect(result.ok).toBe(true);
+    expect(scheduleStatus.mock.calls[0]?.[0].taskName).toBe(taskNameFor(home));
+    expect(taskNameForMock.mock.calls[0]?.[0]).toBe(home);
+    expect(result.checks.find((item) => item.id === "schedule")).toMatchObject({
+      level: "ok",
+      detail: "下次运行：2026-10-10T06:00:00+08:00。",
+    });
     const renderedLines = renderDoctor(result).split("\n");
     expect(renderedLines[0]).toContain("检查项");
     expect(renderedLines.at(-1)).toBe("全部正常");
@@ -216,6 +261,104 @@ describe("doctor", () => {
       hint: "检查这个目录的权限。",
     });
     expect(result.ok).toBe(false);
+  });
+
+  it("状态文件仍显示已安装但系统任务不存在时给出重装建议", async () => {
+    tempDir = await mkdtemp(join(tmpdir(), "leafpress-cli-doctor-schedule-"));
+    const home = join(tempDir, "data");
+    await mkdir(home, { recursive: true });
+    const result = await executeDoctor(
+      context(home, join(tempDir, "user"), "win32"),
+      {
+        nodeVersion: "24.2.0",
+        repoRoot: tempDir,
+        edgeLocator: () => undefined,
+        exec: () =>
+          Promise.resolve({
+            stdout: "",
+            stderr: "",
+            exitCode: 0,
+            timedOut: false,
+          }),
+        scheduleModule: () =>
+          Promise.resolve({
+            taskNameFor,
+            readScheduleState: () => ({
+              version: 1,
+              dataPull: { installed: true, at: "06:00" },
+            }),
+            scheduleStatus: () => Promise.resolve({ installed: false }),
+          }),
+      },
+    );
+    expect(result.checks.find((item) => item.id === "schedule")).toMatchObject({
+      level: "warn",
+      detail: "计划任务被删了。",
+      hint: "运行 leafpress schedule install 重新装。",
+    });
+  });
+
+  it("禁用任务和缺失任务路径都给出计划任务告警", async () => {
+    tempDir = await mkdtemp(
+      join(tmpdir(), "leafpress-cli-doctor-schedule-invalid-"),
+    );
+    const home = join(tempDir, "data");
+    await mkdir(home, { recursive: true });
+    const baseStatus: TaskStatus = {
+      installed: true,
+      enabled: true,
+      home,
+      nodePath: process.execPath,
+      entryPath: process.execPath,
+    };
+    const runDoctor = async (status: TaskStatus) =>
+      executeDoctor(context(home, join(tempDir as string, "user"), "win32"), {
+        nodeVersion: "24.2.0",
+        repoRoot: tempDir,
+        edgeLocator: () => undefined,
+        exec: () =>
+          Promise.resolve({
+            stdout: "",
+            stderr: "",
+            exitCode: 0,
+            timedOut: false,
+          }),
+        scheduleModule: () =>
+          Promise.resolve({
+            taskNameFor,
+            readScheduleState: () => ({
+              version: 1,
+              dataPull: { installed: true, at: "06:00" },
+            }),
+            scheduleStatus: () => Promise.resolve(status),
+          }),
+      });
+
+    const disabled = await runDoctor({ ...baseStatus, enabled: false });
+    expect(
+      disabled.checks.find((item) => item.id === "schedule"),
+    ).toMatchObject({
+      level: "warn",
+      detail: "计划任务已禁用。",
+    });
+
+    const missingCases = [
+      ["home", "数据目录"],
+      ["nodePath", "Node"],
+      ["entryPath", "命令行入口"],
+    ] as const;
+    for (const [field, label] of missingCases) {
+      const missingPath = join(tempDir, `missing-${field}`);
+      const status: TaskStatus = { ...baseStatus };
+      status[field] = missingPath;
+      const result = await runDoctor(status);
+      expect(
+        result.checks.find((item) => item.id === "schedule"),
+      ).toMatchObject({
+        level: "warn",
+        detail: `${label}不存在：${missingPath}。`,
+      });
+    }
   });
 
   it("单项浏览器异常不会阻断其余检查，也不输出凭证值", async () => {

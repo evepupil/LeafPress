@@ -3,6 +3,7 @@ import { closeSync, existsSync, openSync, statSync, unlinkSync } from "node:fs";
 import { homedir as osHomedir } from "node:os";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { execCommand } from "../../shared/exec.js";
 import type { CliContext } from "../context.js";
 import { renderTable } from "../output.js";
 import {
@@ -13,10 +14,17 @@ import {
   type DoctorDependencies,
   type DoctorLevel,
   type DoctorResult,
+  type DoctorScheduleApi,
 } from "./doctor-inspections.js";
 import { emitSuccess } from "./shared.js";
 
-export type { DoctorCheck, DoctorDependencies, DoctorLevel, DoctorResult };
+export type {
+  DoctorCheck,
+  DoctorDependencies,
+  DoctorLevel,
+  DoctorResult,
+  DoctorScheduleApi,
+};
 
 function supportsNodeVersion(version: string): boolean {
   const match = /^v?(\d+)\.(\d+)\.(\d+)(?:[-+][0-9A-Za-z.-]+)?$/.exec(version);
@@ -254,6 +262,93 @@ async function checkBrowser(
   }
 }
 
+async function checkSchedule(
+  context: CliContext,
+  dependencies: DoctorDependencies,
+): Promise<DoctorCheck> {
+  const platform = dependencies.platform ?? context.platform;
+  if (platform !== "win32")
+    return doctorCheck(
+      "schedule",
+      "定时拉数据",
+      "warn",
+      "Windows 计划任务不可用。",
+      "定时拉数据目前只支持 Windows。",
+    );
+
+  const [config, api] = await Promise.all([
+    context.getConfig(),
+    dependencies.scheduleModule === undefined
+      ? Promise.all([
+          import("../../schedule/index.js"),
+          import("../../schedule/state.js"),
+        ]).then(([schedule, state]) => ({
+          scheduleStatus: schedule.scheduleStatus,
+          taskNameFor: schedule.taskNameFor,
+          readScheduleState: state.readScheduleState,
+        }))
+      : dependencies.scheduleModule(),
+  ]);
+  const stored = api.readScheduleState(
+    context.paths,
+    config.schedule.dataPullAt,
+  );
+  const task = await api.scheduleStatus({
+    exec: dependencies.exec ?? context.exec ?? execCommand,
+    taskName: api.taskNameFor(context.paths.home),
+  });
+  if (stored.dataPull.installed && !task.installed)
+    return doctorCheck(
+      "schedule",
+      "定时拉数据",
+      "warn",
+      "计划任务被删了。",
+      "运行 leafpress schedule install 重新装。",
+    );
+  if (!task.installed)
+    return doctorCheck(
+      "schedule",
+      "定时拉数据",
+      "warn",
+      "计划任务还没安装。",
+      "运行 leafpress schedule install 安装。",
+    );
+  if (task.enabled !== true)
+    return doctorCheck(
+      "schedule",
+      "定时拉数据",
+      "warn",
+      task.enabled === false
+        ? "计划任务已禁用。"
+        : "无法确认计划任务是否启用。",
+      "启用计划任务，或运行 leafpress schedule install 重新安装。",
+    );
+  const requiredPaths: readonly [string, string | undefined][] = [
+    ["数据目录", task.home],
+    ["Node", task.nodePath],
+    ["命令行入口", task.entryPath],
+  ];
+  const missingPath = requiredPaths.find(
+    ([, path]) => path === undefined || path.length === 0 || !existsSync(path),
+  );
+  if (missingPath !== undefined) {
+    const [label, path] = missingPath;
+    return doctorCheck(
+      "schedule",
+      "定时拉数据",
+      "warn",
+      `${label}不存在：${path ?? "未记录"}。`,
+      "检查计划任务路径，或运行 leafpress schedule install 重新安装。",
+    );
+  }
+  return doctorCheck(
+    "schedule",
+    "定时拉数据",
+    "ok",
+    `下次运行：${task.nextRunAt ?? "未知"}。`,
+  );
+}
+
 export async function executeDoctor(
   context: CliContext,
   dependencies: DoctorDependencies = {},
@@ -290,6 +385,13 @@ export async function executeDoctor(
       "运行 leafpress skill install 安装。",
     ),
     checkBrowser(context, dependencies),
+    safeCheck(
+      "schedule",
+      "定时拉数据",
+      () => checkSchedule(context, dependencies),
+      "warn",
+      "检查计划任务状态后重试。",
+    ),
   ]);
   return { ok: checks.every((item) => item.level !== "error"), checks };
 }

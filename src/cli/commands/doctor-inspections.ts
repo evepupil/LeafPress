@@ -1,3 +1,6 @@
+import type { HomePaths } from "../../config/home.js";
+import type { ScheduleState, TaskStatus } from "../../schedule/index.js";
+import type { ExecFn } from "../../shared/exec.js";
 import { LeafPressError } from "../../shared/errors.js";
 
 export type DoctorLevel = "ok" | "warn" | "error";
@@ -15,11 +18,23 @@ export interface DoctorResult {
   readonly checks: readonly DoctorCheck[];
 }
 
+export interface DoctorScheduleApi {
+  taskNameFor(home: string): string;
+  readScheduleState(paths: HomePaths, defaultAt: string): ScheduleState;
+  scheduleStatus(input: {
+    exec: ExecFn;
+    taskName: string;
+  }): Promise<TaskStatus>;
+}
+
 export interface DoctorDependencies {
   readonly nodeVersion?: string;
   readonly repoRoot?: string;
   readonly edgeLocator?: (configuredPath?: string) => string | undefined;
   readonly canWriteDirectory?: (directory: string) => boolean;
+  readonly platform?: NodeJS.Platform;
+  readonly exec?: ExecFn;
+  readonly scheduleModule?: () => Promise<DoctorScheduleApi>;
 }
 
 export function doctorCheck(

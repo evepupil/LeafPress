@@ -120,7 +120,8 @@ describe("已构建 CLI 端到端流程", () => {
     expect(existsSync(join(home, "leafpress.db"))).toBe(false);
     expect(existsSync(join(home, "config.json"))).toBe(false);
     expect(readdirSync(home)).toEqual([]);
-  });
+    // 起十来个子进程，体检还要问一次系统的计划任务（PowerShell 冷启动 1～2 秒），默认 5 秒不够
+  }, 30_000);
 
   it("init → account → idea → convert → 接手 → step → waiting → feedback → run → done", () => {
     const init = JSON.parse(invoke(["init", "--json"], true)) as {
@@ -308,5 +309,6 @@ describe("已构建 CLI 端到端流程", () => {
       ),
     ) as { works: { id: string }[] };
     expect(newWorks.works).toHaveLength(2);
-  }, 45_000);
+    // 单独跑约 40 秒；整仓并发跑测试时子进程排队，留足余量
+  }, 120_000);
 });

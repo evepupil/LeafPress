@@ -301,8 +301,51 @@ export function buildProgram(options: BuildProgramOptions = {}): Command {
   const pull = data
     .command("pull")
     .description("拉取平台数据")
-    .option("--account <账号,…>", "限定账号");
-  addAction(pull, () => import("./commands/data.js"), undefined, getContext);
+    .option("--account <账号,…>", "限定账号")
+    .option("--scheduled", "记录定时拉取结果");
+  addAction(pull, () => import("./commands/data.js"), "pull", getContext);
+  const dataShow = data
+    .command("show")
+    .description("查看数据概况、走势和作品排行")
+    .option("--account <账号>", "限定账号")
+    .option("--range <范围>", "走势范围：4w 或 12w")
+    .option("--top <个数>", "排行数量")
+    .option("--by <依据>", "排行依据：reach、interactions 或 growth");
+  addAction(dataShow, () => import("./commands/data.js"), "show", getContext);
+  const report = program
+    .command("report")
+    .description("查看周报")
+    .option("--week <周一的日期>", "指定周报周一日期");
+  addAction(
+    report,
+    () => import("./commands/report.js"),
+    undefined,
+    getContext,
+  );
+
+  const schedule = program.command("schedule").description("管理定时拉取");
+  addAction(
+    schedule
+      .command("install")
+      .description("安装或更新定时拉取任务")
+      .option("--at <HH:mm>", "每天运行时间"),
+    () => import("./commands/schedule.js"),
+    "install",
+    getContext,
+  );
+  addAction(
+    schedule.command("remove").description("卸下定时拉取任务"),
+    () => import("./commands/schedule.js"),
+    "remove",
+    getContext,
+  );
+  addAction(
+    schedule.command("status").description("查看定时拉取状态"),
+    () => import("./commands/schedule.js"),
+    "status",
+    getContext,
+  );
+
   addAction(
     program.command("export").description("导出记录库和档案备份"),
     () => import("./commands/export.js"),

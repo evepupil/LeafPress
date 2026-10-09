@@ -58,9 +58,38 @@ describe("CLI 入口", () => {
       "accounts",
       "account",
       "data",
+      "report",
+      "schedule",
       "export",
       "skill",
     ]);
+    const data = program.commands.find((command) => command.name() === "data");
+    expect(data?.commands.map((command) => command.name())).toEqual([
+      "pull",
+      "show",
+    ]);
+    expect(
+      data?.commands
+        .find((command) => command.name() === "pull")
+        ?.options.map((option) => option.long),
+    ).toContain("--scheduled");
+    const schedule = program.commands.find(
+      (command) => command.name() === "schedule",
+    );
+    expect(schedule?.commands.map((command) => command.name())).toEqual([
+      "install",
+      "remove",
+      "status",
+    ]);
+    expect(
+      schedule?.commands
+        .find((command) => command.name() === "install")
+        ?.options.map((option) => option.long),
+    ).toContain("--at");
+    const report = program.commands.find(
+      (command) => command.name() === "report",
+    );
+    expect(report?.options.map((option) => option.long)).toContain("--week");
     const work = program.commands.find((command) => command.name() === "work");
     expect(work?.commands.map((command) => command.name())).toEqual([
       "show",
