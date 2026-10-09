@@ -9,7 +9,7 @@ import { PlatformMark } from "@/components/base/marks"
 import { StatusIcon } from "@/components/base/status-icon"
 import { DropdownMenuItem, DropdownMenuShortcut } from "@/components/ui/dropdown-menu"
 import { accountHref, accountSummary, formatCount, notices } from "@leafpress/core"
-import { useAccounts, useIdeas, useMetricsInput, usePulls, useToday, useWorks } from "@/state/data"
+import { useAccounts, useIdeas, useMetricsInput, usePulls, useSchedules, useToday, useWorks } from "@/state/data"
 import { useUi } from "@/state/ui"
 import { BrandMenu } from "./brand-menu"
 import { PAGES, VIEWS, resolveNav, viewHref, type PageKey, type ViewKey } from "./nav"
@@ -53,6 +53,7 @@ export function WorkbenchSidebar({ onNavigate }: { onNavigate?: () => void }) {
   const ideas = useIdeas()
   const works = useWorks()
   const pulls = usePulls()
+  const schedules = useSchedules()
   const today = useToday()
   const metricsInput = useMetricsInput()
   const inboxCount = ideas.filter((idea) => idea.status === "inbox").length
@@ -60,8 +61,8 @@ export function WorkbenchSidebar({ onNavigate }: { onNavigate?: () => void }) {
   const waitingCount = works.filter((work) => work.status === "waiting").length
   const todoCount = works.filter((work) => work.status === "todo").length
   const issueCount = useMemo(
-    () => notices({ works, accounts, pulls, today }).filter((item) => item.kind === "data").length,
-    [works, accounts, pulls, today],
+    () => notices({ works, accounts, pulls, schedules, today }).filter((item) => item.kind === "data").length,
+    [works, accounts, pulls, schedules, today],
   )
   const accountRows = useMemo(
     () =>
@@ -70,7 +71,8 @@ export function WorkbenchSidebar({ onNavigate }: { onNavigate?: () => void }) {
         return {
           account,
           href: accountHref(account.id),
-          followers: summary?.hasData ? formatCount(summary.followers) : undefined,
+          // 数据还没读到时不显示；读到了但这个号拿不到粉丝数（博客的 Umami 不给订阅数）写「—」，不写 0
+          followers: summary ? (summary.followersKnown ? formatCount(summary.followers) : "—") : undefined,
         }
       }),
     [accounts, metricsInput],

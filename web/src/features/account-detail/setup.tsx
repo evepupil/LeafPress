@@ -20,13 +20,15 @@ import {
 import { EmptyState } from "@/components/base/empty-state"
 import { LabelChip } from "@/components/base/label-chip"
 import { SourceBadge } from "@/components/base/source-badge"
-import { WorkflowStatusIcon } from "@/components/base/state-icons"
+import { Spinner, WorkflowStatusIcon } from "@/components/base/state-icons"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { usePullNow } from "@/features/data/use-pull-now"
 import { focusRing } from "@/lib/styles"
-import { pullNow } from "@/state/actions/data"
 import { setSetting } from "@/state/actions/accounts"
-import { useAccount, usePulls, useSchedules } from "@/state/data"
+import { useAccount, usePulls } from "@/state/data"
+import { useDataPullWhen } from "@/state/schedules"
+import { ImportPosts } from "./import-posts"
 
 const STATE_COLOR: Record<SetupState, LabelColor> = { ready: "green", broken: "red", unfinished: "amber" }
 
@@ -115,27 +117,15 @@ function ConfigRow({ accountId, item }: { accountId: string; item: SetupItemView
 export function AccountSetup({ accountId }: { accountId: string }) {
   const account = useAccount(accountId)
   const pulls = usePulls()
-  const schedules = useSchedules()
   const pull = pulls.find((item) => item.accountId === accountId)
-  const schedule = schedules.find((item) => item.id === "data-pull")?.when
+  // 只有计划任务装上了才有「什么时候拉」，没装时不写每天几点
+  const schedule = useDataPullWhen()
   const view = useMemo(
     () => (account ? setupView(account, PLATFORMS[account.platform], { pull, schedule }) : undefined),
     [account, pull, schedule],
   )
-  const [pulling, setPulling] = useState(false)
+  const { pulling, pull: pullOnce } = usePullNow(accountId)
   if (!account || !view) return <EmptyState title="没有这个账号" />
-
-  const pullOnce = async () => {
-    setPulling(true)
-    try {
-      const result = await pullNow([accountId])
-      toast(result.note)
-    } catch (error) {
-      toast(error instanceof Error ? error.message : "拉取失败")
-    } finally {
-      setPulling(false)
-    }
-  }
 
   return (
     <section
@@ -178,6 +168,7 @@ export function AccountSetup({ accountId }: { accountId: string }) {
             )
           })}
         </ul>
+        {PLATFORMS[account.platform].importable && <ImportPosts accountId={accountId} />}
       </Part>
       <Part title="数据获取">
         <div className="flex min-w-0 flex-col gap-1.5" data-setup-source={view.source.status}>
@@ -198,15 +189,17 @@ export function AccountSetup({ accountId }: { accountId: string }) {
             能拿到：{[PLATFORMS[account.platform].audienceLabel, ...view.metrics.map((item) => item.label)].join("、")}
           </p>
           {view.source.status !== "missing" && (
-            <Button size="sm" variant="outline" className="self-start" onClick={() => void pullOnce()} disabled={pulling} data-setup-pull>
-              {pulling ? (
-                "正在拉取"
-              ) : (
-                <>
-                  <RefreshCw />
-                  现在拉一次
-                </>
-              )}
+            <Button
+              size="sm"
+              variant="outline"
+              className="self-start"
+              onClick={() => void pullOnce()}
+              disabled={pulling}
+              aria-busy={pulling}
+              data-setup-pull
+            >
+              {pulling ? <Spinner /> : <RefreshCw />}
+              {pulling ? "正在拉取" : "现在拉一次"}
             </Button>
           )}
         </div>

@@ -26,6 +26,7 @@ import { MetricPlot, type PlotKind } from "./metric-chart-card-plot"
 /**
  * 主图卡：四个指标做成图表的切换页签，不单独做统计卡。
  * scope 传 "all"（全部账号）或一个账号编号；数据都来自 metricSeries。
+ * 选中的账号都拿不到粉丝数时（博客的 Umami 不给订阅数）没有「粉丝」这一页，默认选中后面的第一页。
  */
 
 /** 页签顺序固定 */
@@ -70,14 +71,19 @@ function MetricTab({
   tab,
   selected,
   index,
+  count,
   onSelect,
 }: {
   scope: string
   tab: TabData
   selected: boolean
   index: number
+  /** 一共几页：有的账号没有「粉丝」这一页，只剩三页 */
+  count: number
   onSelect(): void
 }) {
+  // 手机两列：左列画右边线，三页时落单的最后一页横跨两列、不画右边线；桌面一行排开：除最后一页都画右边线
+  const alone = index === count - 1 && count % 2 === 1
   return (
     <button
       type="button"
@@ -90,10 +96,9 @@ function MetricTab({
       className={cn(
         "relative flex min-w-0 flex-col items-stretch gap-1 border-b border-line px-3 pt-2.5 pb-2 text-left transition-colors duration-(--dur-fast)",
         focusRingInset,
-        // 手机两列、桌面四列：每格右边画竖线，行尾那一格不画
-        index % 2 === 0 && "border-r",
-        index === 1 && "sm:border-r",
-        index === 2 && "sm:border-r",
+        index % 2 === 0 && !alone && "border-r",
+        alone && "col-span-2 sm:col-span-1",
+        index < count - 1 && "sm:border-r",
         // 选中的页签和下面的图连成一片：底色同图、桌面上去掉底边线
         selected ? "bg-card sm:border-b-transparent" : "bg-raised hover:bg-column",
       )}
@@ -119,11 +124,18 @@ export function MetricChartCard({ scope, className }: { scope: string; className
   const [compare, setCompare] = useState(true)
   const input = useMetricsInput()
 
-  // 四个页签的名字和数据一起算好；只有账号或时间范围变了才重算，切页签、开关对比都不会重算
+  // 页签的名字和数据一起算好；只有账号或时间范围变了才重算，切页签、开关对比都不会重算。
+  // 这一项选中的账号都拿不到（available 为 false）就不给页签
   const tabs = useMemo<TabData[]>(
-    () => (input ? METRICS.map((id) => ({ id, label: tabLabel(scope, id, input), result: metricSeries(input, scope, id, range) })) : []),
+    () =>
+      input
+        ? METRICS.map((id) => ({ id, label: tabLabel(scope, id, input), result: metricSeries(input, scope, id, range) })).filter(
+            (tab) => tab.result.available,
+          )
+        : [],
     [scope, range, input],
   )
+  // 选的页签不在了（粉丝拿不到）就退到第一页
   const current = tabs.find((tab) => tab.id === metric) ?? tabs[0]
   if (!current) return <EmptyState icon={ChartLine} title="正在读取数据" className={className} />
   // 本期和上一期每个点都是 0, 才算没数据；只有上一期有数时仍然画图，让人看到是本期掉到了 0
@@ -132,13 +144,14 @@ export function MetricChartCard({ scope, className }: { scope: string; className
 
   return (
     <section aria-label="数据走势" className={cn("overflow-hidden rounded-lg border border-line bg-card shadow-sm", className)}>
-      <div role="tablist" aria-label="指标" className="grid grid-cols-2 sm:grid-cols-4">
+      <div role="tablist" aria-label="指标" className={cn("grid grid-cols-2", tabs.length === 3 ? "sm:grid-cols-3" : "sm:grid-cols-4")}>
         {tabs.map((tab, index) => (
           <MetricTab
             key={tab.id}
             scope={scope}
             tab={tab}
             index={index}
+            count={tabs.length}
             selected={tab.id === current.id}
             onSelect={() => setMetric(tab.id)}
           />

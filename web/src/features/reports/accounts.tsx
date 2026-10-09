@@ -61,12 +61,19 @@ export function ReportAccounts() {
                   </td>
                   {row.hasData ? (
                     <>
+                      {/* 粉丝数拿不到（博客的 Umami 不给订阅数）时粉丝和增减都写「—」，不写 0 */}
                       <td className="px-3 text-right whitespace-nowrap">
-                        <span className="tabular text-fg-2">{formatCount(row.followersStart)} → </span>
-                        <span className="tabular">{formatCount(row.followersEnd)}</span>
+                        {row.followersKnown ? (
+                          <>
+                            <span className="tabular text-fg-2">{formatCount(row.followersStart)} → </span>
+                            <span className="tabular">{formatCount(row.followersEnd)}</span>
+                          </>
+                        ) : (
+                          <span className="text-xs text-fg-2">—</span>
+                        )}
                       </td>
                       <td className="px-3 text-right">
-                        <Delta value={row.delta} kind="count" />
+                        <Delta value={row.followersKnown ? row.delta : null} kind="count" />
                       </td>
                     </>
                   ) : (
@@ -94,7 +101,8 @@ export function ReportAccounts() {
                 <td className="px-3">合计</td>
                 <td className="px-3" />
                 <td className="px-3 text-right">
-                  <Delta value={totals.delta} kind="count" />
+                  {/* 粉丝合计只加拿得到的账号；一个都拿不到就写「—」 */}
+                  <Delta value={report.followersKnown ? totals.delta : null} kind="count" />
                 </td>
                 <td className="px-3 text-right tabular whitespace-nowrap">{totals.posts}</td>
                 <td className="px-3 text-right tabular">{formatCount(totals.reads)}</td>

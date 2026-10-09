@@ -3,12 +3,12 @@
 import {
   type Account,
   type Bootstrap,
+  type BootstrapScheduleView,
   type DayKey,
   type Idea,
   type MetricsDataset,
   type MetricsInput,
   type PullRecord,
-  type ScheduleView,
   type Version,
   type WeeklyNote,
   type Work,
@@ -181,7 +181,7 @@ const NO_IDEAS: Idea[] = []
 const NO_ACCOUNTS: Account[] = []
 const NO_PULLS: PullRecord[] = []
 const NO_NOTES: WeeklyNote[] = []
-const NO_SCHEDULES: ScheduleView[] = []
+const NO_SCHEDULES: BootstrapScheduleView[] = []
 
 export function useWorks(): Work[] {
   return useData((state) => state.boot?.works ?? NO_WORKS)
@@ -207,7 +207,7 @@ export function useNotes(): WeeklyNote[] {
   return useData((state) => state.boot?.notes ?? NO_NOTES)
 }
 
-export function useSchedules(): ScheduleView[] {
+export function useSchedules(): BootstrapScheduleView[] {
   return useData((state) => state.boot?.schedules ?? NO_SCHEDULES)
 }
 

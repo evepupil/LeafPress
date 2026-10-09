@@ -1,4 +1,12 @@
-import type { AddAccountInput, AddAccountResult, MutationOk, SaveProfileInput, SetSettingInput, UpdateAccountInput } from "@leafpress/core"
+import type {
+  AddAccountInput,
+  AddAccountResult,
+  ImportResult,
+  MutationOk,
+  SaveProfileInput,
+  SetSettingInput,
+  UpdateAccountInput,
+} from "@leafpress/core"
 
 import { mutate } from "./shared"
 
@@ -18,4 +26,9 @@ export function saveProfile(id: string, profile: string): Promise<MutationOk> {
 
 export function setSetting(id: string, key: string, value: string): Promise<MutationOk> {
   return mutate("PUT", `${path(id)}/settings/${encodeURIComponent(key)}`, { value } satisfies SetSettingInput)
+}
+
+/** 把平台上已有的内容（博客：仓库里的文章）导入成已完成的作品。要准备检出目录，可能要几十秒 */
+export function importPosts(id: string): Promise<ImportResult> {
+  return mutate<ImportResult>("POST", `${path(id)}/import`)
 }

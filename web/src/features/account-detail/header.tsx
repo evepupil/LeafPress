@@ -28,7 +28,8 @@ export function AccountHeader({ accountId }: { accountId: string }) {
   const today = useToday()
   if (!account || !input) return <EmptyState title="账号数据暂不可用" />
   const summary = accountSummary(input, account)
-  const { hasData } = summary
+  // 粉丝数拿不到（博客的 Umami 不给订阅数）和「0 个」要分开：拿不到时粉丝、近 7 天、近 30 天都写「—」
+  const { followersKnown } = summary
 
   return (
     <section id="overview" aria-label="账号概况" className="rounded-lg border border-line bg-card px-4 py-3 shadow-sm">
@@ -50,9 +51,9 @@ export function AccountHeader({ accountId }: { accountId: string }) {
         <div className="flex min-w-0 flex-col gap-0.5">
           <span className="text-xs text-fg-2">{PLATFORMS[account.platform].audienceLabel}</span>
           <span className="text-xl font-medium tabular" data-profile-followers>
-            {hasData ? formatCount(summary.followers) : "—"}
+            {followersKnown ? formatCount(summary.followers) : "—"}
           </span>
-          {hasData && (
+          {followersKnown && (
             <span className="flex items-center gap-1 text-xs text-fg-2">
               近 7 天 <Delta value={summary.followers7d} kind="count" />
             </span>
@@ -60,7 +61,7 @@ export function AccountHeader({ accountId }: { accountId: string }) {
         </div>
         <div className="flex min-w-0 flex-col gap-0.5">
           <span className="text-xs text-fg-2">近 30 天</span>
-          <span className="text-sm font-medium tabular">{hasData ? formatSigned(summary.followers30d) : "—"}</span>
+          <span className="text-sm font-medium tabular">{followersKnown ? formatSigned(summary.followers30d) : "—"}</span>
         </div>
         <div className="flex min-w-0 flex-col gap-0.5">
           <span className="text-xs text-fg-2">本周发布</span>

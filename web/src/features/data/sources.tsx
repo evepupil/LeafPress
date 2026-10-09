@@ -3,45 +3,41 @@
 import { cn } from "cn"
 import { Clock, Database } from "lucide-react"
 import Link from "next/link"
-import { useState } from "react"
-import { toast } from "sonner"
 
 import { accountHref, DATA_MODE_LABEL, PLATFORMS, formatRelative, setupView, type Account } from "@leafpress/core"
 import { AccountTag } from "@/components/base/account-tag"
 import { EmptyState } from "@/components/base/empty-state"
 import { SourceBadge } from "@/components/base/source-badge"
-import { RunResultIcon } from "@/components/base/state-icons"
+import { RunResultIcon, Spinner } from "@/components/base/state-icons"
 import { Button } from "@/components/ui/button"
 import { focusRing } from "@/lib/styles"
-import { pullNow } from "@/state/actions/data"
 import { useNow } from "@/lib/local-clock"
 import { useAccounts, usePulls, useSchedules } from "@/state/data"
+import { dataPullWhen } from "@/state/schedules"
+import { usePullNow } from "./use-pull-now"
 
 function SourceRow({ account, schedule }: { account: Account; schedule?: string }) {
   const pulls = usePulls()
   const pull = pulls.find((item) => item.accountId === account.id)
   const source = setupView(account, PLATFORMS[account.platform], { pull, schedule }).source
-  const [retrying, setRetrying] = useState(false)
+  const { pulling, pull: retry } = usePullNow(account.id)
   const failed = source.status === "failed"
-
-  const retry = async () => {
-    setRetrying(true)
-    try {
-      const result = await pullNow([account.id])
-      toast(result.note)
-    } catch (error) {
-      toast(error instanceof Error ? error.message : "拉取失败")
-    } finally {
-      setRetrying(false)
-    }
-  }
 
   return (
     <li data-source-row={account.id} data-source-status={source.status} className="flex min-w-0 flex-col gap-1.5 px-3 py-2.5">
       <div className="flex min-w-0 items-center gap-2">
         <AccountTag account={account} size="md" showPlatform />
         {failed && (
-          <Button variant="outline" size="sm" className="ml-auto" data-source-retry onClick={() => void retry()} disabled={retrying}>
+          <Button
+            variant="outline"
+            size="sm"
+            className="ml-auto"
+            data-source-retry
+            aria-busy={pulling}
+            onClick={() => void retry()}
+            disabled={pulling}
+          >
+            {pulling && <Spinner />}
             重试
           </Button>
         )}
@@ -54,8 +50,9 @@ function SourceRow({ account, schedule }: { account: Account; schedule?: string 
             {source.provider && ` · ${source.provider}`}
           </span>
         )}
-        {source.schedule && (
-          <span className="inline-flex items-center gap-1">
+        {/* 什么时候拉：共享规则对没有拿数据工具的平台也会带上 schedule，但那种号根本不会被拉，不写 */}
+        {source.schedule && source.status !== "missing" && (
+          <span data-source-schedule className="inline-flex items-center gap-1">
             <Clock className="size-3" aria-hidden />
             {source.schedule}
           </span>
@@ -83,8 +80,11 @@ export function DataSources() {
   const accounts = useAccounts()
   const schedules = useSchedules()
   const schedule = schedules.find((item) => item.id === "data-pull")
+  const when = dataPullWhen(schedules)
   const now = useNow()
   const scheduleTime = schedule?.lastRunAt && now ? formatRelative(schedule.lastRunAt, now) : undefined
+  // 上次运行没有备注时不留悬空的「 · 」
+  const lastRun = scheduleTime ? [scheduleTime, schedule?.lastNote].filter(Boolean).join(" · ") : "尚未运行"
 
   return (
     <section id="sources" aria-labelledby="sources-title" className="overflow-hidden rounded-lg border border-line bg-card shadow-sm">
@@ -100,9 +100,7 @@ export function DataSources() {
           <span className="text-fg">
             {schedule.name} · {schedule.when}
           </span>
-          <span className={schedule.lastResult === "failed" ? "text-bad" : "text-fg-2"}>
-            {scheduleTime ? `${scheduleTime} · ${schedule.lastNote ?? ""}` : "尚未运行"}
-          </span>
+          <span className={schedule.lastResult === "failed" ? "text-bad" : "text-fg-2"}>{lastRun}</span>
         </div>
       )}
       <ul className="divide-y divide-line">
@@ -111,9 +109,7 @@ export function DataSources() {
             <EmptyState icon={Database} title="还没有数据来源" />
           </li>
         ) : (
-          accounts.map((account) => (
-            <SourceRow key={account.id} account={account} schedule={schedule?.installed ? schedule.when : undefined} />
-          ))
+          accounts.map((account) => <SourceRow key={account.id} account={account} schedule={when} />)
         )}
       </ul>
     </section>

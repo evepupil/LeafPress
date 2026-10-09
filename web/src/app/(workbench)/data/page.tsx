@@ -1,6 +1,6 @@
 "use client"
 
-import { formatDay } from "@leafpress/core"
+import { formatDay, hasMetricsData } from "@leafpress/core"
 
 import { AccountBreakdown } from "@/features/data/breakdown"
 import { DataSources } from "@/features/data/sources"
@@ -8,15 +8,14 @@ import { DataTrend } from "@/features/data/trend"
 import { PullNowButton } from "@/features/data/pull-now"
 import { TopWorks } from "@/features/data/top-works"
 import { PageFrame } from "@/features/shell/page-frame"
-import { useData, useToday } from "@/state/data"
+import { useData, useMetricsInput, useToday } from "@/state/data"
 
 export default function Page() {
   const latestDay = useData((state) => state.dataset?.latestDay)
   const today = useToday()
-  const dataset = useData((state) => state.dataset)
-  const hasData =
-    Object.values(dataset?.daily ?? {}).some((points) => points.length > 0) ||
-    Object.values(dataset?.workDays ?? {}).some((points) => points.length > 0)
+  const input = useMetricsInput()
+  // 有没有数：和命令行 data show 用共享规则里的同一个判断，两边口径一样
+  const hasData = input ? hasMetricsData(input) : false
   return (
     <PageFrame
       title="数据"

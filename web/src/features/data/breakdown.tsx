@@ -20,16 +20,16 @@ export function AccountBreakdown() {
   const accounts = useAccounts()
   const input = useMetricsInput()
   const summaries: AccountSummary[] = input ? accounts.map((account) => accountSummary(input, account)) : []
-  const total = summaries.reduce(
-    (sum, item) => ({
-      followers: sum.followers + item.followers,
-      followers7d: sum.followers7d + item.followers7d,
-      followers30d: sum.followers30d + item.followers30d,
-      reads7d: sum.reads7d + item.reads7d,
-      interactions7d: sum.interactions7d + item.interactions7d,
-    }),
-    { followers: 0, followers7d: 0, followers30d: 0, reads7d: 0, interactions7d: 0 },
-  )
+  // 粉丝合计只加拿得到粉丝数的账号（博客的 Umami 不给订阅数，加进去等于把「没有」当成 0）
+  const followerSummaries = summaries.filter((item) => item.followersKnown)
+  const followersTotal = followerSummaries.length > 0
+  const total = {
+    followers: followerSummaries.reduce((sum, item) => sum + item.followers, 0),
+    followers7d: followerSummaries.reduce((sum, item) => sum + item.followers7d, 0),
+    followers30d: followerSummaries.reduce((sum, item) => sum + item.followers30d, 0),
+    reads7d: summaries.reduce((sum, item) => sum + item.reads7d, 0),
+    interactions7d: summaries.reduce((sum, item) => sum + item.interactions7d, 0),
+  }
 
   return (
     <section id="breakdown" aria-labelledby="breakdown-title" className="overflow-hidden rounded-lg border border-line bg-card shadow-sm">
@@ -75,12 +75,13 @@ export function AccountBreakdown() {
                 </td>
                 {item.hasData ? (
                   <>
-                    <td className="px-3 text-right tabular">{formatCount(item.followers)}</td>
+                    {/* 粉丝数拿不到时三格都写「—」；Delta 传 null 就是「—」 */}
+                    <td className="px-3 text-right tabular">{item.followersKnown ? formatCount(item.followers) : "—"}</td>
                     <td className="px-3 text-right">
-                      <Delta value={item.followers7d} kind="count" />
+                      <Delta value={item.followersKnown ? item.followers7d : null} kind="count" />
                     </td>
                     <td className="px-3 text-right">
-                      <Delta value={item.followers30d} kind="count" />
+                      <Delta value={item.followersKnown ? item.followers30d : null} kind="count" />
                     </td>
                     <td className="px-3 text-right">
                       <span className="flex items-center justify-end gap-1.5">
@@ -102,12 +103,12 @@ export function AccountBreakdown() {
           <tfoot>
             <tr data-breakdown-total className="h-10 border-t border-line-2 bg-raised font-medium">
               <td className="px-3 text-left">合计</td>
-              <td className="px-3 text-right tabular">{formatCount(total.followers)}</td>
+              <td className="px-3 text-right tabular">{followersTotal ? formatCount(total.followers) : "—"}</td>
               <td className="px-3 text-right">
-                <Delta value={total.followers7d} kind="count" />
+                <Delta value={followersTotal ? total.followers7d : null} kind="count" />
               </td>
               <td className="px-3 text-right">
-                <Delta value={total.followers30d} kind="count" />
+                <Delta value={followersTotal ? total.followers30d : null} kind="count" />
               </td>
               <td className="px-3 text-right tabular">{formatCount(total.reads7d)}</td>
               <td className="px-3 text-right text-fg-2 tabular">{rateText(total.interactions7d, total.reads7d)}</td>

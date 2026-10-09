@@ -24,7 +24,7 @@ function bootstrap(current: Version): Bootstrap {
 
 function dataset(seq: number): MetricsDataset {
   const today = `2026-10-${String(seq).padStart(2, "0")}`
-  return { today, latestDay: today, daily: {}, workDays: {} }
+  return { today, latestDay: today, daily: {}, lastDays: {}, workDays: {} }
 }
 
 function json(value: unknown): Response {

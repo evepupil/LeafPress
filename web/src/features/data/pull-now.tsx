@@ -1,26 +1,13 @@
 "use client"
 
 import { RefreshCw } from "lucide-react"
-import { useState } from "react"
-import { toast } from "sonner"
 
+import { Spinner } from "@/components/base/state-icons"
 import { Button } from "@/components/ui/button"
-import { pullNow } from "@/state/actions/data"
+import { usePullNow } from "./use-pull-now"
 
 export function PullNowButton() {
-  const [pulling, setPulling] = useState(false)
-
-  const pull = async () => {
-    setPulling(true)
-    try {
-      const result = await pullNow()
-      toast(result.note)
-    } catch (error) {
-      toast(error instanceof Error ? error.message : "拉取失败")
-    } finally {
-      setPulling(false)
-    }
-  }
+  const { pulling, pull } = usePullNow()
 
   return (
     <Button
@@ -32,7 +19,7 @@ export function PullNowButton() {
       aria-label="现在拉一次"
       onClick={() => void pull()}
     >
-      {pulling ? <RefreshCw className="animate-spin" /> : <RefreshCw />}
+      {pulling ? <Spinner /> : <RefreshCw />}
       <span className="hidden sm:inline">{pulling ? "拉取中" : "现在拉一次"}</span>
     </Button>
   )

@@ -19,7 +19,8 @@ import {
   type SetupState,
 } from "@leafpress/core"
 import { focusRing } from "@/lib/styles"
-import { useAccounts, usePulls, useSchedules } from "@/state/data"
+import { useAccounts, usePulls } from "@/state/data"
+import { useDataPullWhen } from "@/state/schedules"
 
 const STATE_TEXT: Record<SetupState, string> = {
   ready: "text-good",
@@ -95,8 +96,7 @@ function SetupRow({ account, schedule }: { account: Account; schedule?: string }
  */
 export function SetupTable() {
   const accounts = useAccounts()
-  const schedules = useSchedules()
-  const schedule = schedules.find((item) => item.id === "data-pull")?.when
+  const schedule = useDataPullWhen()
   return (
     <section id="setup" aria-labelledby="setup-title" className="overflow-hidden rounded-lg border border-line bg-card shadow-sm">
       <div className="flex h-10 items-center gap-2 border-b border-line px-3">
