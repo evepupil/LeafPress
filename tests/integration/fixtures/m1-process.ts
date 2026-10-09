@@ -237,12 +237,15 @@ export async function apiRequest<T>(
     throw new Error("此环境没有启动 HTTP 服务");
   const response = await fetch(new URL(path, environment.baseUrl), {
     method: options.method ?? "GET",
+    headers: {
+      Connection: "close",
+      ...(options.body === undefined
+        ? {}
+        : { "Content-Type": "application/json" }),
+    },
     ...(options.body === undefined
       ? {}
-      : {
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(options.body),
-        }),
+      : { body: JSON.stringify(options.body) }),
   });
   const body: unknown = await response.json();
   return { status: response.status, body: body as T };
