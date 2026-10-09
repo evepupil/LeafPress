@@ -99,6 +99,8 @@ export interface UseCases {
   deleteWork(id: string): void
   /** 在资源管理器里打开任务文件夹，返回路径 */
   openWorkFolder(id: string): Promise<string>
+  /** 读任务文件夹里的一个文件（名字必须是 showWork(id).files 里列出的，防路径穿越） */
+  readWorkFile(id: string, name: string): { contentType: string; body: Buffer }
 
   // ---------- 作品：agent 用 ----------
   /** 接手指定作品；force：租约还没到期也接管（agent 自己丢了令牌时用） */

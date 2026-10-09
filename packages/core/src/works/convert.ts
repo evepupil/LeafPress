@@ -30,7 +30,8 @@ export function convert(
   const title = source.kind === "idea" ? source.idea.text : source.kind === "work" ? source.work.title : source.title.trim()
   const fromText = source.kind === "idea" ? "由灵感转来" : source.kind === "work" ? `由《${source.work.title}》转来` : "直接新建"
   return accounts.map((account, index) => {
-    const workflow = pickWorkflow(account.platform, workSource, source.kind === "work" ? source.platform : undefined)
+    // 问题链接可能贴在灵感标题里，也可能在要求里：两处一起认
+    const workflow = pickWorkflow(account.platform, workSource, source.kind === "work" ? source.platform : undefined, `${title}\n${brief}`)
     return {
       id: input.ids[index] ?? "",
       title,

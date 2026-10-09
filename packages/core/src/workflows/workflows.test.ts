@@ -1,7 +1,7 @@
 import { expect, test } from "vitest"
 
 import { GENERAL_WRITE, WORKFLOWS } from "../catalog/index.ts"
-import { BLOG_WRITE } from "../catalog/workflows.ts"
+import { BLOG_WRITE, ZHIHU_ANSWER, ZHIHU_ARTICLE, ZHIHU_FROM_BLOG } from "../catalog/workflows.ts"
 import type { PlatformId, WorkflowDef, WorkSource } from "../types/index.ts"
 import { fillTemplate, isUsable, pickFromList, pickWorkflow, workflowsFor, workflowById } from "./workflows.ts"
 import type { StepVars } from "./workflows.ts"
@@ -10,11 +10,38 @@ const IDEA_SOURCE: WorkSource = { kind: "idea", ideaId: "i-1" }
 const NEW_SOURCE: WorkSource = { kind: "none" }
 const WORK_SOURCE: WorkSource = { kind: "work", workId: "b-1" }
 const IMPORT_SOURCE: WorkSource = { kind: "import" }
+const QUESTION_BRIEF = "回答 https://www.zhihu.com/question/123456 里的这个问题"
 
 test("博客选博客写稿，其余平台和来源回落通用写稿", () => {
-  for (const platform of ["blog", "zhihu", "bilibili", "xiaohongshu"] as PlatformId[]) {
+  for (const platform of ["blog", "bilibili", "xiaohongshu"] as PlatformId[]) {
     for (const source of [IDEA_SOURCE, NEW_SOURCE, WORK_SOURCE, IMPORT_SOURCE]) {
-      expect(pickWorkflow(platform, source, "blog")).toBe(platform === "blog" ? BLOG_WRITE : GENERAL_WRITE)
+      expect(pickWorkflow(platform, source, "blog", QUESTION_BRIEF)).toBe(platform === "blog" ? BLOG_WRITE : GENERAL_WRITE)
+    }
+  }
+})
+
+test("知乎：灵感或新建、要求里贴了问题链接 → 回答问题；博客作品 → 博客改写；灵感没有问题链接 → 写文章", () => {
+  // 灵感或直接新建，要求里贴了知乎问题链接 → 回答问题
+  expect(pickWorkflow("zhihu", IDEA_SOURCE, undefined, QUESTION_BRIEF)).toBe(ZHIHU_ANSWER)
+  expect(pickWorkflow("zhihu", NEW_SOURCE, undefined, "看看这个问题 https://zhihu.com/question/998877 怎么答")).toBe(ZHIHU_ANSWER)
+  // 来源是博客作品 → 博客改写（要求里贴了问题链接也轮不到回答问题）
+  expect(pickWorkflow("zhihu", WORK_SOURCE, "blog", QUESTION_BRIEF)).toBe(ZHIHU_FROM_BLOG)
+  expect(pickWorkflow("zhihu", WORK_SOURCE, "blog")).toBe(ZHIHU_FROM_BLOG)
+  // 灵感或新建，要求里没有问题链接 → 写文章
+  expect(pickWorkflow("zhihu", IDEA_SOURCE)).toBe(ZHIHU_ARTICLE)
+  expect(pickWorkflow("zhihu", NEW_SOURCE, undefined, "写一篇知乎文章")).toBe(ZHIHU_ARTICLE)
+  // 要求是空串也当没有问题链接
+  expect(pickWorkflow("zhihu", IDEA_SOURCE, undefined, "")).toBe(ZHIHU_ARTICLE)
+  // 来源是作品但不是来自博客：blog-work 对不上，question 只认灵感或新建 → 通用
+  expect(pickWorkflow("zhihu", WORK_SOURCE, "zhihu", QUESTION_BRIEF)).toBe(GENERAL_WRITE)
+  // 来源是从平台导入：对不上三条里的任何 from → 通用
+  expect(pickWorkflow("zhihu", IMPORT_SOURCE, undefined, QUESTION_BRIEF)).toBe(GENERAL_WRITE)
+})
+
+test("博客、B站的灵感加问题链接不受 question 影响：平台没有 questionPattern 就永远配不到 question 工作流", () => {
+  for (const platform of ["blog", "bilibili"] as PlatformId[]) {
+    for (const source of [IDEA_SOURCE, NEW_SOURCE]) {
+      expect(pickWorkflow(platform, source, undefined, QUESTION_BRIEF)).toBe(platform === "blog" ? BLOG_WRITE : GENERAL_WRITE)
     }
   }
 })
@@ -26,7 +53,8 @@ test("workflowById：按编号找；没有的返回 undefined 不抛错", () => 
 
 test("workflowsFor：平台专用的在前，通用的在后；没有专用的就只有通用", () => {
   expect(workflowsFor("blog")).toEqual([BLOG_WRITE, GENERAL_WRITE])
-  expect(workflowsFor("zhihu")).toEqual([GENERAL_WRITE])
+  expect(workflowsFor("zhihu")).toEqual([ZHIHU_ANSWER, ZHIHU_FROM_BLOG, ZHIHU_ARTICLE, GENERAL_WRITE])
+  expect(workflowsFor("bilibili")).toEqual([GENERAL_WRITE])
 })
 
 /** 自造的一份列表（不含 catalog 里的定义），验证通用挑选规则 */
@@ -124,10 +152,14 @@ test("fillTemplate：替换值中的美元符号和其他占位符保持原样",
   expect(fillTemplate("{account} 到 {platform} / {folder}", vars)).toBe("省钱$$攻略 到 平台{account}$& / 任务$&")
 })
 
-test("WORKFLOWS 目录：博客专用写稿在通用写稿前", () => {
-  expect(WORKFLOWS).toEqual([BLOG_WRITE, GENERAL_WRITE])
+test("WORKFLOWS 目录：博客写稿、知乎三条在通用写稿前；知乎三条按回答、改写、写文章排", () => {
+  expect(WORKFLOWS).toEqual([BLOG_WRITE, ZHIHU_ANSWER, ZHIHU_FROM_BLOG, ZHIHU_ARTICLE, GENERAL_WRITE])
   expect(BLOG_WRITE.platform).toBe("blog")
   expect(BLOG_WRITE.from).toBe("any")
+  expect(ZHIHU_ANSWER.platform).toBe("zhihu")
+  expect(ZHIHU_ANSWER.from).toBe("question")
+  expect(ZHIHU_FROM_BLOG.from).toBe("blog-work")
+  expect(ZHIHU_ARTICLE.from).toBe("idea")
   expect(GENERAL_WRITE.platform).toBe("any")
   expect(GENERAL_WRITE.from).toBe("any")
 })

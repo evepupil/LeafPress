@@ -3,7 +3,7 @@
  * 挑选逻辑写成「在给定列表里挑」的内部函数，再包一个用目录 WORKFLOWS 的导出函数：
  * 接新平台时只往 WORKFLOWS 里加定义，不用改这里的规则。
  */
-import { WORKFLOWS } from "../catalog/index.ts"
+import { PLATFORMS, WORKFLOWS } from "../catalog/index.ts"
 import type { PlatformId, SettingView, WorkflowDef, WorkSource } from "../types/index.ts"
 
 /** {folder}、{platform}、{account} 的实际值 */
@@ -16,14 +16,25 @@ export interface StepVars {
 /**
  * 按「平台 + 来源」在给定的工作流列表里挑一个：平台专用的按列表顺序找第一个 from 对得上的，
  * 都对不上回落到通用工作流（platform 为 "any"）。
- * from 对得上：any 总对得上；idea 要求来源是灵感或直接新建；blog-work 要求来源是作品且来源作品在博客上。
+ * from 对得上：any 总对得上；idea 要求来源是灵感或直接新建；blog-work 要求来源是作品且来源作品在博客上；
+ * question 要求来源是灵感或直接新建，且要求（brief）里贴了这个平台的问题链接（按平台定义的 questionPattern 认，平台没有 pattern 就永远对不上）。
  * 导出是为了测试能喂自造的列表；正常代码用 pickWorkflow（在目录 WORKFLOWS 里挑）。
  */
-export function pickFromList(list: WorkflowDef[], platform: PlatformId, source: WorkSource, sourcePlatform?: PlatformId): WorkflowDef {
+export function pickFromList(
+  list: WorkflowDef[],
+  platform: PlatformId,
+  source: WorkSource,
+  sourcePlatform?: PlatformId,
+  brief?: string,
+): WorkflowDef {
   const matching = (from: WorkflowDef["from"]): boolean => {
     if (from === "any") return true
     if (from === "idea") return source.kind === "idea" || source.kind === "none"
     if (from === "blog-work") return source.kind === "work" && sourcePlatform === "blog"
+    if (from === "question") {
+      const pattern = PLATFORMS[platform].questionPattern
+      return (source.kind === "idea" || source.kind === "none") && pattern !== undefined && new RegExp(pattern).test(brief ?? "")
+    }
     return false
   }
   const special = list.find((workflow) => workflow.platform === platform && matching(workflow.from))
@@ -33,9 +44,9 @@ export function pickFromList(list: WorkflowDef[], platform: PlatformId, source: 
   return special ?? fallback
 }
 
-/** 自动配：在整个工作流目录里挑（平台专用的在前，通用的在最后） */
-export function pickWorkflow(platform: PlatformId, source: WorkSource, sourcePlatform?: PlatformId): WorkflowDef {
-  return pickFromList(WORKFLOWS, platform, source, sourcePlatform)
+/** 自动配：在整个工作流目录里挑（平台专用的在前，通用的在最后）。brief 是作品的要求，按 questionPattern 认问题链接 */
+export function pickWorkflow(platform: PlatformId, source: WorkSource, sourcePlatform?: PlatformId, brief?: string): WorkflowDef {
+  return pickFromList(WORKFLOWS, platform, source, sourcePlatform, brief)
 }
 
 /** 这个平台能换用的工作流：平台专用的在前（按 WORKFLOWS 里的顺序），通用的（platform 为 "any"）在后 */

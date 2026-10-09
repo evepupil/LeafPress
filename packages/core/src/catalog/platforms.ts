@@ -62,7 +62,20 @@ export const PLATFORMS: Record<PlatformId, PlatformInfo> = {
       metric("comments", "评论"),
       metric("shares", "分享"),
     ],
-    setupItems: [],
+    dataTool: { mode: "api", provider: "知乎开放平台" },
+    importable: true,
+    setupItems: [
+      {
+        key: "access-secret",
+        label: "开放平台密钥",
+        secret: true,
+        usedFor: "data",
+        placeholder: "在 developer.zhihu.com 个人中心生成",
+        hint: "登录知乎开放平台，在个人中心生成 Access Secret，复制整串",
+      },
+    ],
+    // 认出「要求里贴了知乎问题链接」，回答问题工作流靠它自动配
+    questionPattern: "zhihu\\.com/question/\\d+",
   },
   bilibili: {
     id: "bilibili",

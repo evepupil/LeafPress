@@ -79,5 +79,125 @@ export const BLOG_WRITE: WorkflowDef = {
   requires: ["repo-path", "site-url"],
 }
 
+/** 知乎三条工作流的公共说明：AI 步骤都以读账号档案和要求开头，写作规则在档案里（作者自己的知乎写作 skill） */
+const ZHIHU_PROFILE_OPENING = "先整份读账号档案（里面写了知乎的写作规则或规则文件的位置）和要求；"
+/** 「你去发布 / 你去回答」的同一句 ask：复制页怎么用、发完贴链接 */
+const ZHIHU_PUBLISH_ASK =
+  "在网页上点「打开复制页」，或者打开 {folder}/知乎发布稿.html：先点「复制正文」粘进知乎编辑器，再一张张点「复制这张图」贴到占位行。" +
+  "发完把链接填在下面；要改就写要改哪里。"
+
+/** 回答问题：灵感或直接新建，且要求里贴了知乎问题链接 */
+export const ZHIHU_ANSWER: WorkflowDef = {
+  id: "zhihu-answer",
+  name: "回答问题",
+  platform: "zhihu",
+  from: "question",
+  summary: "照要求里的问题链接出提纲，你确认后写回答，生成复制页你去发布，回来归档链接。",
+  steps: [
+    {
+      id: "outline",
+      name: "出提纲",
+      kind: "ai",
+      tool: "按账号档案写",
+      produces: ["提纲.md"],
+      instructions:
+        ZHIHU_PROFILE_OPENING +
+        "读要求里的问题链接（打开问题页看标题和描述，看不到全文就按要求写），提纲第一行写问题标题和链接，存到 {folder}/提纲.md。",
+    },
+    {
+      id: "confirm",
+      name: "你确认提纲",
+      kind: "manual",
+      ask: "看 {folder}/提纲.md：没问题回「可以」；要改就写要改哪里",
+    },
+    {
+      id: "draft",
+      name: "写回答",
+      kind: "ai",
+      tool: "按账号档案写",
+      produces: ["回答.md"],
+      instructions:
+        ZHIHU_PROFILE_OPENING +
+        "先读作者对提纲的反馈，要改就先改提纲再写。回答不写 `# 标题`，第一行就是正文，存到 {folder}/回答.md。" +
+        "交稿前按写作规则的自检清单逐条过一遍。",
+    },
+    { id: "copy-page", name: "生成复制页", kind: "code", tool: "知乎复制页", produces: ["知乎发布稿.html"] },
+    { id: "publish", name: "你去回答", kind: "manual", ask: ZHIHU_PUBLISH_ASK },
+    { id: "archive", name: "归档链接", kind: "code", tool: "记录库" },
+  ],
+  say: "去知乎回答这个问题",
+  requires: [],
+}
+
+/** 博客改写：来源是博客作品 */
+export const ZHIHU_FROM_BLOG: WorkflowDef = {
+  id: "zhihu-from-blog",
+  name: "博客改写",
+  platform: "zhihu",
+  from: "blog-work",
+  summary: "把来源博客文章照知乎的写法改写，生成复制页你去发布，回来归档链接。",
+  steps: [
+    {
+      id: "rewrite",
+      name: "改写成知乎文章",
+      kind: "ai",
+      tool: "按账号档案写",
+      produces: ["文章.md"],
+      instructions:
+        ZHIHU_PROFILE_OPENING +
+        "读来源博客文章的原稿（任务说明里给出原稿位置和链接），照写作规则改成知乎口吻，存到 {folder}/文章.md。" +
+        "正文第一行是 `# 标题`；流程图保留 mermaid 代码块；图片保留原来的写法。交稿前按写作规则的自检清单逐条过一遍。",
+    },
+    { id: "copy-page", name: "生成复制页", kind: "code", tool: "知乎复制页", produces: ["知乎发布稿.html"] },
+    { id: "publish", name: "你去发布", kind: "manual", ask: ZHIHU_PUBLISH_ASK },
+    { id: "archive", name: "归档链接", kind: "code", tool: "记录库" },
+  ],
+  say: "把这篇博客改写成知乎文章",
+  requires: [],
+}
+
+/** 写文章：知乎上从零写一篇 */
+export const ZHIHU_ARTICLE: WorkflowDef = {
+  id: "zhihu-article",
+  name: "写文章",
+  platform: "zhihu",
+  from: "idea",
+  summary: "AI 出大纲你确认后写全文，生成复制页你去发布，回来归档链接。",
+  steps: [
+    {
+      id: "outline",
+      name: "出大纲",
+      kind: "ai",
+      tool: "按账号档案写",
+      produces: ["大纲.md"],
+      instructions:
+        ZHIHU_PROFILE_OPENING +
+        "照写作规则的大纲格式写大纲存到 {folder}/大纲.md：每节写小标题、讲透什么、手上的具体材料、篇幅。" +
+        "材料不够的标「缺」；末尾一行「本篇不讲什么」。",
+    },
+    {
+      id: "confirm",
+      name: "你确认大纲",
+      kind: "manual",
+      ask: "看 {folder}/大纲.md：没问题回「可以」；要改就写要改哪里",
+    },
+    {
+      id: "draft",
+      name: "写全文",
+      kind: "ai",
+      tool: "按账号档案写",
+      produces: ["文章.md"],
+      instructions:
+        ZHIHU_PROFILE_OPENING +
+        "先读作者对大纲的反馈，要改就先改大纲再写；正文第一行是 `# 标题`，存到 {folder}/文章.md。交稿前按自检清单逐条过一遍。",
+    },
+    { id: "copy-page", name: "生成复制页", kind: "code", tool: "知乎复制页", produces: ["知乎发布稿.html"] },
+    { id: "publish", name: "你去发布", kind: "manual", ask: ZHIHU_PUBLISH_ASK },
+    { id: "archive", name: "归档链接", kind: "code", tool: "记录库" },
+  ],
+  say: "在知乎写这篇文章",
+  requires: [],
+}
+
 /** 全部发布工作流：平台专用的在前，通用的在最后 */
-export const WORKFLOWS: WorkflowDef[] = [BLOG_WRITE, GENERAL_WRITE]
+export const WORKFLOWS: WorkflowDef[] = [BLOG_WRITE, ZHIHU_ANSWER, ZHIHU_FROM_BLOG, ZHIHU_ARTICLE, GENERAL_WRITE]

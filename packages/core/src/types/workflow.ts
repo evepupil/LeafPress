@@ -23,8 +23,10 @@ export interface WorkflowDef {
   name: string
   /** 哪个平台用；"any" 是通用工作流，任何平台都能用 */
   platform: PlatformId | "any"
-  /** 适合从什么来：灵感、博客作品、什么都行 */
-  from: "idea" | "blog-work" | "any"
+  /**
+   * 适合从什么来：灵感（或直接新建）、博客作品、问题（灵感或新建，且要求里贴了这个平台的问题链接，按平台的 questionPattern 认）、什么都行
+   */
+  from: "idea" | "blog-work" | "question" | "any"
   summary: string
   steps: WorkflowStep[]
   /** 在 agent 里怎么说 */

@@ -56,4 +56,6 @@ export interface PlatformInfo {
   dataTool?: DataToolInfo
   /** 能把平台上已有的作品导入成已完成作品（博客：从仓库导入文章）；不能时没有这个字段 */
   importable?: boolean
+  /** 认出「要求里贴了这个平台的问题链接」的正则（字符串形式），例如知乎 `zhihu\.com/question/\d+`；没有问答的平台不写 */
+  questionPattern?: string
 }

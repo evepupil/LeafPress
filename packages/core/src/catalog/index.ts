@@ -1,2 +1,2 @@
 export { PLATFORMS, PLATFORM_ORDER } from "./platforms.ts"
-export { GENERAL_WRITE, WORKFLOWS } from "./workflows.ts"
+export { BLOG_WRITE, GENERAL_WRITE, WORKFLOWS, ZHIHU_ANSWER, ZHIHU_ARTICLE, ZHIHU_FROM_BLOG } from "./workflows.ts"

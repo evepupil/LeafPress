@@ -59,7 +59,7 @@ describe("转作品", () => {
       },
     )
     expect(works.map((item) => [item.id, item.accountId, item.workflowId, item.order])).toEqual([
-      ["z-21", "zhihu-1", "general-write", 5],
+      ["z-21", "zhihu-1", "zhihu-article", 5],
       ["b-22", "blog-1", "blog-write", 6],
       ["v-23", "bili-1", "general-write", 7],
     ])
@@ -70,7 +70,7 @@ describe("转作品", () => {
       tags: [],
       feedbackHistory: [],
     })
-    expect(works[0]?.log[0]?.text).toBe("创建，由灵感转来，用「通用写稿」工作流")
+    expect(works[0]?.log[0]?.text).toBe("创建，由灵感转来，用「写文章」工作流")
     expect(idea.workIds).toEqual([])
   })
 
@@ -79,15 +79,37 @@ describe("转作品", () => {
     const [created] = convert(source, [account("zhihu-1", "zhihu")], "  改写  ", { at, ids: ["z-30"], firstOrder: 1 })
     expect(workSourceOf(source)).toEqual({ kind: "work", workId: "b-4" })
     expect(defaultBrief(source)).toBe("照这个平台的写法改写，文末附原文链接。")
-    expect(created).toMatchObject({ title: "  原作品标题  ", brief: "改写", source: { kind: "work", workId: "b-4" } })
-    expect(created?.log[0]?.text).toBe("创建，由《  原作品标题  》转来，用「通用写稿」工作流")
+    expect(created).toMatchObject({
+      title: "  原作品标题  ",
+      brief: "改写",
+      source: { kind: "work", workId: "b-4" },
+      workflowId: "zhihu-from-blog",
+    })
+    expect(created?.log[0]?.text).toBe("创建，由《  原作品标题  》转来，用「博客改写」工作流")
   })
 
   it("直接新建标题去空白，默认要求为空且来源为 none", () => {
     const source = { kind: "new", title: "  新选题  " } as const
     const [created] = convert(source, [account("zhihu-1", "zhihu")], "", { at, ids: ["z-31"], firstOrder: 0 })
     expect(defaultBrief(source)).toBe("")
-    expect(created).toMatchObject({ title: "新选题", source: { kind: "none" }, workflowId: "general-write", brief: "" })
-    expect(created?.log[0]?.text).toBe("创建，直接新建，用「通用写稿」工作流")
+    expect(created).toMatchObject({ title: "新选题", source: { kind: "none" }, workflowId: "zhihu-article", brief: "" })
+    expect(created?.log[0]?.text).toBe("创建，直接新建，用「写文章」工作流")
+  })
+
+  it("要求里贴了知乎问题链接时，灵感和新建立的知乎作品都配回答问题", () => {
+    const question = "回答 https://www.zhihu.com/question/123456"
+    const fromIdea = convert({ kind: "idea", idea }, [account("zhihu-1", "zhihu")], question, { at, ids: ["z-41"], firstOrder: 0 })
+    expect(fromIdea[0]).toMatchObject({ workflowId: "zhihu-answer" })
+    const fromNew = convert({ kind: "new", title: "新问题" }, [account("zhihu-1", "zhihu")], question, { at, ids: ["z-42"], firstOrder: 1 })
+    expect(fromNew[0]).toMatchObject({ workflowId: "zhihu-answer" })
+  })
+
+  it("问题链接贴在标题里、要求是空的，也配回答问题", () => {
+    const titled = convert({ kind: "new", title: "https://www.zhihu.com/question/654321" }, [account("zhihu-1", "zhihu")], "", {
+      at,
+      ids: ["z-43"],
+      firstOrder: 2,
+    })
+    expect(titled[0]).toMatchObject({ workflowId: "zhihu-answer" })
   })
 })

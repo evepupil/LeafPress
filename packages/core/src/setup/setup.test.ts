@@ -48,11 +48,12 @@ describe("接入状态", () => {
     expect(setupItems(samplePlatform, [{ key: "token", status: "ok", value: "must-not-leak" }])[1]).not.toHaveProperty("value")
   })
 
-  it("只有通用工作流、工具沒做且沒有配置項時未完成，拉取失败时损坏", () => {
+  it("真实目录里知乎已接：密钥没配时未完成，拉取失败时损坏", () => {
     const account = accountWithSettings()
     const unfinished = setupView(account, PLATFORMS.zhihu, {})
     expect(unfinished.state).toBe("unfinished")
-    expect(unfinished.gaps).toEqual(["还没有知乎专用的作品产出工作流", "拿数据的工具还没做"])
+    expect(unfinished.gaps).toEqual(["开放平台密钥未配置"])
+    expect(unfinished.source.provider).toBe("知乎开放平台")
 
     const failure = setupView(
       account,
@@ -62,18 +63,13 @@ describe("接入状态", () => {
       },
     )
     expect(failure.state).toBe("broken")
-    expect(failure.gaps).toEqual(["还没有知乎专用的作品产出工作流", "数据拉取失败：接口返回 401"])
+    expect(failure.gaps).toEqual(["数据拉取失败：接口返回 401", "开放平台密钥未配置"])
     expect(failure.source.fixHint).toBe("检查授权")
 
     const expired = setupView(makeAccount("expired", "zhihu", { settings: [{ key: "handle", status: "expired" }] }), samplePlatform, {})
     expect(expired.state).toBe("broken")
-    expect(expired.gaps).toEqual([
-      "还没有知乎专用的作品产出工作流",
-      "拿数据的工具还没做",
-      "账号名已过期",
-      "访问密钥未配置",
-      "发布令牌未配置",
-    ])
+    // 样例平台照抄知乎，知乎已有拿数据的工具，所以缺项里没有「工具还没做」
+    expect(expired.gaps).toEqual(["账号名已过期", "访问密钥未配置", "发布令牌未配置"])
   })
 
   it("专用工作流按 requires 检查可用性并逐字列出缺项", () => {
@@ -96,12 +92,19 @@ describe("接入状态", () => {
     const missing = setupView(accountWithSettings([{ key: "expired", status: "missing" }]), platform, {})
     expect(missing.hasPlatformWorkflow).toBe(true)
     expect(missing.state).toBe("unfinished")
-    expect(missing.usableWorkflows.map((item) => item.id)).toEqual(["general-write"])
+    // 知乎三条专用工作流什么都不用配，始终能用；自造的「知乎专用流程」要发布令牌，没配上
+    expect(missing.usableWorkflows.map((item) => item.id)).toEqual(["zhihu-answer", "zhihu-from-blog", "zhihu-article", "general-write"])
     expect(missing.gaps).toEqual(["「知乎专用流程」要先配：发布令牌", "发布令牌未配置"])
 
     const ready = setupView(accountWithSettings([{ key: "expired", status: "ok" }]), platform, {})
     expect(ready.state).toBe("ready")
-    expect(ready.usableWorkflows.map((item) => item.id)).toEqual(["zhihu-special", "general-write"])
+    expect(ready.usableWorkflows.map((item) => item.id)).toEqual([
+      "zhihu-special",
+      "zhihu-answer",
+      "zhihu-from-blog",
+      "zhihu-article",
+      "general-write",
+    ])
     expect(ready.gaps).toEqual([])
 
     WORKFLOWS.splice(WORKFLOWS.indexOf(workflow), 1)
@@ -114,14 +117,21 @@ describe("接入状态", () => {
     }
     const configOnly = setupView(accountWithSettings(), configOnlyPlatform, {})
     expect(configOnly.state).toBe("unfinished")
-    expect(configOnly.usableWorkflows.map((item) => item.id)).toEqual(["zhihu-config-only", "general-write"])
+    expect(configOnly.usableWorkflows.map((item) => item.id)).toEqual([
+      "zhihu-config-only",
+      "zhihu-answer",
+      "zhihu-from-blog",
+      "zhihu-article",
+      "general-write",
+    ])
     expect(configOnly.gaps).toEqual(["账号名未配置"])
 
     WORKFLOWS.splice(WORKFLOWS.indexOf(configOnlyWorkflow), 1)
     WORKFLOWS.unshift({ ...configOnlyWorkflow, id: "zhihu-unusable-only", requires: ["unlisted-setting"] })
     const noItemsPlatform: PlatformInfo = { ...configOnlyPlatform, setupItems: [] }
     const unusableOnly = setupView(accountWithSettings(), noItemsPlatform, {})
-    expect(unusableOnly.state).toBe("unfinished")
+    // 知乎三条专用工作流什么都不用配，自造的这条用不了也拦不住接入状态变就绪
+    expect(unusableOnly.state).toBe("ready")
     expect(unusableOnly.items).toEqual([])
     expect(unusableOnly.gaps).toEqual(["「配置独立流程」要先配：unlisted-setting"])
   })
