@@ -296,6 +296,24 @@ export function buildProgram(options: BuildProgramOptions = {}): Command {
     "add",
     getContext,
   );
+  addAction(
+    account
+      .command("import <账号>")
+      .description("把博客仓库里已发的文章导入为作品"),
+    () => import("./commands/account-import.js"),
+    undefined,
+    getContext,
+  );
+  addAction(
+    account
+      .command("set <账号> <配置项> [值...]")
+      .description("配置平台要的东西；值用 --stdin 从标准输入读，不回显")
+      .option("--stdin", "从标准输入读取值（用于密钥）")
+      .option("--clear", "清掉这个配置项"),
+    () => import("./commands/account-set.js"),
+    undefined,
+    getContext,
+  );
 
   const data = program.command("data").description("数据操作");
   const pull = data
