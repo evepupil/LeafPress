@@ -53,7 +53,10 @@ function importContext(
     account: fixture.ctx.account,
     home: fixture.home,
     setting: (key) => fixture.ctx.setting(key),
+    // 博客导入不用密钥、不发请求
+    secret: () => undefined,
     exec: fixture.ctx.exec,
+    fetch: () => Promise.reject(new Error("博客导入不该发请求")),
     today: "2026-10-09",
     ...overrides,
   };

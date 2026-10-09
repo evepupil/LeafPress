@@ -4,6 +4,9 @@ import { createBlogImporter } from "./blog/import.js";
 import { createBlogHandlers } from "./blog/steps/index.js";
 import { createUmamiDataTool } from "./blog/umami/data.js";
 import { GENERAL_HANDLERS } from "./general/index.js";
+import { createZhihuDataTool } from "./zhihu/data.js";
+import { createZhihuImporter } from "./zhihu/import.js";
+import { ZHIHU_STEP_HANDLERS } from "./zhihu/steps/index.js";
 import type {
   CodeStepHandler,
   DataTool,
@@ -19,19 +22,22 @@ export interface PlatformRuntimeOptions {
   sleep?: (ms: number) => Promise<void>;
 }
 
-/** 登记已实现的代码步骤、拿数据的工具、导入工具：通用写稿 + 博客 */
+/** 登记已实现的代码步骤、拿数据的工具、导入工具：通用写稿 + 博客 + 知乎 */
 export function createPlatformRuntime(
   options: PlatformRuntimeOptions = {},
 ): PlatformRuntime {
   const codeSteps = new Map<string, CodeStepHandler>([
     ...Object.entries(GENERAL_HANDLERS),
     ...Object.entries(createBlogHandlers(options)),
+    ...Object.entries(ZHIHU_STEP_HANDLERS),
   ]);
   const dataTools: Partial<Record<PlatformId, DataTool>> = {
     blog: createUmamiDataTool(),
+    zhihu: createZhihuDataTool(),
   };
   const importers: Partial<Record<PlatformId, PostImporter>> = {
     blog: createBlogImporter(),
+    zhihu: createZhihuImporter(),
   };
 
   return {

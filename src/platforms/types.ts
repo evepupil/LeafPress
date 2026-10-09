@@ -17,6 +17,8 @@ export interface CodeStepContext {
   step: WorkflowStep;
   /** 任务文件夹（绝对路径，已存在） */
   folder: string;
+  /** 来源作品（作品是从别的作品转来的才有，例如博客改写成知乎时的那篇博客作品） */
+  sourceWork?: Work;
   today: DayKey;
   now: Date;
   /** 这个账号的普通配置值 */
@@ -80,7 +82,11 @@ export interface ImportContext {
   /** LeafPress 数据目录的绝对路径；导入工具要在里面放自己的工作目录和锁（博客：检出目录） */
   home: string;
   setting(key: string): string | undefined;
+  /** 这个账号的密钥（知乎导入要用开放平台密钥）；只许传给平台接口，用例在写库和返回前会抹掉它 */
+  secret(key: string): string | undefined;
   exec: ExecFn;
+  /** 网络请求（知乎导入调开放平台）；测试里换成假的 */
+  fetch: typeof fetch;
   today: DayKey;
 }
 

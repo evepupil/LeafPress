@@ -29,6 +29,7 @@
     "gray-matter": "4.0.3",
     "hono": "4.13.13",
     "js-yaml": "4.1.1",
+    "marked": "18.1.0",
     "remark-gfm": "4.0.1",
     "remark-parse": "11.0.0",
     "unified": "11.0.5",

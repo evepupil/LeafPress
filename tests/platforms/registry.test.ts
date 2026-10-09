@@ -46,19 +46,19 @@ describe("平台适配登记表", () => {
     ]);
   });
 
-  it("博客有拿数据的工具和导入工具，别的平台还没有", () => {
+  it("博客和知乎有拿数据的工具和导入工具，别的平台还没有", () => {
     const runtime = createPlatformRuntime();
-    const others: PlatformId[] = ["zhihu", "bilibili", "xiaohongshu"];
+    const others: PlatformId[] = ["bilibili", "xiaohongshu"];
 
-    expect(runtime.dataTool("blog")).toBeDefined();
-    expect(runtime.importer("blog")).toBeDefined();
+    for (const platform of ["blog", "zhihu"] as const) {
+      expect(runtime.dataTool(platform)).toBeDefined();
+      expect(runtime.importer(platform)).toBeDefined();
+    }
     expect(others.map((platform) => runtime.dataTool(platform))).toEqual([
-      undefined,
       undefined,
       undefined,
     ]);
     expect(others.map((platform) => runtime.importer(platform))).toEqual([
-      undefined,
       undefined,
       undefined,
     ]);
