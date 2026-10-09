@@ -70,7 +70,7 @@ describe("M1 网页与 agent 外部协作", () => {
         "account",
         "add",
         "--platform",
-        "zhihu",
+        "bilibili",
         "--name",
         "协作账号",
       ]);
@@ -78,7 +78,7 @@ describe("M1 网页与 agent 外部协作", () => {
       const account = parseJson<{ account: { id: string } }>(
         accountCommand.stdout,
       ).account;
-      expect(account.id).toBe("zhihu-1");
+      expect(account.id).toBe("bilibili-1");
       await assertSequenceAdvanced();
 
       const ideaResponse = await apiRequest<{ idea: { id: string } }>(
@@ -162,7 +162,7 @@ describe("M1 网页与 agent 外部协作", () => {
         `/api/works/${workId}/feedback`,
         {
           method: "POST",
-          body: { text: "已经发布：https://zhuanlan.zhihu.com/p/1" },
+          body: { text: "已经发布：https://www.bilibili.com/video/BV1collab1" },
         },
       );
       expect(feedback.status).toBe(200);
@@ -195,7 +195,7 @@ describe("M1 网页与 agent 外部协作", () => {
       const completed = done.body.works.find((work) => work.id === workId);
       expect(completed).toMatchObject({
         status: "done",
-        url: "https://zhuanlan.zhihu.com/p/1",
+        url: "https://www.bilibili.com/video/BV1collab1",
       });
       const detail = await apiRequest<WorkDetail>(
         environment,

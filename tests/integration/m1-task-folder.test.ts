@@ -69,7 +69,7 @@ describe("M1 任务文件夹镜像与归档步骤", () => {
         "account",
         "add",
         "--platform",
-        "zhihu",
+        "bilibili",
         "--name",
         "任务目录账号",
       ]);
@@ -176,7 +176,7 @@ describe("M1 任务文件夹镜像与归档步骤", () => {
         "没在你的反馈里找到链接",
       );
 
-      const link = "https://zhuanlan.zhihu.com/p/77";
+      const link = "https://www.bilibili.com/video/BV1folder77";
       const secondFeedback = `补充发布链接：${link}`;
       const submittedSecond = await apiRequest(
         environment,

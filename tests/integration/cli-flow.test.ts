@@ -169,7 +169,7 @@ describe("已构建 CLI 端到端流程", () => {
           "account",
           "add",
           "--platform",
-          "zhihu",
+          "bilibili",
           "--name",
           "一叶之桐",
           "--intro",
@@ -180,7 +180,7 @@ describe("已构建 CLI 端到端流程", () => {
       ),
     ) as { account: { id: string } };
     const accountId = account.account.id;
-    expect(accountId).toBe("zhihu-1");
+    expect(accountId).toBe("bilibili-1");
     const secondAccount = JSON.parse(
       invoke(
         [
@@ -240,7 +240,7 @@ describe("已构建 CLI 端到端流程", () => {
         "feedback",
         workId as string,
         "发布了",
-        "https://zhuanlan.zhihu.com/p/1",
+        "https://www.bilibili.com/video/BV1flow1",
         "页面检查完成",
       ],
       false,
@@ -265,7 +265,7 @@ describe("已构建 CLI 端到端流程", () => {
     ) as { detail: { work: { status: string; url?: string } } };
     expect(shown.detail.work).toMatchObject({
       status: "done",
-      url: "https://zhuanlan.zhihu.com/p/1",
+      url: "https://www.bilibili.com/video/BV1flow1",
     });
     expect(readFileSync(join(folder, "作品.md"), "utf8")).toContain("测试灵感");
 
