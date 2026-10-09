@@ -2,12 +2,14 @@ import { addDays, daysBetween, diffDays, weekStartOf } from "../dates/index.ts"
 import { formatDay, formatDayShort, formatWeekRange, weekdayLabel } from "../format/index.ts"
 import type { Account, DayKey, Work } from "../types/index.ts"
 import { followersAt, sumFlow } from "./common.ts"
+import { followersKnown } from "./coverage.ts"
 import type { MetricId, MetricResult, MetricsInput, RangeId, SeriesPoint } from "./types.ts"
 
 function scopeAccounts(input: MetricsInput, scope: string): Account[] {
   return scope === "all" ? input.accounts : input.accounts.filter((account) => account.id === scope)
 }
 
+/** 传进来的必须都是拿得到粉丝数的账号（见 metricSeries），拿不到的号 followersAt 是 0，加进去等于把「没有」当成「0 个」 */
 function follows(input: MetricsInput, accounts: Account[], day: DayKey): number {
   return accounts.reduce((sum, account) => sum + followersAt(input.dataset, account.id, day), 0)
 }
@@ -32,8 +34,11 @@ export function metricSeries(input: MetricsInput, scope: string, metric: MetricI
   const { dataset, works } = input
   const accounts = scopeAccounts(input, scope)
   const ids = new Set(accounts.map((account) => account.id))
+  // 粉丝线只算拿得到粉丝数的账号；选中的账号一个都拿不到时，这一项标成没有（available: false）
+  const followerAccounts = accounts.filter((account) => followersKnown(dataset, account.id))
+  const available = metric !== "followers" || followerAccounts.length > 0
   const valueOf = (start: DayKey, end: DayKey): number => {
-    if (metric === "followers") return follows(input, accounts, end)
+    if (metric === "followers") return follows(input, followerAccounts, end)
     if (metric === "posts") return countPublished(works, ids, start, end)
     const key = metric === "reads" ? "reads" : "interactions"
     return accounts.reduce((sum, account) => sum + sumFlow(dataset, account.id, start, end, key), 0)
@@ -47,6 +52,7 @@ export function metricSeries(input: MetricsInput, scope: string, metric: MetricI
         key: day,
         label: formatDayShort(day),
         title: `${formatDay(day, dataset.today)} ${weekdayLabel(day)}`,
+        end: day,
         value: valueOf(day, day),
         compare: valueOf(previous, previous),
       }
@@ -63,6 +69,7 @@ export function metricSeries(input: MetricsInput, scope: string, metric: MetricI
         key: week,
         label: formatDayShort(week),
         title: partialLatestWeek ? `${formatWeekRange(week)}（到${formatDay(end, dataset.today)}）` : formatWeekRange(week),
+        end,
         value: valueOf(week, end),
         compare: valueOf(previousWeek, previousEnd),
       }
@@ -73,8 +80,8 @@ export function metricSeries(input: MetricsInput, scope: string, metric: MetricI
   let value: number
   let change: number | null
   if (metric === "followers") {
-    value = follows(input, accounts, dataset.latestDay)
-    const base = follows(input, accounts, addDays(start, -1))
+    value = follows(input, followerAccounts, dataset.latestDay)
+    const base = follows(input, followerAccounts, addDays(start, -1))
     change = base > 0 ? (value - base) / base : null
   } else {
     value = valueOf(start, dataset.latestDay)
@@ -82,5 +89,5 @@ export function metricSeries(input: MetricsInput, scope: string, metric: MetricI
     const previous = valueOf(addDays(start, -length), addDays(start, -1))
     change = previous > 0 ? (value - previous) / previous : null
   }
-  return { metric, value, change, points }
+  return { metric, available, value, change, points }
 }

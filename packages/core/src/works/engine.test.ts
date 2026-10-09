@@ -118,6 +118,20 @@ describe("作品状态流转", () => {
     expect(done.url).not.toBe(feedbackUrl)
   })
 
+  it("代码步骤完成时把本机原稿路径和平台编号写到作品", () => {
+    const localPath = "C:/blog/content/posts/zh/example.mdx"
+    const sourceRef = "zh/example"
+    const codeThenAi: WorkflowDef = {
+      ...workflow,
+      steps: [workflow.steps[2]!, { ...workflow.steps[0]!, id: "after-code" }],
+    }
+    const done = value(
+      applyCodeResult(makeWork({ status: "doing", step: 0 }), codeThenAi, { kind: "done", localPath, sourceRef }, { at, vars }),
+    )
+
+    expect(done).toMatchObject({ localPath, sourceRef, status: "doing", step: 1 })
+  })
+
   it("手动步骤无反馈时 toWaiting，ask、租约、错误和旧反馈均按规则处理", () => {
     const work = makeWork({ step: 1, lease, error: "旧错误" })
     const waiting = value(startWork(work, workflow, { at: nextAt, lease, vars }))

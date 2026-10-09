@@ -169,6 +169,8 @@ export function applyCodeResult(
     ...work,
     ...(outcome.url === undefined ? {} : { url: outcome.url }),
     ...(outcome.publishedAt === undefined ? {} : { publishedAt: outcome.publishedAt }),
+    ...(outcome.localPath === undefined ? {} : { localPath: outcome.localPath }),
+    ...(outcome.sourceRef === undefined ? {} : { sourceRef: outcome.sourceRef }),
   }
   const noted = record(withOutcome, input.at, `完成：${step.name}${outcome.note ? `：${outcome.note}` : ""}`)
   return ok(advance(noted, workflow, input.at, input.vars, true))

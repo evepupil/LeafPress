@@ -127,7 +127,17 @@ describe("接入状态", () => {
   })
 
   it("数据来源没有工具、正常拉取与失败拉取分支", () => {
-    expect(dataSourceView(PLATFORMS.blog, undefined, "每天 06:00")).toEqual({ status: "missing", schedule: "每天 06:00" })
+    // 没有拿数据工具的平台：不依赖哪个真实平台还没接
+    const withoutTool: PlatformInfo = { ...PLATFORMS.zhihu }
+    delete withoutTool.dataTool
+    expect(dataSourceView(withoutTool, undefined, "每天 06:00")).toEqual({ status: "missing", schedule: "每天 06:00" })
+    // 博客用 Umami 统计拿数据
+    expect(dataSourceView(PLATFORMS.blog, undefined, "每天 06:00")).toEqual({
+      status: "ok",
+      mode: "analytics",
+      provider: "Umami 统计",
+      schedule: "每天 06:00",
+    })
     expect(
       dataSourceView(
         { ...PLATFORMS.zhihu, dataTool: { mode: "api", provider: "知乎接口" } },
@@ -165,7 +175,8 @@ describe("拉取计划和提示", () => {
     expect(
       pullPlan(
         [
-          makeAccount("skip", "blog"),
+          makeAccount("skip", "bilibili"),
+          makeAccount("blog-account", "blog", { settings: [{ key: "site-url", status: "ok", value: "https://blog.example.test" }] }),
           accountWithSettings([{ key: "data-token", status: "missing" }]),
           makeAccount("expired", "zhihu", { settings: [{ key: "data-token", status: "expired" }] }),
           makeAccount("two-blocked", "zhihu", {
@@ -186,6 +197,8 @@ describe("拉取计划和提示", () => {
       ),
     ).toEqual([
       { accountId: "skip", action: "skip" },
+      // 博客的拿数据只看 Umami 共享链接；站点地址是发布用的，不拦拉数据
+      { accountId: "blog-account", action: "blocked", reason: "Umami 共享链接未配置" },
       { accountId: "zhihu-1", action: "blocked", reason: "数据令牌未配置" },
       { accountId: "expired", action: "blocked", reason: "数据令牌已过期" },
       { accountId: "two-blocked", action: "blocked", reason: "数据令牌未配置" },

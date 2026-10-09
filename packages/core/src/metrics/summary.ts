@@ -1,6 +1,7 @@
 import { addDays, diffDays, weekStartOf } from "../dates/index.ts"
 import type { Account, DayKey, Work } from "../types/index.ts"
 import { publishedWorks, sumFlow, followersAt } from "./common.ts"
+import { followersKnown, lastDataDay } from "./coverage.ts"
 import type { AccountSummary, MetricsInput } from "./types.ts"
 
 export function accountSummary(input: MetricsInput, account: Account): AccountSummary {
@@ -26,6 +27,8 @@ export function accountSummary(input: MetricsInput, account: Account): AccountSu
   return {
     account,
     hasData: (dataset.daily[account.id]?.length ?? 0) > 0,
+    followersKnown: followersKnown(dataset, account.id),
+    dataThrough: lastDataDay(dataset, account.id),
     followers,
     followers7d: followers - followersAt(dataset, account.id, addDays(latest, -7)),
     followers30d: followers - followersAt(dataset, account.id, addDays(latest, -30)),

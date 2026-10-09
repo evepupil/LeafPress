@@ -60,7 +60,7 @@ describe("转作品", () => {
     )
     expect(works.map((item) => [item.id, item.accountId, item.workflowId, item.order])).toEqual([
       ["z-21", "zhihu-1", "general-write", 5],
-      ["b-22", "blog-1", "general-write", 6],
+      ["b-22", "blog-1", "blog-write", 6],
       ["v-23", "bili-1", "general-write", 7],
     ])
     expect(works[0]).toMatchObject({

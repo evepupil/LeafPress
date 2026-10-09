@@ -19,7 +19,34 @@ export const PLATFORMS: Record<PlatformId, PlatformInfo> = {
     audienceLabel: "订阅",
     // 博客数据只走 Umami：访问、访客，都不算互动
     metrics: [metric("pageviews", "访问", false), metric("visitors", "访客", false)],
-    setupItems: [],
+    setupItems: [
+      {
+        key: "repo-path",
+        label: "博客仓库位置",
+        secret: false,
+        usedFor: "write",
+        placeholder: "C:\\code\\yeton-blog",
+        hint: "博客的 git 仓库在本机的文件夹",
+      },
+      {
+        key: "site-url",
+        label: "站点地址",
+        secret: false,
+        usedFor: "publish",
+        placeholder: "https://blog.chaosyn.com",
+        hint: "文章链接是 站点地址/posts/<slug>/",
+      },
+      {
+        key: "umami-share",
+        label: "Umami 共享链接",
+        secret: true,
+        usedFor: "data",
+        placeholder: "https://cloud.umami.is/analytics/us/share/…",
+        hint: "Umami 网站设置里打开共享链接后，复制整串",
+      },
+    ],
+    dataTool: { mode: "analytics", provider: "Umami 统计" },
+    importable: true,
   },
   zhihu: {
     id: "zhihu",

@@ -12,6 +12,7 @@ export {
   shortTitle,
   sumFlow,
 } from "./common.ts"
+export { followersKnown, hasMetricsData, lastDataDay } from "./coverage.ts"
 export { rankedWork, topWorks } from "./rank.ts"
 export type { RankBy } from "./rank.ts"
 export type { FlowKey } from "./common.ts"

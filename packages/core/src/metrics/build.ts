@@ -88,11 +88,15 @@ export function buildDataset(input: {
     accountDaysById.set(record.accountId, group)
   }
   const daily: MetricsDataset["daily"] = {}
+  const lastDays: MetricsDataset["lastDays"] = {}
   for (const [accountId, records] of accountDaysById) {
     if (!accountsById.has(accountId) || records.length === 0) continue
     records.sort((a, b) => a.day.localeCompare(b.day))
     const first = records[0]
-    if (!first) continue
+    const last = records[records.length - 1]
+    if (!first || !last) continue
+    // 真实记录的最后一天：daily 补出来的天不算（窗口外的记录已在上面分组时筛掉）
+    lastDays[accountId] = last.day
     const byDay = new Map(records.map((record) => [record.day, record]))
     daily[accountId] = daysBetween(first.day, latestDay).map((day) => {
       const record = byDay.get(day)
@@ -107,5 +111,5 @@ export function buildDataset(input: {
     })
   }
 
-  return { today: input.today, latestDay, daily, workDays }
+  return { today: input.today, latestDay, daily, lastDays, workDays }
 }

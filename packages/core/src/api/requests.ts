@@ -139,6 +139,25 @@ export interface AddAccountResult extends MutationOk {
   account: Account
 }
 
+/** 一次导入的结果：新建了几个、跳过了几个，以及读不了的原稿 */
+export interface ImportSummary {
+  /** 新建成已完成作品的数量 */
+  added: number
+  /** 因为已经导入过（原稿编号或链接相同）而跳过的数量 */
+  skipped: number
+  /** 草稿数：草稿不导入 */
+  drafts: number
+  /** 读不了或元数据有问题的原稿；path 是原稿在本机的位置 */
+  issues: { path: string; message: string }[]
+  /** 这次新建的作品 */
+  works: Work[]
+}
+
+/** POST /api/accounts/:id/import */
+export interface ImportResult extends MutationOk {
+  summary: ImportSummary
+}
+
 export interface PullOutcome {
   accountId: string
   status: "ok" | "failed"

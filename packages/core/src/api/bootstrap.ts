@@ -18,6 +18,15 @@ export interface DataPaths {
   backups: string
 }
 
+/**
+ * bootstrap 里的定时任务：在 ScheduleView 上多带装上的时间。
+ * 「装上以后一直没运行过」的任务没有 lastRunAt，提醒规则靠装上的时间判断是不是已经晚了
+ */
+export interface BootstrapScheduleView extends ScheduleView {
+  /** 装上的时间；计划任务状态里没记时没有 */
+  installedAt?: IsoTime
+}
+
 /** GET /api/bootstrap：除数据快照以外，页面要的全部数据 */
 export interface Bootstrap {
   now: IsoTime
@@ -30,5 +39,5 @@ export interface Bootstrap {
   /** 每个账号最近一次拉数据的结果（没拉过的账号没有） */
   pulls: PullRecord[]
   notes: WeeklyNote[]
-  schedules: ScheduleView[]
+  schedules: BootstrapScheduleView[]
 }

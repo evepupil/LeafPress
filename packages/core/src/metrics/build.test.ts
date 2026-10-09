@@ -62,6 +62,8 @@ describe("buildDataset", () => {
       { day: "2026-10-07", reads: 5, interactions: 2 },
     ])
     expect(result.workDays["unknown-account"]).toBeUndefined()
+    // 没有账号记录：谁都没有真实记录的最后一天
+    expect(result.lastDays).toEqual({})
   })
 
   it("账号从窗口内首条记录连续补到昨天，保留 null 粉丝并优先采用账号级数据", () => {
@@ -104,5 +106,33 @@ describe("buildDataset", () => {
     expect(result.daily.b?.[0]).toEqual({ day: "2026-04-09", followers: 200, reads: 0, interactions: 0, posts: 0 })
     expect(result.daily.unknown).toBeUndefined()
     expect(addDays("2026-10-08", -182)).toBe("2026-04-09")
+    // 真实记录的最后一天：a 是 10-07；b 窗口外的 04-08 不算，只剩 04-09；不存在的账号没有键
+    expect(result.lastDays).toEqual({ a: "2026-10-07", b: "2026-04-09" })
+  })
+
+  it("lastDays 只看窗口里真实的记录行：daily 补出来的天、窗口外和今天的记录都不算", () => {
+    const accountDays: AccountDayRecord[] = [
+      // a：10-03 拉到过，之后没拉，daily 会补到 10-07；今天（10-08）的记录在窗口外
+      { accountId: "a", day: "2026-10-03", followers: 500, reads: null, interactions: null },
+      { accountId: "a", day: "2026-10-08", followers: 520, reads: null, interactions: null },
+      // b：只有窗口之前的记录，等于窗口里什么都没有
+      { accountId: "b", day: "2026-04-08", followers: 100, reads: 0, interactions: 0 },
+    ]
+    const result = buildDataset({ today, accounts, works: [], accountDays, workSnapshots: [] })
+    expect(result.daily.a?.at(-1)?.day).toBe("2026-10-07")
+    expect(result.lastDays).toEqual({ a: "2026-10-03" })
+    expect(result.daily.b).toBeUndefined()
+  })
+
+  it("拉到了但数是 0 的记录也算：lastDays 是那一行的日期", () => {
+    // 博客 10-06、10-07 的记录访问数是 0，真的拉到了；daily 里这两天长得和补出来的一样
+    const accountDays: AccountDayRecord[] = [
+      { accountId: "b", day: "2026-10-05", followers: null, reads: 8, interactions: 0 },
+      { accountId: "b", day: "2026-10-06", followers: null, reads: 0, interactions: 0 },
+      { accountId: "b", day: "2026-10-07", followers: null, reads: 0, interactions: 0 },
+    ]
+    const result = buildDataset({ today, accounts, works: [], accountDays, workSnapshots: [] })
+    expect(result.daily.b?.map((point) => point.reads)).toEqual([8, 0, 0])
+    expect(result.lastDays).toEqual({ b: "2026-10-07" })
   })
 })

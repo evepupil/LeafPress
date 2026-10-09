@@ -33,6 +33,7 @@ const dataset: MetricsDataset = {
   today: "2026-10-08",
   latestDay: "2026-10-07",
   daily: { a: pointsFor("a"), b: pointsFor("b") },
+  lastDays: { a: "2026-10-07", b: "2026-10-07" },
   workDays: {
     "z-best": [
       { day: "2026-09-30", reads: 20, interactions: 4 },
@@ -72,11 +73,12 @@ describe("周报", () => {
       "粉丝合计 +25，其中小叶（知乎）+20。",
       "浏览 105，比上周 +114%；《旧作》最多（50）。",
     ])
-    expect(report.rows.map((row) => [row.account.id, row.hasData, row.delta, row.posts])).toEqual([
-      ["a", true, 20, 1],
-      ["b", true, 5, 1],
-      ["c", false, 0, 1],
+    expect(report.rows.map((row) => [row.account.id, row.hasData, row.followersKnown, row.delta, row.posts])).toEqual([
+      ["a", true, true, 20, 1],
+      ["b", true, true, 5, 1],
+      ["c", false, false, 0, 1],
     ])
+    expect(report.followersKnown).toBe(true)
     expect(report.published.map((item) => item.work.id)).toEqual(["c-new", "z-new", "b-new"])
     expect(report.rows[0]?.best?.weekReads).toBe(50)
     expect(report.note).toEqual(note)
@@ -100,12 +102,97 @@ describe("周报", () => {
   it("断更小结使用平台 audienceLabel", () => {
     const oldBlog = makeAccount("old", "blog", { name: "老博客" })
     const oldInput = {
-      dataset: { ...dataset, daily: { old: pointsFor("b") } },
+      dataset: { ...dataset, daily: { old: pointsFor("b") }, lastDays: { old: "2026-10-07" } },
       accounts: [oldBlog],
       works: [makeWork("old-work", "old", "2026-09-01")],
       notes: [],
     }
     expect(weekReport(oldInput, "2026-09-28").digest).toContain("老博客 已经 33 天没更新，订阅 +5。")
+  })
+
+  it("拿不到粉丝数的账号：粉丝一句不写，断更那句不写「订阅 +0」，行里标明拿不到", () => {
+    // Umami 不给订阅数：每天粉丝为空，访问数每天 2
+    const umami = makeAccount("u", "blog", { name: "技术博客" })
+    const umamiInput = {
+      dataset: {
+        ...dataset,
+        daily: {
+          u: daysBetween("2026-09-20", "2026-10-07").map((day) => ({ day, followers: null, reads: 2, interactions: 0, posts: 0 })),
+        },
+        lastDays: { u: "2026-10-07" },
+      },
+      accounts: [umami],
+      works: [makeWork("u-new", "u", "2026-09-29"), makeWork("u-old", "u", "2026-08-20")],
+      notes: [],
+    }
+    const report = weekReport(umamiInput, "2026-09-28")
+    expect(report.followersKnown).toBe(false)
+    expect(report.rows.map((row) => [row.account.id, row.hasData, row.followersKnown, row.delta])).toEqual([["u", true, false, 0]])
+    expect(report.totals).toEqual({ delta: 0, posts: 1, reads: 14, interactions: 0 })
+    // 最后一篇 9-29 发的，离周末 5 天，不算断更；只有两句，没有「粉丝合计」
+    expect(report.digest).toEqual(["这周发了 1 篇：博客 1 篇。", "浏览 14，比上周 0%。"])
+
+    // 同一个号最后一篇是 9-01，周末时已经 33 天没更新：断更句不带订阅数
+    const idle = { ...umamiInput, works: [makeWork("u-old", "u", "2026-09-01")] }
+    expect(weekReport(idle, "2026-09-28").digest).toEqual(["这周还没有发布。", "浏览 14，比上周 0%。", "技术博客 已经 33 天没更新。"])
+  })
+
+  it("粉丝合计只算拿得到的账号：博客拿不到时知乎照常写，合计不受博客影响", () => {
+    const umami = makeAccount("u", "blog", { name: "技术博客" })
+    const mixed = {
+      dataset: {
+        ...dataset,
+        daily: {
+          ...dataset.daily,
+          u: daysBetween("2026-09-20", "2026-10-07").map((day) => ({ day, followers: null, reads: 2, interactions: 0, posts: 0 })),
+        },
+        lastDays: { ...dataset.lastDays, u: "2026-10-07" },
+      },
+      accounts: [zhihu, umami],
+      works: [],
+      notes: [],
+    }
+    const report = weekReport(mixed, "2026-09-28")
+    expect(report.followersKnown).toBe(true)
+    expect(report.totals.delta).toBe(20)
+    expect(report.rows.map((row) => [row.account.id, row.followersKnown, row.delta])).toEqual([
+      ["a", true, 20],
+      ["u", false, 0],
+    ])
+    expect(report.digest[1]).toBe("粉丝合计 +20，其中小叶（知乎）+20。")
+  })
+
+  it("后加进来但有旧数据的账号：周末之前有账号每天的数，或发过作品，那一周的分账号表就列它", () => {
+    // 三个号都是 10-06 才加进来：新博客补了历史数据，旧作品号只有一篇 9-29 的作品，空号什么都没有
+    const late = makeAccount("late", "blog", { name: "新博客", since: "2026-10-06" })
+    const worksOnly = makeAccount("worksOnly", "bilibili", { name: "旧视频号", since: "2026-10-06" })
+    const empty = makeAccount("empty", "xiaohongshu", { name: "空号", since: "2026-10-06" })
+    const lateInput = {
+      dataset: {
+        ...dataset,
+        daily: {
+          late: daysBetween("2026-09-20", "2026-10-07").map((day) => ({ day, followers: null, reads: 1, interactions: 0, posts: 0 })),
+        },
+        lastDays: { late: "2026-10-07" },
+      },
+      accounts: [late, worksOnly, empty],
+      works: [makeWork("old-video", "worksOnly", "2026-09-29")],
+      notes: [],
+    }
+    const ids = (week: string) => weekReport(lateInput, week).rows.map((row) => row.account.id)
+
+    // 周末 10-04：新博客有每天的数，旧视频号 9-29 发过作品；空号都没有
+    expect(ids("2026-09-28")).toEqual(["late", "worksOnly"])
+    const week = weekReport(lateInput, "2026-09-28")
+    expect(week.totals).toEqual({ delta: 0, posts: 1, reads: 7, interactions: 0 })
+    expect(week.digest[0]).toBe("这周发了 1 篇：B站 1 篇。")
+    // 周末 9-27：作品还没发（9-29 才发），只剩新博客
+    expect(ids("2026-09-21")).toEqual(["late"])
+    // 周末 9-20：新博客的数据 9-20 才开始，正好算有
+    expect(ids("2026-09-14")).toEqual(["late"])
+    expect(weekReport(lateInput, "2026-09-14").totals.reads).toBe(1)
+    // 周末 9-13：数据还没开始，三个号都不列
+    expect(ids("2026-09-07")).toEqual([])
   })
 
   it("周一从昨天的数据周开始，并将上一周识别为完整周", () => {

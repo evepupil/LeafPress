@@ -1,6 +1,7 @@
 import { expect, test } from "vitest"
 
 import { GENERAL_WRITE, WORKFLOWS } from "../catalog/index.ts"
+import { BLOG_WRITE } from "../catalog/workflows.ts"
 import type { PlatformId, WorkflowDef, WorkSource } from "../types/index.ts"
 import { fillTemplate, isUsable, pickFromList, pickWorkflow, workflowsFor, workflowById } from "./workflows.ts"
 import type { StepVars } from "./workflows.ts"
@@ -10,10 +11,10 @@ const NEW_SOURCE: WorkSource = { kind: "none" }
 const WORK_SOURCE: WorkSource = { kind: "work", workId: "b-1" }
 const IMPORT_SOURCE: WorkSource = { kind: "import" }
 
-test("pickWorkflow：M1 只有通用写稿，任何平台任何来源都返回它", () => {
+test("博客选博客写稿，其余平台和来源回落通用写稿", () => {
   for (const platform of ["blog", "zhihu", "bilibili", "xiaohongshu"] as PlatformId[]) {
     for (const source of [IDEA_SOURCE, NEW_SOURCE, WORK_SOURCE, IMPORT_SOURCE]) {
-      expect(pickWorkflow(platform, source, "blog")).toBe(GENERAL_WRITE)
+      expect(pickWorkflow(platform, source, "blog")).toBe(platform === "blog" ? BLOG_WRITE : GENERAL_WRITE)
     }
   }
 })
@@ -24,7 +25,7 @@ test("workflowById：按编号找；没有的返回 undefined 不抛错", () => 
 })
 
 test("workflowsFor：平台专用的在前，通用的在后；没有专用的就只有通用", () => {
-  expect(workflowsFor("blog")).toEqual([GENERAL_WRITE])
+  expect(workflowsFor("blog")).toEqual([BLOG_WRITE, GENERAL_WRITE])
   expect(workflowsFor("zhihu")).toEqual([GENERAL_WRITE])
 })
 
@@ -123,8 +124,10 @@ test("fillTemplate：替换值中的美元符号和其他占位符保持原样",
   expect(fillTemplate("{account} 到 {platform} / {folder}", vars)).toBe("省钱$$攻略 到 平台{account}$& / 任务$&")
 })
 
-test("WORKFLOWS 目录：M1 只有通用写稿，platform 和 from 都是 any", () => {
-  expect(WORKFLOWS).toEqual([GENERAL_WRITE])
+test("WORKFLOWS 目录：博客专用写稿在通用写稿前", () => {
+  expect(WORKFLOWS).toEqual([BLOG_WRITE, GENERAL_WRITE])
+  expect(BLOG_WRITE.platform).toBe("blog")
+  expect(BLOG_WRITE.from).toBe("any")
   expect(GENERAL_WRITE.platform).toBe("any")
   expect(GENERAL_WRITE.from).toBe("any")
 })

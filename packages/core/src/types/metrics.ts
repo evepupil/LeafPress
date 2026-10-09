@@ -51,6 +51,12 @@ export interface MetricsDataset {
    * 没拉到的那天 followers 为 null、其余为 0。从没拉到过数据的账号没有这个键
    */
   daily: Record<string, DailyPoint[]>
+  /**
+   * 每个账号在记录库里真正有数的最后一天（键是账号编号）：窗口里这个号的账号每天记录里最大的日期，不超过 latestDay。
+   * daily 会把最后一次拉取之后的天补成 0，补出来的天看不出是拉到了还是没拉；这里只看真实的记录行，
+   * 所以博客某天拉到了、可访问是 0，也算数据到这天。窗口里没有记录的账号没有这个键
+   */
+  lastDays: Record<string, DayKey>
   /** 每个已发作品每天新增的数（键是作品编号），按日期升序，只含有新增的天 */
   workDays: Record<string, WorkDay[]>
 }

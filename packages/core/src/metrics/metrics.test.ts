@@ -13,7 +13,13 @@ describe("粉丝与流量基础统计", () => {
     { day: "2026-10-03", followers: null, reads: 5, interactions: 1, posts: 0 },
     { day: "2026-10-04", followers: 510, reads: 6, interactions: 2, posts: 0 },
   ]
-  const dataset: MetricsDataset = { today: "2026-10-08", latestDay: "2026-10-07", daily: { a: points }, workDays: {} }
+  const dataset: MetricsDataset = {
+    today: "2026-10-08",
+    latestDay: "2026-10-07",
+    daily: { a: points },
+    lastDays: { a: "2026-10-04" },
+    workDays: {},
+  }
 
   it("粉丝空洞取最近观测，早于首次观测沿用首次值，从未观测返回零", () => {
     expect(followersOn(dataset, "a", "2026-10-03")).toBe(500)
@@ -43,7 +49,13 @@ describe("账号概况", () => {
     interactions: (index % 5) + 1,
     posts: 0,
   }))
-  const dataset: MetricsDataset = { today: "2026-10-08", latestDay: "2026-10-07", daily: { a: daily }, workDays: {} }
+  const dataset: MetricsDataset = {
+    today: "2026-10-08",
+    latestDay: "2026-10-07",
+    daily: { a: daily },
+    lastDays: { a: "2026-10-07" },
+    workDays: {},
+  }
   const works = [
     makeWork("today-post", "a", "2026-10-08"),
     makeWork("week-post", "a", "2026-10-06"),
@@ -67,12 +79,59 @@ describe("账号概况", () => {
     expect(summary.daysSincePublish).toBe(0)
     expect(summary.weeklyGain).toEqual([41, 33, 33, 33, 41, 33, 33, 33, 41, 33, 33, 13])
     expect(summary.stale).toBe(false)
+    expect(summary.followersKnown).toBe(true)
+    expect(summary.dataThrough).toBe("2026-10-07")
+  })
+
+  // Umami 不给订阅数，每天粉丝为空；访问数 10-04 及以前每天 5，之后每天 0
+  const umami = makeAccount("umami", "blog", { name: "技术博客" })
+  const umamiDaily = daysBetween("2026-09-20", "2026-10-07").map((day) => ({
+    day,
+    followers: null,
+    reads: day <= "2026-10-04" ? 5 : 0,
+    interactions: 0,
+    posts: 0,
+  }))
+
+  it("博客拿不到粉丝数：followersKnown 为 false，数据到记录库里真实记录的最后一天", () => {
+    // 记录只到 10-04，之后三天没拉到，daily 里是补出来的 0
+    const blogDataset: MetricsDataset = {
+      today: "2026-10-08",
+      latestDay: "2026-10-07",
+      daily: { umami: umamiDaily },
+      lastDays: { umami: "2026-10-04" },
+      workDays: {},
+    }
+    const summary = accountSummary({ dataset: blogDataset, accounts: [umami], works: [] }, umami)
+    expect(summary.hasData).toBe(true)
+    expect(summary.followersKnown).toBe(false)
+    expect(summary.dataThrough).toBe("2026-10-04")
+    expect(summary).toMatchObject({ followers: 0, followers7d: 0, followers30d: 0 })
+    expect(summary.weeklyGain).toEqual(Array.from({ length: 12 }, () => 0))
+    expect(summary.reads7d).toBe(20)
+    expect(summary.readsChange).toBeCloseTo(-3 / 7, 10)
+  })
+
+  it("最后几天拉到了、访问确实是 0：数据到仍是最后一天，和 daily 里的 0 无关", () => {
+    // daily 和上一条完全一样，区别只在记录库里 10-05 到 10-07 有真实记录行
+    const blogDataset: MetricsDataset = {
+      today: "2026-10-08",
+      latestDay: "2026-10-07",
+      daily: { umami: umamiDaily },
+      lastDays: { umami: "2026-10-07" },
+      workDays: {},
+    }
+    const summary = accountSummary({ dataset: blogDataset, accounts: [umami], works: [] }, umami)
+    expect(summary.dataThrough).toBe("2026-10-07")
+    expect(summary.reads7d).toBe(20)
   })
 
   it("没有数据但已发布的作品仍计入作品数和本周发布；运营中超过 14 天才断更", () => {
     const input = { dataset, accounts: [account, noData, stale], works }
     const summary = accountSummary(input, noData)
     expect(summary.hasData).toBe(false)
+    expect(summary.followersKnown).toBe(false)
+    expect(summary.dataThrough).toBeNull()
     expect(summary.followers).toBe(0)
     expect(summary.works).toBe(1)
     expect(summary.postsThisWeek).toBe(1)
@@ -115,6 +174,7 @@ describe("作品排行和平台数据项", () => {
     today: "2026-10-08",
     latestDay: "2026-10-07",
     daily: {},
+    lastDays: {},
     workDays: { "a-work": days(1), "b-work": days(1), "c-work": days(2) },
   }
   const input = { dataset, accounts: [account], works }

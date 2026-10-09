@@ -18,6 +18,7 @@ import type {
   AddAccountInput,
   AddIdeaInput,
   CreateWorksInput,
+  ImportSummary,
   MoveIdeaInput,
   MoveWorkInput,
   PullOutcome,
@@ -129,9 +130,18 @@ export interface UseCases {
   saveProfile(id: string, profile: string): Account
   /** value 去首尾空白后为空表示清掉 */
   setSetting(id: string, key: string, value: string): Account
+  /**
+   * 把平台上已有的内容导入成已完成的作品（博客：仓库里已发布的文章），已经导入过的跳过。
+   * 账号不存在抛 NOT_FOUND；平台还不能导入抛 USAGE；导入工具报错（配置没填全、仓库读不了……）抛 STATE_CONFLICT，hint 是修复建议
+   */
+  importPosts(accountId: string): Promise<ImportSummary>
 
   // ---------- 数据与周报 ----------
-  pullData(input?: { accountIds?: string[] }): Promise<PullSummary>
+  /**
+   * 拉数据。onProgress：拉的过程中（第一次补历史要拉好几分钟）数据工具每报一次进度就调一次，
+   * 收到账号编号和工具的原话（密钥已抹掉），命令行拿它打到标准错误；它自己出错不影响拉取结果
+   */
+  pullData(input?: { accountIds?: string[]; onProgress?: (accountId: string, message: string) => void }): Promise<PullSummary>
   dataset(): MetricsDataset
   saveNote(week: string, input: SaveNoteInput): WeeklyNote
 
