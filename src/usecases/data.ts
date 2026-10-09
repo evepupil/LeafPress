@@ -32,18 +32,56 @@ function warn(app: AppContext, message: string): void {
   }
 }
 
+/**
+ * 把数据工具报的进度交给调用方（带上账号编号）。工具是外部实现，说的话先抹掉密钥；
+ * 调用方的回调出错只提醒一次，不影响拉取结果。调用方没要进度时返回 undefined，工具那头就不报。
+ */
+function accountProgress(
+  app: AppContext,
+  accountId: string,
+  secrets: readonly string[],
+  onProgress: ((accountId: string, message: string) => void) | undefined,
+): ((message: string) => void) | undefined {
+  if (typeof onProgress !== "function") return undefined;
+  let warned = false;
+  return (message) => {
+    try {
+      onProgress(
+        accountId,
+        redactTextWithSecrets(app, accountId, message, secrets),
+      );
+    } catch (error) {
+      if (warned) return;
+      warned = true;
+      warn(
+        app,
+        redactTextWithSecrets(
+          app,
+          accountId,
+          `账号 ${accountId} 的拉取进度回调出错，已忽略：${errorText(error)}`,
+          secrets,
+        ),
+      );
+    }
+  };
+}
+
 function pullContext(
   app: AppContext,
   account: ReturnType<typeof requireAccount>,
   works: ReturnType<typeof app.store.works.list>,
   date: Date,
   today: string,
+  lastSnapshotDay?: string,
+  progress?: (message: string) => void,
 ) {
   return {
     account,
     works,
     today,
     now: date,
+    ...(lastSnapshotDay === undefined ? {} : { lastSnapshotDay }),
+    ...(progress === undefined ? {} : { progress }),
     setting(key: string) {
       return account.settings.find((setting) => setting.key === key)?.value;
     },
@@ -75,6 +113,15 @@ export function createDataUseCases(
             : input.accountIds.map((id) => requireAccount(app, id));
         const plan = pullPlan(selected, app.catalog);
         const works = app.store.works.list();
+        const lastSnapshotDays = new Map<string, string>();
+        for (const snapshot of app.store.snapshots.accountDays(
+          "0000-01-01",
+          addDays(today, -1),
+        )) {
+          const previous = lastSnapshotDays.get(snapshot.accountId);
+          if (previous === undefined || snapshot.day > previous)
+            lastSnapshotDays.set(snapshot.accountId, snapshot.day);
+        }
 
         for (const action of plan) {
           if (action.action !== "blocked") continue;
@@ -92,7 +139,7 @@ export function createDataUseCases(
             note: reason,
           });
         }
-        return { selected, plan, works };
+        return { selected, plan, works, lastSnapshotDays };
       });
 
       const secretsByAccount = new Map(
@@ -119,6 +166,12 @@ export function createDataUseCases(
 
         const secretsBefore =
           secretsByAccount.get(account.id) ?? secretValues(app, account.id);
+        const progress = accountProgress(
+          app,
+          account.id,
+          secretsBefore,
+          input?.onProgress,
+        );
         const tool = app.platforms.dataTool(account.platform);
         let outcome: DataPullOutcome;
         if (!tool) {
@@ -132,6 +185,8 @@ export function createDataUseCases(
                 prepared.works.filter((work) => work.accountId === account.id),
                 date,
                 today,
+                prepared.lastSnapshotDays.get(account.id),
+                progress,
               ),
             );
           } catch (error) {

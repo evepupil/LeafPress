@@ -1,3 +1,4 @@
+import { setTimeout as delay } from "node:timers/promises";
 import {
   addMinutes,
   applyCodeResult,
@@ -114,6 +115,8 @@ function codeContext(
       return app.credentials.get(input.account.id, key);
     },
     exec: app.exec,
+    fetch: app.fetch,
+    sleep: (ms) => delay(ms),
     heartbeat: () => input.heartbeat(),
   };
 }

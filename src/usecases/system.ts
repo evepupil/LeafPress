@@ -2,6 +2,7 @@ import { exportBackup } from "../files/export.js";
 import { profilesStamp } from "../files/profiles.js";
 import type { UseCases } from "@leafpress/core";
 import type { AppContext } from "./context.js";
+import { dataPullScheduleView } from "./schedule-view.js";
 import { listAccounts, nowParts, redactAllValues } from "./support.js";
 
 export function createSystemUseCases(
@@ -29,7 +30,7 @@ export function createSystemUseCases(
           accounts: listAccounts(app),
           pulls: app.store.pulls.latest(),
           notes: app.store.notes.list(),
-          schedules: [],
+          schedules: [dataPullScheduleView(app)],
         }),
       );
     },

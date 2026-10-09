@@ -3,6 +3,7 @@ import type { AppContext } from "./context.js";
 import { createAccountsUseCases } from "./accounts.js";
 import { createDataUseCases } from "./data.js";
 import { createIdeasUseCases } from "./ideas.js";
+import { createImportUseCases } from "./import.js";
 import { createNotesUseCases } from "./notes.js";
 import { createSystemUseCases } from "./system.js";
 import { createWorksAgentStepUseCases } from "./works-agent-step.js";
@@ -19,6 +20,7 @@ export function createUseCases(app: AppContext): UseCases {
     ...createWorksAgentUseCases(app),
     ...createWorksAgentStepUseCases(app),
     ...createIdeasUseCases(app),
+    ...createImportUseCases(app),
     ...createAccountsUseCases(app),
     ...createDataUseCases(app),
     ...createNotesUseCases(app),

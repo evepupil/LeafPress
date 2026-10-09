@@ -7,6 +7,7 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, it } from "vitest";
 import { openApp, closeApp, createUseCases } from "../../src/usecases/index.js";
+import { blogSettings } from "./helpers.js";
 
 const workerFixture = fileURLToPath(
   new URL("./fixtures/next-worker.ts", import.meta.url),
@@ -88,11 +89,14 @@ async function raceNext(count: number): Promise<WorkerOutput[]> {
   const seed = openApp({ home });
   try {
     const usecases = createUseCases(seed);
+    // 博客账号配好仓库位置和站点地址，博客写稿才算「能开始」，startNext 才会挑它的作品
+    const settings = blogSettings(directory);
     const accounts = Array.from({ length: count }, (_, index) =>
       usecases.addAccount({
         platform: "blog",
         name: `并发账号${index + 1}`,
         intro: "",
+        settings,
       }),
     );
     usecases.createWorks({

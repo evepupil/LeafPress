@@ -1,5 +1,5 @@
 import { readFileSync } from "node:fs";
-import { readFile, readdir, writeFile } from "node:fs/promises";
+import { readFile, readdir } from "node:fs/promises";
 import { join } from "node:path";
 import {
   buildDataset,
@@ -13,6 +13,7 @@ import { LeafPressError } from "../../src/shared/errors.js";
 import {
   withUseCases,
   addAccount,
+  blogSettings,
   catalogWith,
   createWork,
 } from "./helpers.js";
@@ -62,6 +63,12 @@ function catalogWithMultipleSecrets() {
     blog: {
       setupItems: [
         ...setupItems,
+        {
+          key: "repo-path",
+          label: "博客仓库位置",
+          secret: false,
+          usedFor: "write" as const,
+        },
         {
           key: "client-secret",
           label: "客户端密钥",
@@ -324,8 +331,9 @@ describe("业务用例：灵感、账号、数据与系统", () => {
       { catalog: catalogWithData(), dataTool },
     );
 
+    // 真实的平台目录里，还没做拿数据工具的平台（博客已经有了，用知乎）不进拉取计划
     await withUseCases(async ({ usecases }) => {
-      const account = addAccount(usecases);
+      const account = addAccount(usecases, "知乎号", "zhihu");
       expect(await usecases.pullData({ accountIds: [account.id] })).toEqual({
         outcomes: [],
         note: "没有能拉的账号",
@@ -637,7 +645,14 @@ describe("业务用例：灵感、账号、数据与系统", () => {
       const bootstrap = usecases.bootstrap();
       expect(bootstrap).toMatchObject({
         today: "2026-10-08",
-        schedules: [],
+        schedules: [
+          {
+            id: "data-pull",
+            name: "拉作品数据",
+            when: "每天 06:00",
+            installed: false,
+          },
+        ],
         works: [],
         ideas: [{ id: idea?.id }],
         accounts: [{ id: account.id }],
@@ -699,9 +714,9 @@ describe("业务用例：灵感、账号、数据与系统", () => {
       },
     };
     await withUseCases(
-      async ({ usecases, app }) => {
+      async ({ usecases, app, home }) => {
         const account = addAccount(usecases, "多密钥账号", "blog", {
-          "site-url": "https://site.example",
+          ...blogSettings(home),
           "analytics-token": oldToken,
           "client-secret": oldClientSecret,
         });
@@ -712,14 +727,10 @@ describe("业务用例：灵感、账号、数据与系统", () => {
         const work = createWork(usecases, account.id, "轮换中的作品");
         const first = usecases.startWork({ id: work.id });
         if (!first.lease) throw new Error("没有租约");
-        await writeFile(join(first.detail.folder, "稿子.md"), "稿子", "utf8");
-        usecases.stepWork(work.id, first.lease.token);
-        usecases.submitFeedback(work.id, "已发布 https://example.test/post");
-        const resumed = usecases.startWork({ id: work.id });
-        const failedRun = await usecases.runWork(
-          work.id,
-          resumed.lease?.token ?? "",
-        );
+        // 博客写稿前三步是 AI 写稿，这里只要走到代码步骤，产出文件不用真写
+        for (let step = 0; step < 3; step += 1)
+          usecases.stepWork(work.id, first.lease.token, { force: true });
+        const failedRun = await usecases.runWork(work.id, first.lease.token);
         const taskFiles = await readdir(first.detail.folder);
         const taskContents = await Promise.all(
           taskFiles.map((name) =>
@@ -795,5 +806,5 @@ describe("业务用例：灵感、账号、数据与系统", () => {
       },
       { catalog: catalogWithMultipleSecrets(), codeStep, dataTool },
     );
-  });
+  }, 30_000);
 });

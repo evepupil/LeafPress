@@ -25,6 +25,14 @@ export function registerAccountRoutes(app: Hono, usecases: UseCases): void {
     return context.json({ ok: true, version: usecases.version(), account });
   });
 
+  // 导入要先准备博客的检出目录，可能要跑一两分钟：等用例跑完再回，不要求请求体
+  app.post("/api/accounts/:id/import", async (context) => {
+    const id = context.req.param("id");
+    if (!validId(id)) return invalidIdResponse();
+    const summary = await usecases.importPosts(id);
+    return context.json({ ok: true, version: usecases.version(), summary });
+  });
+
   app.patch("/api/accounts/:id", async (context) => {
     const id = context.req.param("id");
     if (!validId(id)) return invalidIdResponse();

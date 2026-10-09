@@ -12,6 +12,7 @@ import type {
   PlatformRuntime,
   CodeStepHandler,
   DataTool,
+  PostImporter,
 } from "../../src/platforms/types.js";
 import type { AppContext } from "../../src/usecases/context.js";
 
@@ -31,6 +32,7 @@ export interface TestOptions {
   catalog?: Record<PlatformId, PlatformInfo>;
   codeStep?: CodeStepHandler;
   dataTool?: DataTool;
+  importer?: PostImporter;
   warn?: (message: string) => void;
 }
 
@@ -54,6 +56,8 @@ export async function withUseCases<T>(
   let serial = 0;
   const runtime: PlatformRuntime = {
     codeStep(workflowId, stepId) {
+      if (workflowId === "blog-write" && stepId === "gate" && options.codeStep)
+        return options.codeStep;
       if (
         workflowId === "general-write" &&
         stepId === "archive" &&
@@ -65,8 +69,8 @@ export async function withUseCases<T>(
     dataTool(platform) {
       return platform === "blog" ? options.dataTool : undefined;
     },
-    importer() {
-      return undefined;
+    importer(platform) {
+      return platform === "blog" ? options.importer : undefined;
     },
   };
   let app: AppContext | undefined;
@@ -76,7 +80,10 @@ export async function withUseCases<T>(
       now: () => new Date(current),
       newToken: () => `token-${++serial}`,
       ...(options.catalog === undefined ? {} : { catalog: options.catalog }),
-      platforms: options.codeStep || options.dataTool ? runtime : undefined,
+      platforms:
+        options.codeStep || options.dataTool || options.importer
+          ? runtime
+          : undefined,
       ...(options.warn === undefined ? {} : { warn: options.warn }),
     });
     const usecases = createUseCases(app);
@@ -123,4 +130,28 @@ export function createWork(
   });
   if (!created) throw new Error("createWorks 没有创建作品");
   return created;
+}
+
+/**
+ * 博客写稿要账号先配的两项：博客仓库位置、站点地址。
+ * 仓库位置指向这次测试的临时数据目录里的子文件夹，不碰真实的博客仓库（测试里的代码步骤都是假的，不会真去读它）
+ */
+export function blogSettings(home: string): Record<string, string> {
+  return {
+    "repo-path": join(home, "blog-repo"),
+    "site-url": "https://blog.example",
+  };
+}
+
+/**
+ * 建一个走「通用写稿」的作品。博客账号默认配博客写稿，步骤和产出文件都不一样；
+ * 测的是不挑平台的通用流程（稿子.md、你去发布、归档链接）时，建完就换成通用写稿——博客账号本来就能换
+ */
+export function createGeneralWork(
+  usecases: UseCases,
+  accountId: string,
+  title = "测试作品",
+) {
+  const work = createWork(usecases, accountId, title);
+  return usecases.updateWork(work.id, { workflowId: "general-write" });
 }

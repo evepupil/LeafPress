@@ -10,6 +10,7 @@ import {
 import { LeafPressError } from "../shared/errors.js";
 import { profilePath, readProfile, writeProfile } from "../files/profiles.js";
 import type { AppContext } from "./context.js";
+import { dataPullWhen } from "./schedule-view.js";
 import {
   accountFromRow,
   getAccount,
@@ -48,10 +49,12 @@ export function createAccountsUseCases(
         const pull = app.store.pulls
           .latest()
           .find((record) => record.accountId === id);
+        const schedule = dataPullWhen(app);
         return {
           account: redactValue(app, id, account),
           setup: setupView(account, app.catalog[account.platform], {
             ...(pull === undefined ? {} : { pull }),
+            ...(schedule === undefined ? {} : { schedule }),
           }),
         };
       });

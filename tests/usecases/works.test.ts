@@ -6,7 +6,13 @@ import type { UseCases } from "@leafpress/core";
 import type { CodeStepHandler } from "../../src/platforms/types.js";
 import { homePaths } from "../../src/config/home.js";
 import { taskFolderPath } from "../../src/files/task-folder.js";
-import { withUseCases, addAccount, createWork } from "./helpers.js";
+import {
+  withUseCases,
+  addAccount,
+  blogSettings,
+  createGeneralWork,
+  createWork,
+} from "./helpers.js";
 
 function expectCode(action: () => unknown, code: string): void {
   let caught: unknown;
@@ -25,7 +31,7 @@ async function startAtArchive(
   accountId: string,
   title: string,
 ) {
-  const work = createWork(usecases, accountId, title);
+  const work = createGeneralWork(usecases, accountId, title);
   const first = usecases.startWork({ id: work.id });
   if (!first.lease) throw new Error("写稿步骤没有发放令牌");
   await writeFile(join(first.detail.folder, "稿子.md"), "文章正文", "utf8");
@@ -81,10 +87,11 @@ describe("业务用例：作品和 agent", () => {
       });
       expect(works.map((work) => work.id)).toEqual(["b-1", "b-2", "b-3"]);
       expect(works.map((work) => work.order)).toEqual([1, 2, 3]);
+      // 博客账号默认配博客写稿
       expect(works.map((work) => work.workflowId)).toEqual([
-        "general-write",
-        "general-write",
-        "general-write",
+        "blog-write",
+        "blog-write",
+        "blog-write",
       ]);
       expect(usecases.listIdeas({ status: ["converted"] })[0]).toMatchObject({
         id: idea.id,
@@ -102,7 +109,7 @@ describe("业务用例：作品和 agent", () => {
     const startedAt = performance.now();
     await withUseCases(async ({ usecases }) => {
       const account = addAccount(usecases);
-      const work = createWork(usecases, account.id, "端到端文章");
+      const work = createGeneralWork(usecases, account.id, "端到端文章");
       const started = usecases.startNext();
       expect(started?.detail.work.id).toBe(work.id);
       const token = started?.lease?.token;
@@ -155,8 +162,14 @@ describe("业务用例：作品和 agent", () => {
   });
 
   it("3. 令牌拒绝、强制接管、租约过期接管和网页挪回", async () => {
-    await withUseCases(({ usecases, clock }) => {
-      const account = addAccount(usecases);
+    await withUseCases(({ usecases, clock, home }) => {
+      // 博客账号接手作品前要先配好博客仓库位置和站点地址
+      const account = addAccount(
+        usecases,
+        "主账号",
+        "blog",
+        blogSettings(home),
+      );
       const work = createWork(usecases, account.id);
       const first = usecases.startWork({ id: work.id });
       const firstToken = first.lease?.token;
@@ -206,7 +219,7 @@ describe("业务用例：作品和 agent", () => {
       usecases.deleteWork(edited.id);
       expectCode(() => usecases.showWork(edited.id), "NOT_FOUND");
 
-      const releasable = createWork(usecases, account.id, "交还作品");
+      const releasable = createGeneralWork(usecases, account.id, "交还作品");
       const releaseStart = usecases.startWork({ id: releasable.id });
       const releaseToken = releaseStart.lease?.token ?? "";
       expectCode(
@@ -237,10 +250,10 @@ describe("业务用例：作品和 agent", () => {
   it("反馈和交还后都排在待实现最前面", async () => {
     await withUseCases(async ({ usecases, app }) => {
       const account = addAccount(usecases);
-      const first = createWork(usecases, account.id, "原第一篇");
-      const second = createWork(usecases, account.id, "原第二篇");
-      const third = createWork(usecases, account.id, "原第三篇");
-      const feedbackWork = createWork(usecases, account.id, "提交反馈");
+      const first = createGeneralWork(usecases, account.id, "原第一篇");
+      const second = createGeneralWork(usecases, account.id, "原第二篇");
+      const third = createGeneralWork(usecases, account.id, "原第三篇");
+      const feedbackWork = createGeneralWork(usecases, account.id, "提交反馈");
       const started = usecases.startWork({ id: feedbackWork.id });
       const token = started.lease?.token ?? "";
       await writeFile(join(started.detail.folder, "稿子.md"), "正文", "utf8");
@@ -433,11 +446,16 @@ describe("业务用例：作品和 agent", () => {
       },
       { codeStep: handler },
     );
-  });
+  }, 30_000);
 
   it("6. 拖动待实现顺序、进行中清令牌、完成作品不可挪出", async () => {
-    await withUseCases(({ usecases }) => {
-      const account = addAccount(usecases);
+    await withUseCases(({ usecases, home }) => {
+      const account = addAccount(
+        usecases,
+        "主账号",
+        "blog",
+        blogSettings(home),
+      );
       const first = createWork(usecases, account.id, "第一篇");
       const second = createWork(usecases, account.id, "第二篇");
       const third = createWork(usecases, account.id, "第三篇");

@@ -2,6 +2,7 @@ import type {
   Account,
   Bootstrap,
   Idea,
+  ImportSummary,
   MetricsDataset,
   UseCases,
   Version,
@@ -99,6 +100,7 @@ export const datasetFixture: MetricsDataset = {
   today: "2026-01-01",
   latestDay: "2025-12-31",
   daily: {},
+  lastDays: {},
   workDays: {},
 };
 
@@ -108,6 +110,14 @@ export const noteFixture: WeeklyNote = {
   improve: "",
   next: "",
   updatedAt: "2026-01-01T00:00:00Z",
+};
+
+export const importSummaryFixture: ImportSummary = {
+  added: 0,
+  skipped: 0,
+  drafts: 0,
+  issues: [],
+  works: [],
 };
 
 export function createFakeUseCases(): FakeUseCases {
@@ -140,6 +150,7 @@ export function createFakeUseCases(): FakeUseCases {
     updateAccount: vi.fn(() => accountFixture),
     saveProfile: vi.fn(() => accountFixture),
     setSetting: vi.fn(() => accountFixture),
+    importPosts: vi.fn(() => Promise.resolve(importSummaryFixture)),
     pullData: vi.fn(() => Promise.resolve({ outcomes: [], note: "全部入库" })),
     dataset: vi.fn(() => datasetFixture),
     saveNote: vi.fn(() => noteFixture),
