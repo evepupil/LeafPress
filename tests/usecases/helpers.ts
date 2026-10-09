@@ -64,6 +64,12 @@ export async function withUseCases<T>(
         options.codeStep
       )
         return options.codeStep;
+      if (
+        workflowId === "zhihu-from-blog" &&
+        stepId === "copy-page" &&
+        options.codeStep
+      )
+        return options.codeStep;
       return undefined;
     },
     dataTool(platform) {

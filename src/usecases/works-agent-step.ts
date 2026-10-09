@@ -99,8 +99,14 @@ function codeContext(
   },
 ): CodeStepContext {
   const folder = taskFolderPath(app.paths, input.work.id);
+  // 来源是另一个作品时把它交给代码步骤（博客改写成知乎时要用它的链接和原稿位置）
+  const sourceWork =
+    input.work.source.kind === "work"
+      ? app.store.works.get(input.work.source.workId)
+      : undefined;
   return {
     work: input.work,
+    ...(sourceWork === undefined ? {} : { sourceWork }),
     account: input.account,
     workflow: input.workflow,
     step: input.step,

@@ -1,5 +1,6 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
+import { LeafPressError } from "../../src/shared/errors.js";
 import { createServerApp } from "../../src/server/app.js";
 import {
   createFakeUseCases,
@@ -111,5 +112,72 @@ describe("作品与系统路由", () => {
       dir: "/tmp/home/backups/export",
     });
     expect(usecases.exportBackup).toHaveBeenCalledOnce();
+  });
+
+  it("读任务文件：返回文件本身和类型，名字解码后传给用例", async () => {
+    const usecases = createFakeUseCases();
+    const app = createServerApp({ usecases, port: 3210 });
+
+    const response = await appRequest(
+      app,
+      "/api/works/work-1/files/%E7%9F%A5%E4%B9%8E%E5%8F%91%E5%B8%83%E7%A8%BF.html",
+    );
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("content-type")).toBe(
+      "text/html; charset=utf-8",
+    );
+    expect(new Uint8Array(await response.arrayBuffer())).toEqual(
+      new Uint8Array(Buffer.from("<p>复制页</p>", "utf8")),
+    );
+    expect(usecases.readWorkFile).toHaveBeenCalledWith(
+      "work-1",
+      "知乎发布稿.html",
+    );
+  });
+
+  it("名字带空格的文件也能读，用例里的错误转成 404", async () => {
+    const usecases = createFakeUseCases();
+    const app = createServerApp({ usecases, port: 3210 });
+
+    const spaced = await appRequest(
+      app,
+      "/api/works/work-1/files/my%20file.html",
+    );
+    expect(spaced.status).toBe(200);
+    expect(usecases.readWorkFile).toHaveBeenCalledWith(
+      "work-1",
+      "my file.html",
+    );
+
+    vi.mocked(usecases.readWorkFile).mockImplementation(() => {
+      throw new LeafPressError("NOT_FOUND", "任务文件夹里没有这个文件");
+    });
+    const missing = await appRequest(
+      app,
+      "/api/works/work-1/files/%E6%B2%A1%E6%9C%89.html",
+    );
+    expect(missing.status).toBe(404);
+    expect(await missing.json()).toEqual({
+      ok: false,
+      error: {
+        code: "NOT_FOUND",
+        message: "任务文件夹里没有这个文件",
+      },
+    });
+  });
+
+  it("编号不合法或文件名解不出时直接 404，不调用用例", async () => {
+    const usecases = createFakeUseCases();
+    const app = createServerApp({ usecases, port: 3210 });
+
+    const badId = await appRequest(app, "/api/works/WORK_1/files/a.html");
+    expect(badId.status).toBe(404);
+    const badName = await appRequest(
+      app,
+      "/api/works/work-1/files/%2e%2e%2fconfig.json",
+    );
+    expect(badName.status).toBe(404);
+    expect(usecases.readWorkFile).not.toHaveBeenCalled();
   });
 });

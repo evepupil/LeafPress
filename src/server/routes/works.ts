@@ -2,6 +2,7 @@ import type { UseCases } from "@leafpress/core";
 import type { Hono } from "hono";
 
 import {
+  decodeFileName,
   isResponse,
   invalidIdResponse,
   parseJson,
@@ -76,5 +77,17 @@ export function registerWorkRoutes(app: Hono, usecases: UseCases): void {
     if (!validId(id)) return invalidIdResponse();
     const path = await usecases.openWorkFolder(id);
     return context.json({ ok: true, path });
+  });
+
+  app.get("/api/works/:id/files/:name", (context) => {
+    const id = context.req.param("id");
+    if (!validId(id)) return invalidIdResponse();
+    const raw = context.req.raw.url;
+    const name = decodeFileName(raw);
+    if (name === undefined) return invalidIdResponse();
+    const file = usecases.readWorkFile(id, name);
+    return new Response(file.body, {
+      headers: { "Content-Type": file.contentType },
+    });
   });
 }

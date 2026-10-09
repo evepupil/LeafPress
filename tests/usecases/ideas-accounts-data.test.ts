@@ -331,9 +331,9 @@ describe("业务用例：灵感、账号、数据与系统", () => {
       { catalog: catalogWithData(), dataTool },
     );
 
-    // 真实的平台目录里，还没做拿数据工具的平台（博客已经有了，用知乎）不进拉取计划
+    // 真实的平台目录里，还没做拿数据工具的平台（博客已经有了，用B站）不进拉取计划
     await withUseCases(async ({ usecases }) => {
-      const account = addAccount(usecases, "知乎号", "zhihu");
+      const account = addAccount(usecases, "B站号", "bilibili");
       expect(await usecases.pullData({ accountIds: [account.id] })).toEqual({
         outcomes: [],
         note: "没有能拉的账号",

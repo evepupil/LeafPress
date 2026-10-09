@@ -11,10 +11,10 @@ describe("导入文章的失败和边界", () => {
     const importer = fakeImporter(() => listed([candidate("first")]));
     await withUseCases(
       async ({ usecases }) => {
-        const zhihu = addAccount(usecases, "知乎号", "zhihu");
-        await expect(usecases.importPosts(zhihu.id)).rejects.toMatchObject({
+        const bilibili = addAccount(usecases, "B站号", "bilibili");
+        await expect(usecases.importPosts(bilibili.id)).rejects.toMatchObject({
           code: "USAGE",
-          message: "知乎还不能导入",
+          message: "B站还不能导入",
         });
         await expect(usecases.importPosts("blog-9")).rejects.toMatchObject({
           code: "NOT_FOUND",

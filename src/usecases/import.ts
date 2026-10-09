@@ -61,10 +61,12 @@ async function listPlatformPosts(
     outcome = await importer.list({
       account,
       home: app.paths.home,
-      // 只给普通配置项的值，密钥不交给导入工具
       setting: (key) =>
         account.settings.find((item) => item.key === key)?.value,
+      // 有的平台导入要调接口（知乎开放平台），得拿到密钥；返回的文字在写库前统一抹掉密钥
+      secret: (key) => app.credentials.get(account.id, key),
       exec: app.exec,
+      fetch: app.fetch,
       today,
     });
   } catch (error) {
@@ -130,7 +132,12 @@ function saveNewWorks(
   const refs = new Set(mine.flatMap((work) => work.sourceRef ?? []));
   const urls = new Set(mine.flatMap((work) => work.url ?? []).map(urlKey));
   const order = bottomOrder(all);
-  const workflow = pickWorkflow(account.platform, { kind: "import" });
+  const workflow = pickWorkflow(
+    account.platform,
+    { kind: "import" },
+    undefined,
+    "",
+  );
 
   const works: Work[] = [];
   let skipped = 0;

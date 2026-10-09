@@ -133,6 +133,10 @@ export function createFakeUseCases(): FakeUseCases {
     submitFeedback: vi.fn(() => workFixture),
     deleteWork: vi.fn(() => undefined),
     openWorkFolder: vi.fn(() => Promise.resolve(workDetailFixture.folder)),
+    readWorkFile: vi.fn(() => ({
+      contentType: "text/html; charset=utf-8",
+      body: Buffer.from("<p>复制页</p>", "utf8"),
+    })),
     startWork: vi.fn(unused),
     startNext: vi.fn(unused),
     stepWork: vi.fn(unused),

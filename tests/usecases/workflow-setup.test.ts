@@ -34,9 +34,19 @@ describe("工作流要先配好才能接手", () => {
     });
   });
 
-  it("没有专用工作流的平台用通用写稿，什么都不用配就能接手", async () => {
+  it("知乎作品自动配写文章工作流，什么都不用配就能接手", async () => {
     await withUseCases(({ usecases }) => {
       const account = addAccount(usecases, "知乎号", "zhihu");
+      const work = createWork(usecases, account.id);
+
+      expect(work.workflowId).toBe("zhihu-article");
+      expect(usecases.startNext()?.detail.work.id).toBe(work.id);
+    });
+  });
+
+  it("没有专用工作流的平台（B站）用通用写稿，什么都不用配就能接手", async () => {
+    await withUseCases(({ usecases }) => {
+      const account = addAccount(usecases, "B站号", "bilibili");
       const work = createWork(usecases, account.id);
 
       expect(work.workflowId).toBe("general-write");
