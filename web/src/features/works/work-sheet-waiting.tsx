@@ -2,7 +2,7 @@
 
 import { type Work, type WorkDetail, extractUrl, waitingLabel, workflowById } from "@leafpress/core"
 import { cn } from "cn"
-import { Copy, FolderOpen, Hand, Link2, MessageSquare } from "lucide-react"
+import { Copy, ExternalLink, FolderOpen, Hand, Link2, MessageSquare } from "lucide-react"
 import { useState } from "react"
 import { toast } from "sonner"
 
@@ -12,6 +12,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { openFolder, submitFeedback } from "@/state/actions/works"
 import { focusRing } from "@/lib/styles"
 import { copyWithToast } from "./work-sheet-actions"
+import { copyPageUrlOf } from "./work-sheet-copy-page"
 
 export function WorkSheetWaiting({ work, detail }: { work: Work; detail?: WorkDetail }) {
   const [text, setText] = useState("")
@@ -19,6 +20,7 @@ export function WorkSheetWaiting({ work, detail }: { work: Work; detail?: WorkDe
   const workflow = workflowById(work.workflowId)
   const stepName = workflow?.steps[work.step]?.name
   const folder = detail?.folder
+  const copyPage = copyPageUrlOf(work.id, detail)
   const ready = text.trim().length > 0
   const submit = async () => {
     if (!ready || saving) return
@@ -66,6 +68,16 @@ export function WorkSheetWaiting({ work, detail }: { work: Work; detail?: WorkDe
           >
             <FolderOpen />
           </IconButton>
+        </div>
+      )}
+      {copyPage && (
+        <div className="mt-2">
+          <Button variant="outline" size="sm" asChild data-copy-page>
+            <a href={copyPage} target="_blank" rel="noreferrer">
+              <ExternalLink />
+              打开复制页
+            </a>
+          </Button>
         </div>
       )}
       <Textarea

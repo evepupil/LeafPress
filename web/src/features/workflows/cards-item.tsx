@@ -16,6 +16,7 @@ export interface WorkflowUsage {
 const FROM_LABEL: Record<WorkflowDef["from"], string> = {
   idea: "从灵感",
   "blog-work": "从博客作品",
+  question: "从问题链接",
   any: "什么都行",
 }
 
