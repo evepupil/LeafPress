@@ -54,4 +54,6 @@ export interface PlatformInfo {
   setupItems: SetupItemDef[]
   /** 拿数据的工具；还没做时没有这个字段 */
   dataTool?: DataToolInfo
+  /** 能把平台上已有的作品导入成已完成作品（博客：从仓库导入文章）；不能时没有这个字段 */
+  importable?: boolean
 }

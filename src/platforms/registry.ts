@@ -1,7 +1,12 @@
 import type { PlatformId, WorkflowDef } from "@leafpress/core";
 
 import { GENERAL_HANDLERS } from "./general/index.js";
-import type { DataTool, PlatformRuntime, CodeStepHandler } from "./types.js";
+import type {
+  CodeStepHandler,
+  DataTool,
+  PlatformRuntime,
+  PostImporter,
+} from "./types.js";
 
 /** 登记 M1 的全部实现：通用写稿的代码步骤；还没有拿数据的工具 */
 export function createPlatformRuntime(): PlatformRuntime {
@@ -9,6 +14,7 @@ export function createPlatformRuntime(): PlatformRuntime {
     Object.entries(GENERAL_HANDLERS),
   );
   const dataTools: Partial<Record<PlatformId, DataTool>> = {};
+  const importers: Partial<Record<PlatformId, PostImporter>> = {};
 
   return {
     codeStep(workflowId, stepId) {
@@ -16,6 +22,9 @@ export function createPlatformRuntime(): PlatformRuntime {
     },
     dataTool(platform) {
       return dataTools[platform];
+    },
+    importer(platform) {
+      return importers[platform];
     },
   };
 }

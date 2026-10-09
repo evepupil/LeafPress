@@ -42,8 +42,8 @@ export interface WorkLease {
 
 /** 代码步骤的结果：平台适配的实现返回它，共享规则据此改作品 */
 export type CodeOutcome =
-  /** 做完了；有的步骤顺带拿到发布链接和发布日期 */
-  | { kind: "done"; url?: string; publishedAt?: DayKey; note?: string }
+  /** 做完了；有的步骤顺带拿到发布链接、发布日期，以及原稿在本机的位置和编号（博客：zh/<slug>，导入时靠它去重） */
+  | { kind: "done"; url?: string; publishedAt?: DayKey; localPath?: string; sourceRef?: string; note?: string }
   /** 要作者处理（比如反馈里没找到链接）：作品停在等你处理，步骤不动 */
   | { kind: "ask"; ask: string; note?: string }
   /** 出错了：作品仍是进行中，记下原因，agent 可以重试或告诉作者 */

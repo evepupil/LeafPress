@@ -65,6 +65,9 @@ export async function withUseCases<T>(
     dataTool(platform) {
       return platform === "blog" ? options.dataTool : undefined;
     },
+    importer() {
+      return undefined;
+    },
   };
   let app: AppContext | undefined;
   try {

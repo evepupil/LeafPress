@@ -41,6 +41,10 @@ export interface DataPullContext {
   secret(key: string): string | undefined;
   exec: ExecFn;
   fetch: typeof fetch;
+  /** 这个账号上次拉到的最后一天（记录库里账号每天的数的最后一天）；从没拉过时没有，工具据此决定补多少天 */
+  lastSnapshotDay?: DayKey;
+  /** 拉的过程中报进度（补历史时会拉很久），命令行打到标准错误 */
+  progress?(message: string): void;
 }
 
 export interface DataPullResult {
@@ -66,7 +70,44 @@ export interface DataTool {
   pull(ctx: DataPullContext): Promise<DataPullOutcome>;
 }
 
+/** 导入工具拿到的东西 */
+export interface ImportContext {
+  account: Account;
+  setting(key: string): string | undefined;
+  exec: ExecFn;
+  today: DayKey;
+}
+
+/** 平台上一篇已发布的作品（导入成已完成作品） */
+export interface ImportCandidate {
+  /** 平台原稿编号，导入时靠它去重（博客：zh/<slug>） */
+  sourceRef: string;
+  title: string;
+  url: string;
+  publishedAt: DayKey;
+  /** 原稿在本机的位置 */
+  localPath?: string;
+  tags: string[];
+}
+
+export interface ImportListing {
+  candidates: ImportCandidate[];
+  /** 跳过的草稿数 */
+  drafts: number;
+  /** 读不了或元数据有问题的原稿 */
+  issues: { path: string; message: string }[];
+}
+
+export type ImportOutcome =
+  | { ok: true; listing: ImportListing }
+  | { ok: false; reason: string; fixHint?: string };
+
+export interface PostImporter {
+  list(ctx: ImportContext): Promise<ImportOutcome>;
+}
+
 export interface PlatformRuntime {
   codeStep(workflowId: string, stepId: string): CodeStepHandler | undefined;
   dataTool(platform: Account["platform"]): DataTool | undefined;
+  importer(platform: Account["platform"]): PostImporter | undefined;
 }
