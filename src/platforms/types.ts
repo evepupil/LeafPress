@@ -24,6 +24,10 @@ export interface CodeStepContext {
   /** 这个账号的密钥；只许传给平台接口，不许写进返回值、记录、文件 */
   secret(key: string): string | undefined;
   exec: ExecFn;
+  /** 网络请求（等上线这类步骤用）；测试里换成假的 */
+  fetch: typeof fetch;
+  /** 等待（轮询用）；测试里换成不真等的 */
+  sleep(ms: number): Promise<void>;
   /** 步骤要跑很久时调，给租约续期 */
   heartbeat(): void;
 }
@@ -73,6 +77,8 @@ export interface DataTool {
 /** 导入工具拿到的东西 */
 export interface ImportContext {
   account: Account;
+  /** LeafPress 数据目录的绝对路径；导入工具要在里面放自己的工作目录和锁（博客：检出目录） */
+  home: string;
   setting(key: string): string | undefined;
   exec: ExecFn;
   today: DayKey;

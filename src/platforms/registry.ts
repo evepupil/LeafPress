@@ -1,5 +1,8 @@
 import type { PlatformId, WorkflowDef } from "@leafpress/core";
 
+import { createBlogImporter } from "./blog/import.js";
+import { createBlogHandlers } from "./blog/steps/index.js";
+import { createUmamiDataTool } from "./blog/umami/data.js";
 import { GENERAL_HANDLERS } from "./general/index.js";
 import type {
   CodeStepHandler,
@@ -8,13 +11,28 @@ import type {
   PostImporter,
 } from "./types.js";
 
-/** 登记 M1 的全部实现：通用写稿的代码步骤；还没有拿数据的工具 */
-export function createPlatformRuntime(): PlatformRuntime {
-  const codeSteps = new Map<string, CodeStepHandler>(
-    Object.entries(GENERAL_HANDLERS),
-  );
-  const dataTools: Partial<Record<PlatformId, DataTool>> = {};
-  const importers: Partial<Record<PlatformId, PostImporter>> = {};
+/** 建登记表时可以注入的外部依赖：测试里换成假的，不真访问网络、不真等待 */
+export interface PlatformRuntimeOptions {
+  /** 网络请求；缺省用步骤上下文里带的（全局 fetch） */
+  fetch?: typeof fetch;
+  /** 等待；缺省用步骤上下文里带的（真的等待） */
+  sleep?: (ms: number) => Promise<void>;
+}
+
+/** 登记已实现的代码步骤、拿数据的工具、导入工具：通用写稿 + 博客 */
+export function createPlatformRuntime(
+  options: PlatformRuntimeOptions = {},
+): PlatformRuntime {
+  const codeSteps = new Map<string, CodeStepHandler>([
+    ...Object.entries(GENERAL_HANDLERS),
+    ...Object.entries(createBlogHandlers(options)),
+  ]);
+  const dataTools: Partial<Record<PlatformId, DataTool>> = {
+    blog: createUmamiDataTool(),
+  };
+  const importers: Partial<Record<PlatformId, PostImporter>> = {
+    blog: createBlogImporter(),
+  };
 
   return {
     codeStep(workflowId, stepId) {

@@ -75,6 +75,8 @@ function makeContext(work: Work): CodeStepContext {
         exitCode: 0,
         timedOut: false,
       }),
+    fetch: () => Promise.reject(new Error("通用写稿的归档步骤不该访问网络")),
+    sleep: () => Promise.resolve(),
     heartbeat: () => undefined,
   };
 }
