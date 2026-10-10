@@ -1,3 +1,4 @@
+import { setTimeout as delay } from "node:timers/promises";
 import {
   addDays,
   buildDataset,
@@ -90,6 +91,7 @@ function pullContext(
     },
     exec: app.exec,
     fetch: app.fetch,
+    sleep: (ms: number) => delay(ms),
   };
 }
 

@@ -1,3 +1,4 @@
+import { setTimeout as delay } from "node:timers/promises";
 import {
   bottomOrder,
   pickWorkflow,
@@ -67,6 +68,7 @@ async function listPlatformPosts(
       secret: (key) => app.credentials.get(account.id, key),
       exec: app.exec,
       fetch: app.fetch,
+      sleep: (ms: number) => delay(ms),
       today,
     });
   } catch (error) {

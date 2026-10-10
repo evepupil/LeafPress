@@ -51,6 +51,8 @@ export interface DataPullContext {
   lastSnapshotDay?: DayKey;
   /** 拉的过程中报进度（补历史时会拉很久），命令行打到标准错误 */
   progress?(message: string): void;
+  /** 等待（接口限流时留间隔、重试前退避）；测试里换成不真等的。没给时工具自己用真实的等待 */
+  sleep?(ms: number): Promise<void>;
 }
 
 export interface DataPullResult {
@@ -88,6 +90,8 @@ export interface ImportContext {
   /** 网络请求（知乎导入调开放平台）；测试里换成假的 */
   fetch: typeof fetch;
   today: DayKey;
+  /** 等待（接口限流时留间隔、重试前退避）；测试里换成不真等的。没给时工具自己用真实的等待 */
+  sleep?(ms: number): Promise<void>;
 }
 
 /** 平台上一篇已发布的作品（导入成已完成作品） */
