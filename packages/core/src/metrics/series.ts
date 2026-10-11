@@ -1,8 +1,10 @@
 import { addDays, daysBetween, diffDays, weekStartOf } from "../dates/index.ts"
 import { formatDay, formatDayShort, formatWeekRange, weekdayLabel } from "../format/index.ts"
+import { PLATFORMS } from "../catalog/index.ts"
 import type { Account, DayKey, Work } from "../types/index.ts"
 import { followersAt, sumFlow } from "./common.ts"
 import { followersKnown } from "./coverage.ts"
+import { combinedSecondary } from "./secondary.ts"
 import type { MetricId, MetricResult, MetricsInput, RangeId, SeriesPoint } from "./types.ts"
 
 function scopeAccounts(input: MetricsInput, scope: string): Account[] {
@@ -37,11 +39,15 @@ export function metricSeries(input: MetricsInput, scope: string, metric: MetricI
   // 粉丝线只算拿得到粉丝数的账号；选中的账号一个都拿不到时，这一项标成没有（available: false）
   const followerAccounts = accounts.filter((account) => followersKnown(dataset, account.id))
   const available = metric !== "followers" || followerAccounts.length > 0
+  // 几个账号合在一起算第二个数时，访客和互动不能相加：只合计 combinedSecondary 包含的账号（见 secondary.ts）
+  const secondaryCombined = combinedSecondary(accounts.map((account) => PLATFORMS[account.platform]))
+  const secondaryAccounts = accounts.filter((account) => secondaryCombined.includes(PLATFORMS[account.platform]))
   const valueOf = (start: DayKey, end: DayKey): number => {
     if (metric === "followers") return follows(input, followerAccounts, end)
     if (metric === "posts") return countPublished(works, ids, start, end)
     const key = metric === "reads" ? "reads" : "interactions"
-    return accounts.reduce((sum, account) => sum + sumFlow(dataset, account.id, start, end, key), 0)
+    const flowAccounts = metric === "interactions" ? secondaryAccounts : accounts
+    return flowAccounts.reduce((sum, account) => sum + sumFlow(dataset, account.id, start, end, key), 0)
   }
 
   let points: SeriesPoint[]

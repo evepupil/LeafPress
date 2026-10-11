@@ -66,7 +66,8 @@ describe("周报", () => {
     )
     expect(report.complete).toBe(true)
     expect(report.end).toBe("2026-10-04")
-    expect(report.totals).toEqual({ delta: 25, posts: 3, reads: 105, interactions: 21 })
+    // 合计的第二个数只算知乎的互动（每天 2 × 7 天）；博客的访客（每天 1）不能和互动相加
+    expect(report.totals).toEqual({ delta: 25, posts: 3, reads: 105, interactions: 14 })
     expect(report.readsChange).toBeCloseTo(1.142857, 6)
     expect(report.digest).toEqual([
       "这周发了 3 篇：知乎 1 篇、博客 1 篇、B站 1 篇。",
@@ -88,7 +89,8 @@ describe("周报", () => {
     const current = weekReport(input, "2026-10-05")
     expect(current.complete).toBe(false)
     expect(current.end).toBe("2026-10-07")
-    expect(current.totals).toEqual({ delta: 6, posts: 0, reads: 12, interactions: 9 })
+    // 只算知乎：每天 2 × 3 天
+    expect(current.totals).toEqual({ delta: 6, posts: 0, reads: 12, interactions: 6 })
     expect(current.readsChange).toBeCloseTo((12 - 45) / 45, 10)
     expect(current.digest[0]).toBe("本周到周三还没有发布。")
     expect(current.note).toBeNull()
@@ -160,6 +162,28 @@ describe("周报", () => {
       ["u", false, 0],
     ])
     expect(report.digest[1]).toBe("粉丝合计 +20，其中小叶（知乎）+20。")
+  })
+
+  it("周报合计的第二个数只算互动类账号；每一行照旧是账号自己的第二个数", () => {
+    // 知乎每天互动 2，博客每天访客 1；混在一起时合计只算知乎的互动（视频号没有日数据，是 0）
+    const report = weekReport(input, "2026-09-28")
+    expect(report.rows.map((row) => [row.account.id, row.interactions])).toEqual([
+      ["a", 14],
+      ["b", 7],
+      ["c", 0],
+    ])
+    expect(report.totals).toEqual({ delta: 25, posts: 3, reads: 105, interactions: 14 })
+
+    // 只选博客时合计的就是访客
+    const blogOnly = {
+      dataset: { ...dataset, daily: { b: pointsFor("b") }, lastDays: { b: "2026-10-07" } },
+      accounts: [blog],
+      works: [makeWork("b-new", "b", "2026-10-03")],
+      notes: [],
+    }
+    const blogReport = weekReport(blogOnly, "2026-09-28")
+    expect(blogReport.rows.map((row) => [row.account.id, row.interactions])).toEqual([["b", 7]])
+    expect(blogReport.totals).toEqual({ delta: 5, posts: 1, reads: 35, interactions: 7 })
   })
 
   it("后加进来但有旧数据的账号：周末之前有账号每天的数，或发过作品，那一周的分账号表就列它", () => {

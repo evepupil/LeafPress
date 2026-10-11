@@ -194,6 +194,15 @@ describe("作品排行和平台数据项", () => {
     expect(rankedWork(dataset, missingTotals, account)).toMatchObject({ reach: 0, interactions: 0, rate: null })
   })
 
+  it("第二个数按平台定：知乎作品的互动率照算，博客作品的第二个数是访客、互动率是 null", () => {
+    // 博客作品：访问 200，访客 80；第二个数取访客，访客除以访问不是互动率
+    const blogAccount = makeAccount("blog-a", "blog")
+    const blogWork = makeWork("blog-work", "blog-a", "2026-10-01", { totals: { pageviews: 200, visitors: 80 } })
+    expect(rankedWork(dataset, blogWork, blogAccount)).toMatchObject({ reach: 200, interactions: 80, growth: 0, rate: null })
+    // 知乎作品（知乎号）照旧：互动加起来，互动率照算
+    expect(rankedWork(dataset, first, account)).toMatchObject({ reach: 100, interactions: 15, rate: 0.15 })
+  })
+
   it("作品标题、账号标签和各平台数据项格式化", () => {
     expect(shortTitle("标题：后半句")).toBe("标题")
     expect(accountLabel(account)).toBe("a（知乎）")

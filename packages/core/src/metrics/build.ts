@@ -1,6 +1,7 @@
 import { addDays, daysBetween } from "../dates/index.ts"
 import { PLATFORMS } from "../catalog/index.ts"
 import type { Account, AccountDayRecord, DayKey, MetricsDataset, PlatformId, Work, WorkDay, WorkSnapshotRecord } from "../types/index.ts"
+import { secondaryValue } from "./secondary.ts"
 
 export const DATASET_DAYS = 182
 
@@ -8,7 +9,8 @@ function counts(platformId: PlatformId, totals: Record<string, number>): { reads
   const platform = PLATFORMS[platformId]
   return {
     reads: totals[platform.metrics[0]?.key ?? ""] ?? 0,
-    interactions: platform.metrics.filter((metric) => metric.interaction).reduce((sum, metric) => sum + (totals[metric.key] ?? 0), 0),
+    // 第二个数按平台定（secondary.ts）：知乎是互动，博客是访客；字段名沿用 interactions
+    interactions: secondaryValue(platform, totals),
   }
 }
 

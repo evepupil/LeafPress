@@ -5,6 +5,7 @@ import type { Account, DayKey, MetricsDataset, WeeklyNote, Work } from "../types
 import { accountLabel, followersAt, publishedWorks, shortTitle, sumFlow } from "../metrics/common.ts"
 import { followersKnown } from "../metrics/coverage.ts"
 import { rankedWork } from "../metrics/rank.ts"
+import { combinedSecondary } from "../metrics/secondary.ts"
 import type { MetricsInput, RankedWork } from "../metrics/types.ts"
 
 export interface WeekRow {
@@ -17,6 +18,7 @@ export interface WeekRow {
   delta: number
   posts: number
   reads: number
+  /** 这个账号自己的第二个数（知乎是互动，博客是访客；见 secondary.ts），字段名沿用 interactions */
   interactions: number
   best: { item: RankedWork; weekReads: number } | null
 }
@@ -28,7 +30,7 @@ export interface WeekReport {
   rows: WeekRow[]
   /** 有没有哪个账号拿得到粉丝数；false 时 totals.delta 的 0 只是占位，粉丝合计显示「—」 */
   followersKnown: boolean
-  /** delta 只加拿得到粉丝数的账号 */
+  /** delta 只加拿得到粉丝数的账号；interactions 只合计 combinedSecondary 包含的账号，名字看选中的平台 */
   totals: { delta: number; posts: number; reads: number; interactions: number }
   readsChange: number | null
   published: RankedWork[]
@@ -48,13 +50,15 @@ function readsBetween(dataset: MetricsDataset, work: Work, start: DayKey, end: D
 }
 
 function sumRows(rows: WeekRow[]): WeekReport["totals"] {
+  // 几个账号合计第二个数时，访客和互动不能相加：只合计 combinedSecondary 包含的账号（见 secondary.ts）
+  const secondaryCombined = combinedSecondary(rows.map((row) => PLATFORMS[row.account.platform]))
   return rows.reduce(
     (sum, row) => ({
       // 粉丝合计只加拿得到粉丝数的账号
       delta: sum.delta + (row.followersKnown ? row.delta : 0),
       posts: sum.posts + row.posts,
       reads: sum.reads + row.reads,
-      interactions: sum.interactions + row.interactions,
+      interactions: sum.interactions + (secondaryCombined.includes(PLATFORMS[row.account.platform]) ? row.interactions : 0),
     }),
     { delta: 0, posts: 0, reads: 0, interactions: 0 },
   )

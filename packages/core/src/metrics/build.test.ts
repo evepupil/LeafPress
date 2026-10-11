@@ -135,4 +135,24 @@ describe("buildDataset", () => {
     expect(result.daily.b?.map((point) => point.reads)).toEqual([8, 0, 0])
     expect(result.lastDays).toEqual({ b: "2026-10-07" })
   })
+
+  it("博客作品每天的第二个数是访客的新增；知乎照旧是互动的新增", () => {
+    // 博客：访问、访客两项；知乎：浏览和互动类数据项
+    const works = [makeWork("blog-post", "b", "2026-10-01"), makeWork("zhihu-post", "a", "2026-10-01")]
+    const workSnapshots = [
+      snapshot("blog-post", "2026-10-01", { pageviews: 100, visitors: 60 }),
+      snapshot("blog-post", "2026-10-02", { pageviews: 130, visitors: 71 }),
+      snapshot("zhihu-post", "2026-10-01", { views: 100, likes: 10 }),
+      snapshot("zhihu-post", "2026-10-02", { views: 130, likes: 13, comments: 1 }),
+    ]
+    const result = buildDataset({ today, accounts, works, accountDays: [], workSnapshots })
+    expect(result.workDays["blog-post"]).toEqual([
+      { day: "2026-10-01", reads: 100, interactions: 60 },
+      { day: "2026-10-02", reads: 30, interactions: 11 },
+    ])
+    expect(result.workDays["zhihu-post"]).toEqual([
+      { day: "2026-10-01", reads: 100, interactions: 10 },
+      { day: "2026-10-02", reads: 30, interactions: 4 },
+    ])
+  })
 })

@@ -2,6 +2,7 @@ import { minDay } from "../dates/index.ts"
 import { PLATFORMS } from "../catalog/index.ts"
 import { formatCount } from "../format/index.ts"
 import type { Account, DayKey, MetricDef, MetricsDataset, PlatformId, Work } from "../types/index.ts"
+import { secondaryValue } from "./secondary.ts"
 
 export type FlowKey = "reads" | "interactions" | "posts"
 
@@ -51,7 +52,8 @@ export function reachAndInteractions(work: Work, platform: PlatformId): { reach:
   const totals = work.totals ?? {}
   return {
     reach: totals[definitions[0]?.key ?? ""] ?? 0,
-    interactions: definitions.filter((metric) => metric.interaction).reduce((sum, metric) => sum + (totals[metric.key] ?? 0), 0),
+    // 第二个数按平台定（secondary.ts）：知乎是互动，博客是访客
+    interactions: secondaryValue(PLATFORMS[platform], totals),
   }
 }
 

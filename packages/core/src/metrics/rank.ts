@@ -1,6 +1,8 @@
 import { addDays } from "../dates/index.ts"
 import type { Account, MetricsDataset, Work } from "../types/index.ts"
+import { PLATFORMS } from "../catalog/index.ts"
 import { reachAndInteractions, rankableWorks } from "./common.ts"
+import { secondaryOf } from "./secondary.ts"
 import type { MetricsInput, RankedWork } from "./types.ts"
 
 export type RankBy = "reach" | "interactions" | "growth"
@@ -11,7 +13,9 @@ export function rankedWork(dataset: MetricsDataset, work: Work, account: Account
   const growth = (dataset.workDays[work.id] ?? [])
     .filter((point) => point.day >= from && point.day <= dataset.latestDay)
     .reduce((sum, point) => sum + point.reads, 0)
-  return { work, account, reach, interactions, growth, rate: reach > 0 ? interactions / reach : null }
+  // 第二个数不是互动的平台（博客的访客）没有互动率：访客除以访问不是互动率
+  const hasInteractions = secondaryOf(PLATFORMS[account.platform]).kind === "interactions"
+  return { work, account, reach, interactions, growth, rate: hasInteractions && reach > 0 ? interactions / reach : null }
 }
 
 export function topWorks(input: MetricsInput, by: RankBy, limit = 10, accountId?: string): RankedWork[] {

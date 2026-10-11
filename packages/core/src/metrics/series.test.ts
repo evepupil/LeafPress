@@ -166,3 +166,32 @@ describe("拿不到粉丝的账号", () => {
     expect(metricSeries({ ...blogOnly, accounts: [] }, "all", "followers", "4w").available).toBe(false)
   })
 })
+
+describe("第二个数：互动还是访客", () => {
+  // 知乎每天互动 (index % 5) + 1；博客 daily 里存的第二个数是访客，每天 3
+  const blogAccount = makeAccount("b", "blog")
+  const blogVisitors = daysBetween("2026-04-01", "2026-10-07").map((day) => ({
+    day,
+    followers: null as number | null,
+    reads: 10,
+    interactions: 3,
+    posts: 0,
+  }))
+  const mixed = {
+    dataset: { ...dataset, daily: { a: points, b: blogVisitors }, lastDays: { a: "2026-10-07", b: "2026-10-07" } },
+    accounts: [account, blogAccount],
+    works: [],
+  }
+
+  it("混在一起时第二条线只算知乎的互动，和只选知乎号一样", () => {
+    const all = metricSeries(mixed, "all", "interactions", "4w")
+    expect(all).toEqual(metricSeries({ dataset, accounts: [account], works: [] }, "a", "interactions", "4w"))
+  })
+
+  it("只选博客时第二条线合计的是访客", () => {
+    const blogOnly = metricSeries(mixed, "b", "interactions", "4w")
+    // 28 天每天访客 3
+    expect(blogOnly.value).toBe(84)
+    expect(blogOnly.points.at(-1)).toMatchObject({ value: 3, compare: 3 })
+  })
+})
