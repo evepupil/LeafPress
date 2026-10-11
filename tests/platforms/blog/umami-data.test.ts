@@ -189,13 +189,13 @@ describe("补历史", () => {
     const outcome = await pull(server, { works: freshWorks() });
 
     const result = succeeded(outcome);
-    // 账号每天：全站当天访问（含首页、英文页、别的页面）
+    // 账号每天：全站当天的访问和访客（含首页、英文页、别的页面）；10-05 访问和访客不一样
     expect(result.account).toEqual([
-      { day: "2026-10-04", followers: null, reads: 5 },
-      { day: "2026-10-05", followers: null, reads: 5 },
-      { day: "2026-10-06", followers: null, reads: 12 },
-      { day: "2026-10-07", followers: null, reads: 8 },
-      { day: "2026-10-08", followers: null, reads: 9 },
+      { day: "2026-10-04", followers: null, reads: 5, interactions: 5 },
+      { day: "2026-10-05", followers: null, reads: 5, interactions: 4 },
+      { day: "2026-10-06", followers: null, reads: 12, interactions: 12 },
+      { day: "2026-10-07", followers: null, reads: 8, interactions: 8 },
+      { day: "2026-10-08", followers: null, reads: 9, interactions: 9 },
     ]);
     expect(groupByWork(result)).toEqual({
       // a 从起点就有访问，起点之前全站没有访问：起点前一天补全 0
@@ -314,6 +314,7 @@ describe("补历史", () => {
       day: "2026-04-20",
       followers: null,
       reads: 2,
+      interactions: 2,
     });
     expect(result.account).toHaveLength(172);
     expect(result.account[result.account.length - 1]?.day).toBe("2026-10-08");
@@ -396,7 +397,7 @@ describe("平常拉", () => {
     );
 
     expect(result.account).toEqual([
-      { day: "2026-10-08", followers: null, reads: 9 },
+      { day: "2026-10-08", followers: null, reads: 9, interactions: 9 },
     ]);
     expect(groupByWork(result)).toEqual({
       "b-1": { "2026-10-08": { pageviews: 11, visitors: 10 } },
@@ -513,6 +514,74 @@ describe("平常拉", () => {
     expect(Object.keys(groupByWork(result))).toEqual(["b-1"]);
   });
 
+  it("账号每天的第二个数：同一次日序列返回里的会话数（访客），不多发请求；访问和访客可以对不上", async () => {
+    // 10-08 三次访问只来自两个访客
+    const traffic: Traffic = {
+      "2026-10-07": { "/posts/a/": 3 },
+      "2026-10-08": { "/posts/a/": { pageviews: 3, visitors: 2 } },
+    };
+    const server = new FakeUmami(traffic);
+    const works = [makeWork("b-1", "a", { totals: stored("2026-10-06", 0) })];
+
+    const result = succeeded(
+      await pull(server, { works, lastSnapshotDay: "2026-10-06" }),
+    );
+
+    expect(result.account).toEqual([
+      { day: "2026-10-07", followers: null, reads: 3, interactions: 3 },
+      { day: "2026-10-08", followers: null, reads: 3, interactions: 2 },
+    ]);
+    // 只有一次日序列请求（加上取令牌和全量累计，共 3 次）
+    expect(server.of("pageviews")).toHaveLength(1);
+  });
+
+  it("日序列没给某天的会话数：那天的第二个数是 null；有访问但接口没发会话序列时也一样", async () => {
+    const traffic: Traffic = {
+      "2026-10-07": { "/": 3 },
+      "2026-10-08": { "/posts/a/": 1 },
+    };
+    const works = [makeWork("b-1", "a", { totals: stored("2026-10-06", 0) })];
+
+    // 接口只在有访客数可给的日子发会话行：10-07 那天没有
+    const partial = new FakeUmami(traffic);
+    partial.intercept = (request) =>
+      request.kind === "pageviews"
+        ? Response.json({
+            pageviews: [
+              { x: "2026-10-07T00:00:00Z", y: 3 },
+              { x: "2026-10-08T00:00:00Z", y: 1 },
+            ],
+            sessions: [{ x: "2026-10-08T00:00:00Z", y: 1 }],
+          })
+        : undefined;
+    const partialResult = succeeded(
+      await pull(partial, { works, lastSnapshotDay: "2026-10-06" }),
+    );
+    expect(partialResult.account).toEqual([
+      { day: "2026-10-07", followers: null, reads: 3, interactions: null },
+      { day: "2026-10-08", followers: null, reads: 1, interactions: 1 },
+    ]);
+
+    // 返回体里干脆没有 sessions 序列：有访问的日子也写 null
+    const missing = new FakeUmami(traffic);
+    missing.intercept = (request) =>
+      request.kind === "pageviews"
+        ? Response.json({
+            pageviews: [
+              { x: "2026-10-07T00:00:00Z", y: 3 },
+              { x: "2026-10-08T00:00:00Z", y: 1 },
+            ],
+          })
+        : undefined;
+    const missingResult = succeeded(
+      await pull(missing, { works, lastSnapshotDay: "2026-10-06" }),
+    );
+    expect(missingResult.account).toEqual([
+      { day: "2026-10-07", followers: null, reads: 3, interactions: null },
+      { day: "2026-10-08", followers: null, reads: 1, interactions: null },
+    ]);
+  });
+
   it("已是最新：上次已经拉到昨天，什么都不写，也不发请求", async () => {
     const server = new FakeUmami(FIVE_DAYS);
     const works = [makeWork("b-1", "a", { totals: stored("2026-10-08", 11) })];
@@ -618,9 +687,9 @@ describe("路径对作品", () => {
       pageviews: 9,
       visitors: 9,
     });
-    // 账号每天仍是全站访问：英文页和别的页面算进去
+    // 账号每天仍是全站访问和访客：英文页和别的页面算进去
     expect(result.account).toEqual([
-      { day: "2026-10-08", followers: null, reads: 85 },
+      { day: "2026-10-08", followers: null, reads: 85, interactions: 85 },
     ]);
   });
 
@@ -807,7 +876,7 @@ describe("没有访问的作品", () => {
 
     expect(server.requests).toHaveLength(3);
     expect(result.account).toEqual([
-      { day: "2026-10-08", followers: null, reads: 4 },
+      { day: "2026-10-08", followers: null, reads: 4, interactions: 4 },
     ]);
     expect(groupByWork(result)).toEqual({
       "b-1": { "2026-10-08": { pageviews: 0, visitors: 0 } },

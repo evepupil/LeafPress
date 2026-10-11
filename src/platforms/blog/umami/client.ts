@@ -56,6 +56,8 @@ export interface UmamiPageview {
   /** YYYY-MM-DD（按请求的时区） */
   day: string;
   pageviews: number;
+  /** 那天的会话数（Umami 网页上的「访客」）；接口没给就是 null */
+  sessions: number | null;
 }
 
 export interface UmamiExpandedPath {
@@ -83,7 +85,7 @@ export interface UmamiClient {
   /** 取令牌；其余方法需要时会自己调，用来提前确认共享链接还能用 */
   auth(): Promise<void>;
   stats(startAt: number, endAt: number): Promise<Record<string, number>>;
-  /** 按天的访问数；区间超过 221 天会自动分段 */
+  /** 按天的访问数和会话数（访客）；区间超过 221 天会自动分段 */
   pageviews(startAt: number, endAt: number): Promise<UmamiPageview[]>;
   /** 区间内全部页面路径的访问、访客；一次取够，分页时自己去重核对 */
   expandedPaths(startAt: number, endAt: number): Promise<UmamiExpandedPath[]>;
@@ -103,12 +105,24 @@ function rows(value: unknown): unknown[] {
   throw new UmamiRequestError("Umami 返回的数据格式不对");
 }
 
-/** pageviews 接口返回 { pageviews: [{x, y}], sessions: [{x, y}] }，只要前者 */
-function pageviewRows(value: unknown): unknown[] {
+/**
+ * pageviews 接口一次返回两条日序列：{ pageviews: [{x, y}], sessions: [{x, y}] }。
+ * 访问序列必须有（读不懂就整次失败）；会话序列缺了或读不懂就当没有，不让访问数据跟着失败。
+ */
+function dailySeries(value: unknown): {
+  pageviews: unknown[];
+  sessions: unknown[];
+} {
   const payload = record(value);
-  if (payload && Array.isArray(payload["pageviews"]))
-    return payload["pageviews"];
-  return rows(value);
+  if (payload && Array.isArray(payload["pageviews"])) {
+    const sessions = payload["sessions"];
+    return {
+      pageviews: payload["pageviews"],
+      sessions: Array.isArray(sessions) ? sessions : [],
+    };
+  }
+  // 老写法：直接是行数组，没有会话序列
+  return { pageviews: rows(value), sessions: [] };
 }
 
 function numeric(value: unknown): number | undefined {
@@ -490,27 +504,41 @@ export function createUmamiClient(options: UmamiClientOptions): UmamiClient {
     pageviews: (startAt, endAt) =>
       guarded(async () => {
         validateRange(startAt, endAt);
-        // 同一天出现多次（分段正好切在一天中间）时把访问加起来
-        const byDay = new Map<string, number>();
+        // 同一天出现多次（分段正好切在一天中间）时把访问、会话各自加起来
+        const viewsByDay = new Map<string, number>();
+        const sessionsByDay = new Map<string, number>();
         for (let cursor = startAt; cursor <= endAt;) {
           const chunkEnd = Math.min(
             endAt,
             cursor + MAX_PAGEVIEW_DAYS * DAY_MS - 1,
           );
-          const payload = await requestData("pageviews", cursor, chunkEnd);
-          for (const item of pageviewRows(payload)) {
+          const series = dailySeries(
+            await requestData("pageviews", cursor, chunkEnd),
+          );
+          for (const item of series.pageviews) {
             const entry = record(item);
             const day = rowDate(entry?.["x"] ?? entry?.["date"]);
             const pageviews = numeric(entry?.["y"] ?? entry?.["pageviews"]);
             if (day === undefined || pageviews === undefined)
               throw new UmamiRequestError("Umami 返回的数据格式不对");
-            byDay.set(day, (byDay.get(day) ?? 0) + pageviews);
+            viewsByDay.set(day, (viewsByDay.get(day) ?? 0) + pageviews);
+          }
+          for (const item of series.sessions) {
+            const entry = record(item);
+            const day = rowDate(entry?.["x"] ?? entry?.["date"]);
+            const sessions = numeric(entry?.["y"] ?? entry?.["sessions"]);
+            if (day !== undefined && sessions !== undefined)
+              sessionsByDay.set(day, (sessionsByDay.get(day) ?? 0) + sessions);
           }
           cursor = chunkEnd + 1;
         }
-        return [...byDay]
+        return [...viewsByDay]
           .sort(([left], [right]) => left.localeCompare(right))
-          .map(([day, pageviews]) => ({ day, pageviews }));
+          .map(([day, pageviews]) => ({
+            day,
+            pageviews,
+            sessions: sessionsByDay.get(day) ?? null,
+          }));
       }),
 
     expandedPaths: (startAt, endAt) =>

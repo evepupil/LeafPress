@@ -203,8 +203,8 @@ describe("createUmamiClient", () => {
       totaltime: 0,
     });
     expect(await client.pageviews(range.from, range.to)).toEqual([
-      { day: "2026-10-07", pageviews: 6 },
-      { day: "2026-10-08", pageviews: 3 },
+      { day: "2026-10-07", pageviews: 6, sessions: 3 },
+      { day: "2026-10-08", pageviews: 3, sessions: 3 },
     ]);
     expect(await client.expandedPaths(range.from, range.to)).toEqual([
       {
@@ -225,7 +225,7 @@ describe("createUmamiClient", () => {
       },
     ]);
 
-    // 老版本的 x 写法：2026-10-08 00:00:00
+    // 老版本的 x 写法：2026-10-08 00:00:00；会话序列没给那天的数时是 null
     server.intercept = (request) =>
       request.kind === "pageviews"
         ? Response.json({
@@ -234,7 +234,55 @@ describe("createUmamiClient", () => {
           })
         : undefined;
     expect(await client.pageviews(OCT_8.startAt, OCT_8.endAt)).toEqual([
-      { day: "2026-10-08", pageviews: 7 },
+      { day: "2026-10-08", pageviews: 7, sessions: null },
+    ]);
+  });
+
+  it("日序列的会话数：和访问一起读出来；某天没有会话数时是 null；读不懂的会话行当没有，不让访问数据跟着失败", async () => {
+    const { server, client } = harness({ "2026-10-08": { "/": 1 } });
+
+    // 同一次返回里两条序列对得上号：访问看 pageviews，访客看 sessions
+    server.intercept = (request) =>
+      request.kind === "pageviews"
+        ? Response.json({
+            pageviews: [
+              { x: "2026-10-07T00:00:00Z", y: 6 },
+              { x: "2026-10-08T00:00:00Z", y: 3 },
+            ],
+            sessions: [
+              { x: "2026-10-07T00:00:00Z", y: 4 },
+              { x: "2026-10-08T00:00:00Z", y: 2 },
+            ],
+          })
+        : undefined;
+    const range = {
+      from: dayRangeInTimezone("2026-10-07").startAt,
+      to: OCT_8.endAt,
+    };
+    expect(await client.pageviews(range.from, range.to)).toEqual([
+      { day: "2026-10-07", pageviews: 6, sessions: 4 },
+      { day: "2026-10-08", pageviews: 3, sessions: 2 },
+    ]);
+
+    // 返回体里没有 sessions：访问照读，会话全是 null
+    server.intercept = (request) =>
+      request.kind === "pageviews"
+        ? Response.json({ pageviews: [{ x: "2026-10-08T00:00:00Z", y: 5 }] })
+        : undefined;
+    expect(await client.pageviews(OCT_8.startAt, OCT_8.endAt)).toEqual([
+      { day: "2026-10-08", pageviews: 5, sessions: null },
+    ]);
+
+    // 会话行读不懂：当没有，不报错
+    server.intercept = (request) =>
+      request.kind === "pageviews"
+        ? Response.json({
+            pageviews: [{ x: "2026-10-08T00:00:00Z", y: 5 }],
+            sessions: [{ x: "昨天", y: 1 }, { x: "2026-10-08T00:00:00Z" }],
+          })
+        : undefined;
+    expect(await client.pageviews(OCT_8.startAt, OCT_8.endAt)).toEqual([
+      { day: "2026-10-08", pageviews: 5, sessions: null },
     ]);
   });
 
@@ -252,9 +300,9 @@ describe("createUmamiClient", () => {
     const series = await client.pageviews(range.from, range.to);
 
     expect(series).toEqual([
-      { day: "2025-01-01", pageviews: 1 },
-      { day: "2025-09-01", pageviews: 2 },
-      { day: "2026-03-01", pageviews: 3 },
+      { day: "2025-01-01", pageviews: 1, sessions: 1 },
+      { day: "2025-09-01", pageviews: 2, sessions: 2 },
+      { day: "2026-03-01", pageviews: 3, sessions: 3 },
     ]);
     const requests = server.of("pageviews");
     expect(requests.length).toBeGreaterThanOrEqual(2);
@@ -420,7 +468,7 @@ describe("节流、超时和重试", () => {
 
     const series = await client.pageviews(OCT_8.startAt, OCT_8.endAt);
 
-    expect(series).toEqual([{ day: "2026-10-08", pageviews: 1 }]);
+    expect(series).toEqual([{ day: "2026-10-08", pageviews: 1, sessions: 1 }]);
     expect(backoffs(sleeps)).toEqual([500, 1_000]);
     expect(server.of("pageviews")).toHaveLength(3);
   });
@@ -522,7 +570,7 @@ describe("令牌", () => {
 
     const series = await client.pageviews(OCT_8.startAt, OCT_8.endAt);
 
-    expect(series).toEqual([{ day: "2026-10-08", pageviews: 2 }]);
+    expect(series).toEqual([{ day: "2026-10-08", pageviews: 2, sessions: 2 }]);
     expect(server.of("share")).toHaveLength(2);
     const attempts = server.of("pageviews");
     expect(attempts).toHaveLength(2);

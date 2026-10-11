@@ -159,16 +159,25 @@ export class FakeUmami {
     const first = request.firstDay ?? "0000-01-01";
     const last = request.lastDay ?? "9999-12-31";
     if (request.kind === "pageviews") {
-      const series: { x: string; y: number }[] = [];
+      const views: { x: string; y: number }[] = [];
+      const sessions: { x: string; y: number }[] = [];
       for (const day of Object.keys(this.traffic).sort()) {
         if (day < first || day > last) continue;
         const pages: Record<string, Visit> = this.traffic[day] ?? {};
-        let total = 0;
-        for (const value of Object.values(pages))
-          total += visitOf(value).pageviews;
-        if (total > 0) series.push({ x: `${day}T00:00:00Z`, y: total });
+        let pageviews = 0;
+        let visitors = 0;
+        for (const value of Object.values(pages)) {
+          const visit = visitOf(value);
+          pageviews += visit.pageviews;
+          visitors += visit.visitors;
+        }
+        // 会话序列：每天的数是全站访客（Umami 网页上的「访客」），没有访问那天没有行
+        if (pageviews > 0) {
+          views.push({ x: `${day}T00:00:00Z`, y: pageviews });
+          sessions.push({ x: `${day}T00:00:00Z`, y: visitors });
+        }
       }
-      return json({ pageviews: series, sessions: series });
+      return json({ pageviews: views, sessions });
     }
     if (request.kind === "stats") {
       let pageviews = 0;

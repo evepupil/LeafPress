@@ -61,7 +61,8 @@ export interface DataPullResult {
     day: DayKey;
     followers: number | null;
     reads?: number;
-    interactions?: number;
+    /** 拿不到当天的数时可以写 null；缺省和 null 一样按没有处理 */
+    interactions?: number | null;
   }[];
   /** 作品每天结束时的累计数 */
   works: { workId: string; day: DayKey; totals: WorkTotals }[];

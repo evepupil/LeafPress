@@ -1,7 +1,8 @@
 /**
  * 博客的拿数据工具：从 Umami 共享链接拉访问数据。
  *
- * - 账号每天：全站每天的访问（pageviews 日序列）。
+ * - 账号每天：全站每天的访问（pageviews 日序列）和访客（同一次返回里的 sessions 序列，不加发请求）；
+ *   接口没给某天的会话数时，那天的访客写 null。
  * - 作品累计：每篇文章每天结束时的累计访问，昨天那条带访客（算法见 cumulative.ts、work-snapshots.ts）；
  *   查不到访问的文章昨天记一条 0。
  * - 起点：账号里有对得上的作品还没有任何累计数据（刚导入或刚发布），或这个账号从没拉过 → 补历史，
@@ -131,6 +132,10 @@ async function pullFromUmami(
     const visitsByDay = new Map(
       series.map((point) => [point.day, point.pageviews]),
     );
+    // 第二个数：当天访客（会话数）；接口没给那天的会话数就写 null
+    const visitorsByDay = new Map(
+      series.map((point) => [point.day, point.sessions] as const),
+    );
     if (backfill) {
       const firstDataDay = daysBetween(windowStart, yesterday).find(
         (day) => (visitsByDay.get(day) ?? 0) > 0,
@@ -150,6 +155,7 @@ async function pullFromUmami(
       day,
       followers: null,
       reads: visitsByDay.get(day) ?? 0,
+      interactions: visitorsByDay.get(day) ?? null,
     }));
 
     const works: WorkSnapshotsResult =
