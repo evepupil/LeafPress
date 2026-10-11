@@ -83,3 +83,4 @@ skills/leafpress/
 | 2026-10-09 | M2：触发条件收窄（只在明确提到 LeafPress、给出作品编号、要处理灵感作品数据时）；博客写稿的注意事项（frontmatter、只借「博客问题复盘」skill 的结构、slug 和配对键撞车的处理）；查数据、看周报两条命令和 JSON 里该看的字段；第一次拉数据要补历史、命令超时至少 10 分钟；测试核对每个参数在命令定义里存在 |
 | 2026-10-09 | 速查加 `account set`（密钥走 `--stdin`，任何输出不带值）和 `account import`（要先配好 `repo-path` 和 `site-url`）两条，共 29 条 |
 | 2026-10-10 | M3：SKILL.md 加「知乎写稿」一节（工作流自动配、写作规则在账号档案里、先确认大纲、稿子格式、复制页不用自己写、密钥走 `--stdin`、拉数据一天一次）；reference.md 加「知乎：三条工作流的注意事项」一节，`account import` 一行补知乎要先配 `access-secret` |
+| 2026-10-12 | 查数据的 JSON 说明加一句：`interactions` 是第二个数，知乎是互动、博客是访客，看 `secondaryLabel` |
