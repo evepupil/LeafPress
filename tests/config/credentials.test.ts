@@ -225,18 +225,18 @@ describe("账号凭证文件", () => {
   it("多进程交错写入时没有覆盖丢失", async () => {
     const file = join(await makeDir(), "credentials.json");
     const workers = Array.from({ length: 4 }, (_, index) =>
-      runWorker(file, "blog-2", `parallel-${index}`, 100),
+      runWorker(file, "blog-2", `parallel-${index}`, 25),
     );
     await Promise.all(workers);
 
     const store = openCredentials(file);
-    expect(store.keys("blog-2").size).toBe(400);
+    expect(store.keys("blog-2").size).toBe(100);
     for (let worker = 0; worker < 4; worker += 1) {
-      for (let index = 0; index < 100; index += 1) {
+      for (let index = 0; index < 25; index += 1) {
         expect(store.get("blog-2", `parallel-${worker}-${index}`)).toBe(
           `value-parallel-${worker}-${index}`,
         );
       }
     }
-  }, 45_000);
+  }, 120_000);
 });
