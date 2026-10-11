@@ -12,6 +12,7 @@ import {
   quietBlog,
   spyUseCases,
   umamiBlog,
+  zhihu,
 } from "./data-show-fixtures.js";
 
 const note: WeeklyNote = {
@@ -83,7 +84,7 @@ describe("leafpress report：人看的输出", () => {
       "浏览 24，比上周 —；《第二篇作品》最多（30）。",
       "",
       "分账号",
-      "账号          粉丝      增减  发布  主数据  互动",
+      "账号          粉丝      增减  发布  主数据  互动 / 访客",
       "一叶之桐      93 → 102  +9    2     24      18",
       "技术博客      —         —     1     —       —",
       "访问统计博客  —         —     0     0       0",
@@ -122,10 +123,40 @@ describe("leafpress report：人看的输出", () => {
       "浏览 0，比上周 —。",
     ]);
     expect(lines.slice(7, 10)).toEqual([
-      "账号          粉丝  增减  发布  访问  互动",
+      "账号          粉丝  增减  发布  访问  访客",
       "技术博客      —     —     1     —     —",
       "访问统计博客  —     —     0     0     0",
     ]);
+  });
+
+  it("列名按各行账号的平台取名：只有知乎叫互动，只有博客叫访客，混着写「互动 / 访客」", () => {
+    // 只有知乎：列名是互动
+    const zhihuLines = renderReport(
+      executeReport(fakeUseCases(dataset, [zhihu])),
+    ).split("\n");
+    const zhihuHead = zhihuLines.indexOf("分账号") + 1;
+    expect(zhihuLines[zhihuHead]).toBe(
+      "账号      粉丝      增减  发布  浏览  互动",
+    );
+
+    // 只有博客：列名是访客（在上一条测试里验证过访问那列，这里再确认名字）
+    const blogLines = renderReport(
+      executeReport(fakeUseCases(dataset, [quietBlog, umamiBlog])),
+    ).split("\n");
+    expect(blogLines[blogLines.indexOf("分账号") + 1]).toBe(
+      "账号          粉丝  增减  发布  访问  访客",
+    );
+
+    // 混着：知乎和博客都在表里，列名写「互动 / 访客」
+    const mixedLines = renderReport(
+      executeReport(fakeUseCases(dataset, [zhihu, umamiBlog])),
+    ).split("\n");
+    expect(mixedLines[mixedLines.indexOf("分账号") + 1]).toBe(
+      "账号          粉丝      增减  发布  主数据  互动 / 访客",
+    );
+    expect(
+      mixedLines[mixedLines.indexOf("分账号") + 2]?.startsWith("一叶之桐"),
+    ).toBe(true);
   });
 });
 

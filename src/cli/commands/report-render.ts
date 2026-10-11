@@ -5,6 +5,7 @@ import {
   formatSigned,
   formatWeekRange,
   metricText,
+  secondaryColumnLabel,
   type DayKey,
   type WeekReport,
 } from "@leafpress/core";
@@ -13,12 +14,17 @@ import { primaryMetricLabel } from "./metric-label.js";
 import type { ReportResult } from "./report.js";
 
 /**
- * 分账号表。没数据的号，粉丝、浏览、互动写「—」；粉丝数拿不到的号（博客的 Umami 不给订阅数），
- * 粉丝和增减写「—」，浏览、互动照写。发布篇数不受影响：发了作品就算发布，不管有没有数据。
+ * 分账号表。没数据的号，粉丝、浏览、第二个数写「—」；粉丝数拿不到的号（博客的 Umami 不给订阅数），
+ * 粉丝和增减写「—」，浏览照写。发布篇数不受影响：发了作品就算发布，不管有没有数据。
+ * 第二个数的列名按各行账号的平台取名：知乎是互动、博客是访客，混着写「互动 / 访客」。
  */
-function renderAccounts(report: WeekReport, metricLabel: string): string {
+function renderAccounts(
+  report: WeekReport,
+  metricLabel: string,
+  secondaryLabel: string,
+): string {
   return renderTable(
-    ["账号", "粉丝", "增减", "发布", metricLabel, "互动"],
+    ["账号", "粉丝", "增减", "发布", metricLabel, secondaryLabel],
     report.rows.map((row) => {
       const followers = row.hasData && row.followersKnown;
       return [
@@ -59,6 +65,9 @@ function renderPublished(
 export function renderReport(result: ReportResult): string {
   const { report, today } = result;
   const metricLabel = primaryMetricLabel(report.rows.map((row) => row.account));
+  const secondaryLabel = secondaryColumnLabel(
+    report.rows.map((row) => PLATFORMS[row.account.platform]),
+  );
   // 本周还没过完时，标题里写明只统计到哪天
   const title = `${formatWeekRange(report.week)}周报${report.complete ? "" : `（到${formatDay(report.end, today)}）`}`;
   const lines = [
@@ -68,7 +77,7 @@ export function renderReport(result: ReportResult): string {
     ...report.digest,
     "",
     "分账号",
-    renderAccounts(report, metricLabel),
+    renderAccounts(report, metricLabel, secondaryLabel),
     "",
     "这周发布",
     renderPublished(report, today, metricLabel),

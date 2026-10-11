@@ -53,6 +53,7 @@
 
 先分清「没有」和「0」，补出来的 0 不是真实的 0。
 
+- `interactions`、`interactions7d` 是每个账号的「第二个数」：知乎是互动（点赞、收藏、评论、分享加起来），博客没有互动，是访客。看每个账号的 `secondaryLabel`；几个账号的合计只加互动。
 - 粉丝是 `null`，表示这个平台拿不到粉丝数（博客拿不到订阅数），不是 0，不要写成「0 个订阅」。涉及的字段：`data show` 的 `summaries[].followers`、`followers7d`、`followers30d`、`weeklyGain` 和 `series.followers`；`report` 的 `rows[].followersStart`、`followersEnd`、`delta` 和 `totals.delta`。
 - `summaries[].hasData`、`rows[].hasData` 为 false，表示还没拉到过这个账号的数据，它的浏览、互动是补出来的 0。发布篇数（`postsThisWeek`、`posts`）是真的：发了作品就算发布，不管有没有数据。`data show` 里选中的账号都没有数据时，顶层 `hasData` 为 false，也没有 `series` 和 `top`。
 - `summaries[].dataThrough` 是记录库里这个账号真正有数的最后一天（拉到了但数是 0 也算），窗口里没有记录为 `null`。它比顶层 `latestDay` 早，说明最近几天没拉到，那几天的 0 是补出来的，不是下滑。

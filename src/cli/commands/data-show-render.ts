@@ -1,10 +1,12 @@
 import {
   PLATFORMS,
   addDays,
+  combinedSecondary,
   formatCount,
   formatDay,
   formatSignedPercent,
   metricText,
+  secondaryColumnLabel,
   type AccountSummary,
   type DayKey,
   type MetricResult,
@@ -15,6 +17,11 @@ import { primaryMetricLabel } from "./metric-label.js";
 
 const NO_DATA_ALL = "还没有数据：拿数据的工具接上并拉过一次之后才有";
 const NO_DATA_ONE = "这个账号还没有数据";
+
+/** 选中的账号的平台，取名用（第二个数是互动还是访客，见 secondary.ts） */
+function platformsOf(summaries: readonly AccountSummary[]) {
+  return summaries.map((summary) => PLATFORMS[summary.account.platform]);
+}
 
 /**
  * 概况表的一行。没数据的号，数字列写「—」：补出来的 0 不是真的 0。
@@ -42,7 +49,11 @@ function lastWeekIsPartial(result: DataShowFull): boolean {
   return last !== undefined && addDays(last.key, 6) > result.latestDay;
 }
 
-function renderSeries(result: DataShowFull, metricLabel: string): string[] {
+function renderSeries(
+  result: DataShowFull,
+  metricLabel: string,
+  secondaryLabel: string,
+): string[] {
   const { followers, reads, interactions, posts } = result.series;
   const partial = lastWeekIsPartial(result);
   const lastIndex = reads.points.length - 1;
@@ -56,14 +67,19 @@ function renderSeries(result: DataShowFull, metricLabel: string): string[] {
         : point.label;
     // 选中的账号都拿不到粉丝数时写「—」，不写占位的 0
     const followersText = followers.available ? valueAt(followers, index) : "—";
-    return `${label}  粉丝 ${followersText}  ${metricLabel} ${valueAt(reads, index)}  互动 ${valueAt(interactions, index)}  发布 ${valueAt(posts, index)}`;
+    // 第二个数按选中的平台取名：全是博客叫「访客」，混着叫「互动」（共享规则合计时只加互动类）
+    return `${label}  粉丝 ${followersText}  ${metricLabel} ${valueAt(reads, index)}  ${secondaryLabel} ${valueAt(interactions, index)}  发布 ${valueAt(posts, index)}`;
   });
 }
 
-function renderTop(result: DataShowFull, metricLabel: string): string {
+function renderTop(
+  result: DataShowFull,
+  metricLabel: string,
+  secondaryLabel: string,
+): string {
   if (result.top.length === 0) return "没有可排行的作品";
   return renderTable(
-    ["#", "作品", "账号", metricLabel, "互动", "近 7 天"],
+    ["#", "作品", "账号", metricLabel, secondaryLabel, "近 7 天"],
     result.top.map((item, index) => [
       String(index + 1),
       tableCell(item.work.title, 40),
@@ -86,6 +102,10 @@ export function renderDataShow(result: DataShowResult): string {
   const metricLabel = primaryMetricLabel(
     result.summaries.map((summary) => summary.account),
   );
+  // 第二个数的取名：概况和排行走列名的规则（知乎互动、博客访客，混着写「互动 / 访客」），
+  // 走势走合计的规则（共享规则合计时只加互动类账号，名字跟着合计的口径走）
+  const secondaryColumn = secondaryColumnLabel(platformsOf(result.summaries));
+  const seriesLabel = combinedSecondary(platformsOf(result.summaries)).label;
   return [
     `截至 ${formatDay(result.latestDay, result.today)}`,
     renderTable(
@@ -94,7 +114,7 @@ export function renderDataShow(result: DataShowResult): string {
         "粉丝",
         `近 7 天${metricLabel}`,
         "比上 7 天",
-        "近 7 天互动",
+        `近 7 天${secondaryColumn}`,
         "本周发布",
         "上次发布",
         "数据到",
@@ -103,9 +123,9 @@ export function renderDataShow(result: DataShowResult): string {
     ),
     "",
     "走势",
-    ...renderSeries(result, metricLabel),
+    ...renderSeries(result, metricLabel, seriesLabel),
     "",
     "作品排行",
-    renderTop(result, metricLabel),
+    renderTop(result, metricLabel, secondaryColumn),
   ].join("\n");
 }

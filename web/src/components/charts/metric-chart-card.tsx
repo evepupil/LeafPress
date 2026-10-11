@@ -12,8 +12,10 @@ import { Switch } from "@/components/ui/switch"
 import {
   METRIC_LABEL,
   PLATFORMS,
+  combinedSecondary,
   formatCount,
   metricSeries,
+  secondaryOf,
   type MetricId,
   type MetricResult,
   type MetricsInput,
@@ -50,13 +52,22 @@ const RANGE_NOTE: Record<RangeId, string> = {
   "12w": "近 12 周，按周",
 }
 
-/** 页签名：全部账号用统一叫法；单个账号的「粉丝」「阅读」按平台的说法（关注者、订阅、播放……） */
+/**
+ * 页签名：全部账号用统一叫法；单个账号的「粉丝」「阅读」按平台的说法（关注者、订阅、播放……）。
+ * 第二个数（interactions）按平台叫：知乎是互动、博客是访客；几个账号合在一起看时访客和互动
+ * 不能相加，共享规则只合计互动类账号，页签名跟着合计的口径走（只看博客时叫「访客」）。
+ */
 function tabLabel(scope: string, metric: MetricId, input: MetricsInput): string {
-  if (scope === "all") return METRIC_LABEL[metric]
+  if (scope === "all") {
+    return metric === "interactions"
+      ? combinedSecondary(input.accounts.map((item) => PLATFORMS[item.platform])).label
+      : METRIC_LABEL[metric]
+  }
   const account = input.accounts.find((item) => item.id === scope)
   if (!account) return METRIC_LABEL[metric]
   if (metric === "followers") return PLATFORMS[account.platform].audienceLabel
   if (metric === "reads") return PLATFORMS[account.platform].metrics[0]?.label ?? METRIC_LABEL.reads
+  if (metric === "interactions") return secondaryOf(PLATFORMS[account.platform]).label
   return METRIC_LABEL[metric]
 }
 

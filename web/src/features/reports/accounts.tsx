@@ -1,6 +1,6 @@
 "use client"
 
-import { formatCount, shortTitle } from "@leafpress/core"
+import { PLATFORMS, combinedSecondary, formatCount, secondaryColumnLabel, shortTitle, type WeekReport } from "@leafpress/core"
 import { cn } from "cn"
 import { Users } from "lucide-react"
 import Link from "next/link"
@@ -11,17 +11,29 @@ import { EmptyState } from "@/components/base/empty-state"
 import { focusRing } from "@/lib/styles"
 import { useSelectedReport } from "./use-week-report"
 
-const COLUMNS: { label: string; align: "left" | "right" }[] = [
-  { label: "账号", align: "left" },
-  { label: "粉丝", align: "right" },
-  { label: "增减", align: "right" },
-  { label: "发布", align: "right" },
-  { label: "浏览", align: "right" },
-  { label: "互动", align: "right" },
-  { label: "最佳作品", align: "left" },
-]
 const HEAD_ALIGN = { left: "text-left", right: "text-right" } as const
 const BEST_LINK = cn("block max-w-[200px] truncate rounded-sm text-xs hover:underline", focusRing)
+
+/** 表头：第二个数的列名按各行账号的平台取名（知乎互动、博客访客，混着写「互动 / 访客」） */
+function columns(report: WeekReport): { label: string; align: "left" | "right" }[] {
+  return [
+    { label: "账号", align: "left" },
+    { label: "粉丝", align: "right" },
+    { label: "增减", align: "right" },
+    { label: "发布", align: "right" },
+    { label: "浏览", align: "right" },
+    { label: secondaryColumnLabel(report.rows.map((row) => PLATFORMS[row.account.platform])), align: "right" },
+    { label: "最佳作品", align: "left" },
+  ]
+}
+
+/** 合计的第二个数：访客和互动不能相加，只加共享规则包含的账号（有互动平台就只加互动类），一个都不包含写「—」 */
+function combinedInteractions(report: WeekReport): string {
+  const combined = combinedSecondary(report.rows.map((row) => PLATFORMS[row.account.platform]))
+  const included = report.rows.filter((row) => combined.includes(PLATFORMS[row.account.platform]))
+  if (included.length === 0) return "—"
+  return formatCount(included.reduce((sum, row) => sum + row.interactions, 0))
+}
 
 export function ReportAccounts() {
   const { report } = useSelectedReport()
@@ -46,7 +58,7 @@ export function ReportAccounts() {
           <table className="w-full min-w-[720px] text-sm">
             <thead className="bg-raised text-xs text-fg-2">
               <tr>
-                {COLUMNS.map((column) => (
+                {columns(report).map((column) => (
                   <th key={column.label} scope="col" className={cn("h-8 px-3 font-normal", HEAD_ALIGN[column.align])}>
                     {column.label}
                   </th>
@@ -106,7 +118,8 @@ export function ReportAccounts() {
                 </td>
                 <td className="px-3 text-right tabular whitespace-nowrap">{totals.posts}</td>
                 <td className="px-3 text-right tabular">{formatCount(totals.reads)}</td>
-                <td className="px-3 text-right tabular">{formatCount(totals.interactions)}</td>
+                {/* 合计只加互动类账号，博客的访客看它自己那行 */}
+                <td className="px-3 text-right tabular">{combinedInteractions(report)}</td>
                 <td className="px-3" />
               </tr>
             </tfoot>

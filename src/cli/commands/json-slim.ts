@@ -18,6 +18,8 @@ import type {
   WeeklyNote,
   Work,
 } from "@leafpress/core";
+import { PLATFORMS } from "@leafpress/core";
+import { secondaryOf } from "@leafpress/core";
 
 export interface SlimAccount {
   id: string;
@@ -43,6 +45,8 @@ export interface SlimRankedWork {
 
 export interface SlimSummary {
   account: SlimAccount;
+  /** 这个账号的第二个数是什么（知乎「互动」、博客「访客」），interactions7d 按这个含义读 */
+  secondaryLabel: string;
   hasData: boolean;
   /** 记录库里真正有数的最后一天，窗口里没有记录为 null。比顶层 latestDay 早，说明最近几天没拉到，那几天的 0 是补出来的 */
   dataThrough: DayKey | null;
@@ -144,6 +148,7 @@ export function slimSummary(summary: AccountSummary): SlimSummary {
   const known = summary.followersKnown;
   return {
     account: slimAccount(summary.account),
+    secondaryLabel: secondaryOf(PLATFORMS[summary.account.platform]).label,
     hasData: summary.hasData,
     dataThrough: summary.dataThrough,
     followers: known ? summary.followers : null,

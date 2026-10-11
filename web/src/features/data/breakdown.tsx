@@ -7,10 +7,11 @@ import { Delta } from "@/components/base/delta"
 import { accountHref, accountSummary, formatCount, formatPercent, type AccountSummary } from "@leafpress/core"
 import { useAccounts, useMetricsInput } from "@/state/data"
 import { focusRing } from "@/lib/styles"
+import { breakdownSecondaryLabel, combinedSecondary7d, hasInteractionRate } from "./breakdown-labels"
 
 const TH = "h-8 px-3 font-normal whitespace-nowrap"
 
-/** 互动率 = 互动 ÷ 浏览；没有浏览时算不出来，显示「—」 */
+/** 互动率 = 互动 ÷ 浏览；没有浏览时算不出来，显示「—」。第二个数不是互动的平台（博客的访客）没有互动率，也写「—」 */
 function rateText(interactions: number, reads: number): string {
   return reads > 0 ? formatPercent(interactions / reads) : "—"
 }
@@ -23,12 +24,14 @@ export function AccountBreakdown() {
   // 粉丝合计只加拿得到粉丝数的账号（博客的 Umami 不给订阅数，加进去等于把「没有」当成 0）
   const followerSummaries = summaries.filter((item) => item.followersKnown)
   const followersTotal = followerSummaries.length > 0
+  // 第二个数的列名和合计：知乎是互动、博客是访客，混着写「互动 / 访客」，合计只加共享规则包含的账号（见 breakdown-labels.ts）
+  const secondaryLabel = breakdownSecondaryLabel(summaries)
+  const secondaryTotal = combinedSecondary7d(summaries)
   const total = {
     followers: followerSummaries.reduce((sum, item) => sum + item.followers, 0),
     followers7d: followerSummaries.reduce((sum, item) => sum + item.followers7d, 0),
     followers30d: followerSummaries.reduce((sum, item) => sum + item.followers30d, 0),
     reads7d: summaries.reduce((sum, item) => sum + item.reads7d, 0),
-    interactions7d: summaries.reduce((sum, item) => sum + item.interactions7d, 0),
   }
 
   return (
@@ -41,8 +44,8 @@ export function AccountBreakdown() {
         <span className="text-xs text-fg-2">近 7 天</span>
       </div>
       <div className="overflow-x-auto">
-        {/* xl 以下表格至少 600px 宽，窄屏横向滚动；xl 起和数据来源两列并排，卡片只有约 570px，不再强制最小宽度，放得下就不出滚动条 */}
-        <table className="w-full min-w-[600px] text-sm xl:min-w-0">
+        {/* xl 以下表格至少 680px 宽，窄屏横向滚动；xl 起和数据来源两列并排，卡片只有约 570px，不再强制最小宽度，放得下就不出滚动条 */}
+        <table className="w-full min-w-[680px] text-sm xl:min-w-0">
           <thead className="bg-raised text-xs text-fg-2">
             <tr>
               <th scope="col" className={cn(TH, "text-left")}>
@@ -58,7 +61,7 @@ export function AccountBreakdown() {
                 30 天
               </th>
               <th scope="col" className={cn(TH, "text-right")}>
-                浏览
+                {secondaryLabel}
               </th>
               <th scope="col" className={cn(TH, "text-right")}>
                 互动率
@@ -89,11 +92,16 @@ export function AccountBreakdown() {
                         <Delta value={item.readsChange} />
                       </span>
                     </td>
-                    <td className="px-3 text-right text-fg-2 tabular">{rateText(item.interactions7d, item.reads7d)}</td>
+                    {/* 每行是它自己的第二个数：知乎的互动、博客的访客，列名混着写「互动 / 访客」 */}
+                    <td className="px-3 text-right text-fg-2 tabular">{formatCount(item.interactions7d)}</td>
+                    {/* 第二个数不是互动的平台没有互动率（访客÷访问不是互动率），写「—」 */}
+                    <td className="px-3 text-right text-fg-2 tabular">
+                      {hasInteractionRate(item) ? rateText(item.interactions7d, item.reads7d) : "—"}
+                    </td>
                   </>
                 ) : (
                   // 拿数据的工具还没做：一整行写明，不用 0 冒充
-                  <td colSpan={5} className="px-3 text-right text-xs text-fg-2">
+                  <td colSpan={6} className="px-3 text-right text-xs text-fg-2">
                     数据还没接
                   </td>
                 )}
@@ -111,7 +119,12 @@ export function AccountBreakdown() {
                 <Delta value={followersTotal ? total.followers30d : null} kind="count" />
               </td>
               <td className="px-3 text-right tabular">{formatCount(total.reads7d)}</td>
-              <td className="px-3 text-right text-fg-2 tabular">{rateText(total.interactions7d, total.reads7d)}</td>
+              {/* 合计只加共享规则包含的账号（有互动平台就只加互动类，博客的访客看它自己那行），一个都不包含写「—」 */}
+              <td className="px-3 text-right tabular">{secondaryTotal === null ? "—" : formatCount(secondaryTotal)}</td>
+              {/* 合计的互动率只在选中的账号里有互动类平台时才有意义 */}
+              <td className="px-3 text-right text-fg-2 tabular">
+                {summaries.some(hasInteractionRate) && secondaryTotal !== null ? rateText(secondaryTotal, total.reads7d) : "—"}
+              </td>
             </tr>
           </tfoot>
         </table>

@@ -9,18 +9,21 @@ import { AccountTag } from "@/components/base/account-tag"
 import { EmptyState } from "@/components/base/empty-state"
 import { Segmented } from "@/components/base/segmented"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { formatCount, metricText, PLATFORMS, topWorks, type RankBy } from "@leafpress/core"
+import { PLATFORMS, formatCount, metricText, secondaryColumnLabel, topWorks, type Account, type RankBy } from "@leafpress/core"
 import { useAccounts, useMetricsInput } from "@/state/data"
 import { focusRing } from "@/lib/styles"
 
 /** 排行只看前 10 名 */
 const TOP_LIMIT = 10
 
-const SORT_OPTIONS: { value: RankBy; label: string }[] = [
-  { value: "reach", label: "浏览" },
-  { value: "interactions", label: "互动" },
-  { value: "growth", label: "近 7 天" },
-]
+/** 排序选项里第二个数的叫法：知乎是互动、博客是访客，混着写「互动 / 访客」 */
+function sortLabelOptions(accounts: readonly Account[]): { value: RankBy; label: string }[] {
+  return [
+    { value: "reach", label: "浏览" },
+    { value: "interactions", label: secondaryColumnLabel(accounts.map((item) => PLATFORMS[item.platform])) },
+    { value: "growth", label: "近 7 天" },
+  ]
+}
 
 const TH = "h-8 px-3 font-normal whitespace-nowrap"
 /** 数字列：右对齐、等宽数字 */
@@ -28,8 +31,9 @@ const TD_NUM = "px-3 text-right tabular"
 
 /**
  * 作品排行：一个作品一行，可以换排序依据，也可以只看某一个账号。
- * 各平台的数据项不一样：看全部账号时列主数据（浏览 / 访问 / 播放，各取各的）和互动合计；
- * 只看一个号时按这个平台自己的数据项一列一列摆（知乎：浏览、点赞、收藏、评论、分享）。
+ * 各平台的数据项不一样：看全部账号时列主数据（浏览 / 访问 / 播放，各取各的）和第二个数（知乎的互动、
+ * 博客的访客，各取各的），列名混着写「互动 / 访客」；只看一个号时按这个平台自己的数据项一列一列摆
+ * （知乎：浏览、点赞、收藏、评论、分享）。
  */
 export function TopWorks() {
   const [by, setBy] = useState<RankBy>("reach")
@@ -44,6 +48,9 @@ export function TopWorks() {
   )
   const selectedAccountData = accounts.find((item) => item.id === selectedAccount)
   const metrics = selectedAccountData ? PLATFORMS[selectedAccountData.platform].metrics : null
+  // 排序选项按全部账号的平台取名；第二个数的列名按列出来的作品所属账号的平台取名
+  const sortOptions = useMemo(() => sortLabelOptions(accounts), [accounts])
+  const secondaryColumn = useMemo(() => secondaryColumnLabel(items.map((item) => PLATFORMS[item.account.platform])), [items])
 
   return (
     <section id="top" aria-labelledby="top-title" className="overflow-hidden rounded-lg border border-line bg-card shadow-sm">
@@ -67,7 +74,7 @@ export function TopWorks() {
             </SelectContent>
           </Select>
           <div data-top-sort>
-            <Segmented<RankBy> label="排序" value={by} onChange={setBy} options={SORT_OPTIONS} />
+            <Segmented<RankBy> label="排序" value={by} onChange={setBy} options={sortOptions} />
           </div>
         </div>
       </div>
@@ -97,10 +104,10 @@ export function TopWorks() {
                       账号
                     </th>
                     <th scope="col" className={cn(TH, "text-right")}>
-                      浏览
+                      主数据
                     </th>
                     <th scope="col" className={cn(TH, "text-right")}>
-                      互动
+                      {secondaryColumn}
                     </th>
                   </>
                 )}

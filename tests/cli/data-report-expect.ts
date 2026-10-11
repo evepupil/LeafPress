@@ -1,7 +1,9 @@
 import {
+  PLATFORMS,
   accountSummary,
   metricSeries,
   reportWeeks,
+  secondaryOf,
   topWorks,
   weekReport,
   type Account,
@@ -45,6 +47,7 @@ export function slimSummary(summary: AccountSummary) {
     reads7d: summary.reads7d,
     readsChange: summary.readsChange,
     interactions7d: summary.interactions7d,
+    secondaryLabel: secondaryOf(PLATFORMS[summary.account.platform]).label,
     postsThisWeek: summary.postsThisWeek,
     works: summary.works,
     lastPublishedAt: summary.lastPublishedAt,
