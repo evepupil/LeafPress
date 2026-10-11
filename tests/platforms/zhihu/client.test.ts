@@ -14,27 +14,36 @@ import {
   ok,
 } from "./api-fixtures.js";
 
-/** 建一个用假 fetch 的客户端，退避等待都记下来但不真等 */
+/** 假时钟：时间只随 sleep 前进（不真等），等过多少记下来供断言 */
+class FakeClock {
+  private current = new Date("2026-10-02T00:00:00Z").getTime();
+  readonly sleeps: number[] = [];
+  readonly now = (): Date => new Date(this.current);
+  readonly sleep = (milliseconds: number): Promise<void> => {
+    this.sleeps.push(milliseconds);
+    this.current += milliseconds;
+    return Promise.resolve();
+  };
+}
+
+/** 建一个用假 fetch、假时钟的客户端，等待都记下来但不真等 */
 function client(
   responses: Response[],
   extra: { requestTimeoutMs?: number; hangs?: boolean } = {},
 ) {
   const fake = new FakeFetch();
   for (const response of responses) fake.always(response);
-  const sleeps: number[] = [];
+  const clock = new FakeClock();
   const tool = createZhihuClient({
     secret: ACCESS_SECRET,
     fetch: fake.fetch,
-    sleep: (ms) => {
-      sleeps.push(ms);
-      return noSleep();
-    },
-    now: () => new Date("2026-10-02T00:00:00Z"), // 1790899200
+    sleep: clock.sleep,
+    now: clock.now,
     ...(extra.requestTimeoutMs === undefined
       ? {}
       : { requestTimeoutMs: extra.requestTimeoutMs }),
   });
-  return { tool, sleeps, fake };
+  return { tool, sleeps: clock.sleeps, fake };
 }
 
 /** 挂住不放的 fetch（测超时） */
@@ -122,22 +131,29 @@ describe("认证头和请求", () => {
       hello: "zhihu",
     });
   });
+
+  it("限流间隔：相邻两次请求至少等 1100 毫秒，第一次不等", async () => {
+    const { tool, sleeps } = client([ok({}), ok({})]);
+
+    await tool.get("/user/contents");
+    await tool.get("/user/contents");
+
+    // 第一次请求不等待；第二次之前等到间隔满 1.1 秒
+    expect(sleeps).toEqual([1_100]);
+  });
 });
 
 describe("超时和重试", () => {
   it("超时：按 1 秒、3 秒退避重试两次，三次都超时才失败", async () => {
     const hanging = new HangingFetch();
-    const sleeps: number[] = [];
+    const clock = new FakeClock();
 
     const error = await caught(
       createZhihuClient({
         secret: ACCESS_SECRET,
         fetch: hanging.fetch,
-        sleep: (ms) => {
-          sleeps.push(ms);
-          return noSleep();
-        },
-        now: () => new Date(),
+        sleep: clock.sleep,
+        now: clock.now,
         requestTimeoutMs: 20,
       }).get("/user/contents"),
     );
@@ -147,7 +163,8 @@ describe("超时和重试", () => {
       message: "知乎开放平台请求超时",
     });
     expect(hanging.calls).toHaveLength(3);
-    expect(sleeps).toEqual([1_000, 3_000]);
+    // 退避 1 秒后补齐限流间隔再发第二次；退避 3 秒已够间隔，直接发第三次
+    expect(clock.sleeps).toEqual([1_000, 100, 3_000]);
   });
 
   it("5xx：重试两次，第三次成功就不报错", async () => {
@@ -155,24 +172,21 @@ describe("超时和重试", () => {
     fake.always(new Response("bad", { status: 502 }));
     fake.always(new Response("bad", { status: 503 }));
     fake.always(ok({ fine: 1 }));
-    const sleeps: number[] = [];
+    const clock = new FakeClock();
 
     await expect(
       createZhihuClient({
         secret: ACCESS_SECRET,
         fetch: fake.fetch,
-        sleep: (ms) => {
-          sleeps.push(ms);
-          return noSleep();
-        },
-        now: () => new Date(),
+        sleep: clock.sleep,
+        now: clock.now,
       }).get("/user/contents"),
     ).resolves.toEqual({ fine: 1 });
-    expect(sleeps).toEqual([1_000, 3_000]);
+    expect(clock.sleeps).toEqual([1_000, 100, 3_000]);
   });
 
   it("网络错误：重试两次仍失败，写清原因", async () => {
-    const sleeps: number[] = [];
+    const clock = new FakeClock();
     const broken: typeof fetch = () =>
       Promise.reject(new TypeError("fetch failed"));
 
@@ -180,11 +194,8 @@ describe("超时和重试", () => {
       createZhihuClient({
         secret: ACCESS_SECRET,
         fetch: broken,
-        sleep: (ms) => {
-          sleeps.push(ms);
-          return noSleep();
-        },
-        now: () => new Date(),
+        sleep: clock.sleep,
+        now: clock.now,
       }).get("/user/contents"),
     );
 
@@ -192,23 +203,20 @@ describe("超时和重试", () => {
       name: "ZhihuApiError",
       message: "知乎开放平台网络请求失败",
     });
-    expect(sleeps).toEqual([1_000, 3_000]);
+    expect(clock.sleeps).toEqual([1_000, 100, 3_000]);
   });
 
   it("4xx 不重试：直接失败", async () => {
     const fake = new FakeFetch();
     fake.always(new Response("no", { status: 404 }));
-    const sleeps: number[] = [];
+    const clock = new FakeClock();
 
     const error = await caught(
       createZhihuClient({
         secret: ACCESS_SECRET,
         fetch: fake.fetch,
-        sleep: (ms) => {
-          sleeps.push(ms);
-          return noSleep();
-        },
-        now: () => new Date(),
+        sleep: clock.sleep,
+        now: clock.now,
       }).get("/user/contents"),
     );
 
@@ -217,7 +225,7 @@ describe("超时和重试", () => {
       message: "知乎开放平台请求失败（HTTP 404）",
     });
     expect(fake.requests).toHaveLength(1);
-    expect(sleeps).toEqual([]);
+    expect(clock.sleeps).toEqual([]);
   });
 });
 
@@ -227,14 +235,87 @@ describe("业务错误码", () => {
     return caught(tool.get("/user/creator_account_stats"));
   }
 
-  it("30001：不重试，整次失败并说清是额度到上限", async () => {
-    const error = await errorOf([failed(30001, "quota exceeded")]);
+  it("每秒超限一次：等 2 秒重试同一请求就成功，限流间隔也照补", async () => {
+    const fake = new FakeFetch();
+    fake.always(failed(30001, "second limit exceeded"));
+    fake.always(ok({ fine: 1 }));
+    const clock = new FakeClock();
+
+    await expect(
+      createZhihuClient({
+        secret: ACCESS_SECRET,
+        fetch: fake.fetch,
+        sleep: clock.sleep,
+        now: clock.now,
+      }).get("/user/contents"),
+    ).resolves.toEqual({ fine: 1 });
+
+    // 业务重试等 2 秒（已经够限流间隔，不再补）
+    expect(fake.requests).toHaveLength(2);
+    expect(clock.sleeps).toEqual([2_000]);
+  });
+
+  it("偶发失败（90001）一次：等 2 秒重试就成功", async () => {
+    const fake = new FakeFetch();
+    fake.always(failed(90001, "request failed"));
+    fake.always(ok({ fine: 2 }));
+    const clock = new FakeClock();
+
+    await expect(
+      createZhihuClient({
+        secret: ACCESS_SECRET,
+        fetch: fake.fetch,
+        sleep: clock.sleep,
+        now: clock.now,
+      }).get("/user/contents"),
+    ).resolves.toEqual({ fine: 2 });
+
+    expect(fake.requests).toHaveLength(2);
+    expect(clock.sleeps).toEqual([2_000]);
+  });
+
+  it("每秒超限连续 4 次：重试 3 次仍不行，报错带上接口的 Message", async () => {
+    // Response 的 body 只能读一次，四次得是四个独立响应
+    const error = await errorOf([
+      failed(30001, "second limit exceeded"),
+      failed(30001, "second limit exceeded"),
+      failed(30001, "second limit exceeded"),
+      failed(30001, "second limit exceeded"),
+    ]);
+
+    expect(error).toMatchObject({
+      name: "ZhihuApiError",
+      message:
+        "知乎开放平台限流（每秒调用次数超了），重试 3 次仍不行：second limit exceeded",
+    });
+  });
+
+  it("90001 重试 3 次仍不行：报错带上接口的 Message", async () => {
+    const error = await errorOf([
+      failed(90001, "request failed"),
+      failed(90001, "request failed"),
+      failed(90001, "request failed"),
+      failed(90001, "request failed"),
+    ]);
+
+    expect(error).toMatchObject({
+      name: "ZhihuApiError",
+      message: "知乎开放平台请求失败（90001），重试 3 次仍不行：request failed",
+    });
+  });
+
+  it("其余的 30001：不重试，整次失败并说清是当天额度用完", async () => {
+    const { tool, fake, sleeps } = client([failed(30001, "quota exceeded")]);
+    const error = await caught(tool.get("/user/creator_account_stats"));
+
     expect(error).toBeInstanceOf(ZhihuApiError);
     expect(error).toHaveProperty("code", 30001);
     expect(error).toHaveProperty(
       "message",
-      "知乎开放平台的当日额度或调用频率到上限了（30001），今天不用再拉",
+      "知乎开放平台今天的额度用完了（30001）：quota exceeded",
     );
+    expect(fake.requests).toHaveLength(1);
+    expect(sleeps).toEqual([]);
   });
 
   it("30002：不重试，说清是额外成功次数额度用完", async () => {
@@ -258,15 +339,17 @@ describe("业务错误码", () => {
   it("额度错误码只发一次请求", async () => {
     const fake = new FakeFetch();
     fake.always(failed(30001));
+    const clock = new FakeClock();
     await caught(
       createZhihuClient({
         secret: ACCESS_SECRET,
         fetch: fake.fetch,
-        sleep: noSleep,
-        now: () => new Date(),
+        sleep: clock.sleep,
+        now: clock.now,
       }).get("/user/contents"),
     );
     expect(fake.requests).toHaveLength(1);
+    expect(clock.sleeps).toEqual([]);
   });
 
   it("20001：密钥不对 → ZhihuAuthenticationError", async () => {
@@ -276,11 +359,11 @@ describe("业务错误码", () => {
   });
 
   it("其余错误码：原样带上 Code", async () => {
-    const error = await errorOf([failed(90001, "internal")]);
-    expect(error).toHaveProperty("code", 90001);
+    const error = await errorOf([failed(99007, "internal")]);
+    expect(error).toHaveProperty("code", 99007);
     expect(error).toHaveProperty(
       "message",
-      "知乎开放平台服务内部错误（90001）",
+      "知乎开放平台返回错误（99007：internal）",
     );
   });
 

@@ -1,9 +1,12 @@
 /**
- * M3 端到端用的假知乎开放平台：只有 developer.zhihu.com/api/v1 下的三个接口有数，
+ * M3 端到端用的假知乎开放平台：只有 developer.zhihu.com/api/v1 下的四个接口有数
+ * （quota、creator_account_stats、creator_content_stats、user/contents），
  * 其余一律 404（复制页要下载站点图片时，走这里回字节）。
+ * 单篇和账号的形状照 2026-10-10 实测（.fleet/briefs/m3-zhihu-real-api.md 第 3、4、6 条）：
+ * Metrics 是到现在的累计，嵌 Today、Yesterday；账号另有 Followers.Total。
  */
 import { normalizeZhihuUrl } from "../platforms/zhihu/api-fixtures.js";
-import { YESTERDAY } from "./m3-zhihu-env.js";
+import { TODAY, YESTERDAY } from "./m3-zhihu-env.js";
 
 /** 记下的一个请求 */
 export interface RecordedRequest {
@@ -25,7 +28,7 @@ export interface FakeContentItem {
   Title?: string;
 }
 
-/** 单篇创作数据的一行 */
+/** 单篇创作数据的一行（不带日期请求；Metrics 是到现在的累计，嵌 Today、Yesterday） */
 export interface FakeStatsItem {
   ContentType: string;
   ContentToken: string;
@@ -41,11 +44,14 @@ export interface FakeZhihuApiOptions {
   >;
   /** creator_account_stats 直接回的数据 */
   accountStats: Record<string, unknown>;
-  /** creator_content_stats 的数据，键是规范化后的内容链接 */
-  contentStats: Map<
-    string,
-    { cumulative: FakeStatsItem[]; daily: FakeStatsItem[] }
-  >;
+  /** creator_content_stats 不带日期请求回的累计行，键是规范化后的内容链接 */
+  contentStats: Map<string, FakeStatsItem[]>;
+  /** creator 额度项（quota 用） */
+  quota: {
+    TotalQuota: number;
+    TotalUsed: number;
+    RemainingQuota: number;
+  };
   /** 站点图片下载（复制页第 3 级查找），键是完整 URL */
   downloads: Map<string, Uint8Array>;
 }
@@ -72,11 +78,8 @@ export class FakeZhihuApi {
   };
 
   /** 之后可以补一篇的数（归档后再拉那步用） */
-  setContentStats(
-    url: string,
-    stats: { cumulative: FakeStatsItem[]; daily: FakeStatsItem[] },
-  ): void {
-    this.options.contentStats.set(url, stats);
+  setContentStats(url: string, items: FakeStatsItem[]): void {
+    this.options.contentStats.set(url, items);
   }
 
   /** 已经发出的请求数（「已是最新不再发请求」的断言用） */
@@ -88,6 +91,10 @@ export class FakeZhihuApi {
     if (url.origin !== "https://developer.zhihu.com") return this.download(url);
     if (!url.pathname.startsWith("/api/v1/")) return notFound();
     const path = url.pathname.slice("/api/v1".length);
+    if (path === "/quota") {
+      if (record.query["APIIDs"] !== "creator") return notFound();
+      return response([{ APIID: "creator", ...this.options.quota }]);
+    }
     if (path === "/user/contents") {
       const offset = record.query["Offset"] ?? "0";
       const page = this.options.contentsPages.get(offset);
@@ -109,16 +116,7 @@ export class FakeZhihuApi {
       if (!normalized) return notFound();
       const stats = this.options.contentStats.get(normalized);
       if (!stats) return notFound();
-      const start = record.query["StartDate"];
-      const end = record.query["EndDate"];
-      if (start && end)
-        return response({
-          Items: stats.daily.filter((row) => {
-            const day = row.Metrics["Date"];
-            return typeof day === "string" && day >= start && day <= end;
-          }),
-        });
-      return response({ Items: stats.cumulative });
+      return response({ Items: stats });
     }
     return notFound();
   }
@@ -157,11 +155,24 @@ function contentItem(
   };
 }
 
+/**
+ * 单篇的一行（实测形状）：累计（含今天）里嵌 Today、Yesterday（各自当天的数）。
+ * 累计 = 昨天收盘 + 今天，Yesterday 是昨天当天的数。
+ */
 export function statsRow(
   url: string,
   token: string,
-  metrics: Record<string, unknown>,
+  totals: Record<string, number>,
+  spans: {
+    today?: Record<string, number>;
+    yesterday?: Record<string, number>;
+  } = {},
 ): FakeStatsItem {
+  const metrics: Record<string, unknown> = { ...totals };
+  if (spans.today !== undefined)
+    metrics["Today"] = { Date: TODAY, ...spans.today };
+  if (spans.yesterday !== undefined)
+    metrics["Yesterday"] = { Date: YESTERDAY, ...spans.yesterday };
   return {
     ContentType: "article",
     ContentToken: token,
@@ -207,56 +218,47 @@ export function makeM3Api(): FakeZhihuApi {
   return new FakeZhihuApi({
     contentsPages,
     accountStats: {
-      Followers: { Total: 3210 },
-      Metrics: { Yesterday: { ViewCount: 888 } },
+      Metrics: {
+        ViewCount: 999,
+        Yesterday: { Date: YESTERDAY, ViewCount: 888 },
+      },
+      Followers: { Total: 3210, Yesterday: 0, NewYesterday: 0 },
+      CreationCounts: { Answer: 1, Article: 1 },
     },
     contentStats: new Map([
       [
         ARTICLE_URL,
-        {
-          cumulative: [
-            statsRow(ARTICLE_URL, "100001", {
+        [
+          statsRow(
+            ARTICLE_URL,
+            "100001",
+            {
               ViewCount: 120,
               UpvoteCount: 30,
               CollectCount: 4,
               CommentCount: 2,
               ShareCount: 1,
-            }),
-          ],
-          daily: [
-            statsRow(ARTICLE_URL, "100001", {
-              Date: "2026-09-05",
-              ViewCount: 5,
-              UpvoteCount: 1,
-            }),
-            statsRow(ARTICLE_URL, "100001", {
-              Date: YESTERDAY,
-              ViewCount: 20,
-              UpvoteCount: 5,
-            }),
-          ],
-        },
+            },
+            {
+              today: { ViewCount: 0, UpvoteCount: 0 },
+              yesterday: { ViewCount: 20, UpvoteCount: 5 },
+            },
+          ),
+        ],
       ],
       [
         ANSWER_URL,
-        {
-          cumulative: [
-            statsRow(ANSWER_URL, "900001", {
-              ViewCount: 45,
-              UpvoteCount: 11,
-              CommentCount: 3,
-            }),
-          ],
-          daily: [
-            statsRow(ANSWER_URL, "900001", {
-              Date: "2026-09-10",
-              ViewCount: 10,
-              UpvoteCount: 2,
-            }),
-          ],
-        },
+        [
+          statsRow(
+            ANSWER_URL,
+            "900001",
+            { ViewCount: 45, UpvoteCount: 11, CommentCount: 3 },
+            { today: {}, yesterday: { ViewCount: 10, UpvoteCount: 2 } },
+          ),
+        ],
       ],
     ]),
+    quota: { TotalQuota: 200, TotalUsed: 0, RemainingQuota: 200 },
     downloads: new Map(),
   });
 }

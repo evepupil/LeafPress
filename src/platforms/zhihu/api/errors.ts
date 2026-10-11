@@ -20,11 +20,3 @@ export class ZhihuApiError extends Error {
     this.name = "ZhihuApiError";
   }
 }
-
-/** 拿到的数前后对不上（往回减出负数、按日期下降）：整次不入库，免得写进错的数 */
-export class ZhihuInconsistentError extends ZhihuApiError {
-  constructor() {
-    super("知乎的数前后对不上，这次没入库");
-    this.name = "ZhihuInconsistentError";
-  }
-}

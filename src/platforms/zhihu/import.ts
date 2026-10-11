@@ -6,8 +6,8 @@
  * url 规范化、标题（列表自带的 Title）、CreatedAt 是秒级时间戳，换成本地日期当发布日期。
  * 链接解析不了的条目记进 issues，不去重（用例按 sourceRef、链接做）。
  *
- * 密钥和 fetch 都在 ctx 里（ImportContext.secret / ImportContext.fetch）；密钥只进请求头，
- * 不进返回值，用例在写库和返回前还会再抹一遍。
+ * 密钥、fetch 和等待都在 ctx 里（ImportContext.secret / ImportContext.fetch / ImportContext.sleep）；
+ * 密钥只进请求头，不进返回值，用例在写库和返回前还会再抹一遍。
  */
 import { dayOfDate } from "@leafpress/core";
 
@@ -16,6 +16,7 @@ import { ZhihuApiError, ZhihuAuthenticationError } from "./api/errors.js";
 import { normalizeZhihuUrl } from "./api/url.js";
 import type {
   ImportCandidate,
+  ImportContext,
   ImportListing,
   ImportOutcome,
   PostImporter,
@@ -102,10 +103,17 @@ export class ZhihuPagingError extends Error {
 
 /** 翻完 user/contents 的每一页；有一条读不了记 issue 继续，翻页出错整次失败 */
 async function listContents(
+  ctx: ImportContext,
   secret: string,
-  fetchImpl: typeof fetch,
 ): Promise<ImportListing> {
-  const client = createZhihuClient({ secret, fetch: fetchImpl });
+  const client = createZhihuClient({
+    secret,
+    fetch: ctx.fetch,
+    // 接口限流要留间隔；没给（比如旧调用方）时客户端用自己的等待
+    sleep: async (ms) => {
+      await ctx.sleep?.(ms);
+    },
+  });
   const issues: { path: string; message: string }[] = [];
   const candidates: ImportCandidate[] = [];
   let offset = 0;
@@ -165,7 +173,7 @@ export function createZhihuImporter(): PostImporter {
       try {
         return {
           ok: true,
-          listing: await listContents(secret, ctx.fetch),
+          listing: await listContents(ctx, secret),
         };
       } catch (error) {
         if (error instanceof ZhihuAuthenticationError)

@@ -1,22 +1,15 @@
 /**
- * 单篇创作数据（creator_content_stats，调研文档 2 节）的解析。全部「待实测」的形状处理都集中在这个文件，
- * 实测后只改这里。
+ * 单篇创作数据（creator_content_stats，调研文档 2 节）的解析。实测（2026-10-10，
+ * .fleet/briefs/m3-zhihu-real-api.md 第 4、5 条）后的形状处理都集中在这个文件。
  *
- * 两条假设（官方文档没写清，官方示例只给了一条 Items[] 带一个 Metrics 含一个 Date）：
- *
- * 假设一：带起止日期（StartDate、EndDate）请求时，返回的形状是下面两种之一——
- *   A. 每天一条：Items 里每行的 Metrics.Date 各不相同（每天一个快照）；
- *   B. 整段合计：只返回一条，Date 只有一个（或没有 Date）。这时没法拆出每天，解析结果返回 undefined，
- *      调用方据此跳过补历史，从这次开始记。
- *
- * 假设二：不带日期请求时，返回的是「发布以来的累计数」。如果同时带了 Today 嵌套（今日指标），
- * 说明累计里混着今天（还没结束）的数，累计要减掉 Today 的部分，才是截止昨天的累计。
- * 没带 Today 就当成已经是截止昨天的累计。
- *
- * 数值可选：没返回的指标不写、不补 0（调研文档 1.7 节）。
+ * - 只用不带日期的请求：带起止日期的只回一条整段合计（Metrics 里没有 Date），拆不出每天，
+ *   所以不再发那种请求，也没有逐日补历史；
+ * - 不带日期时返回 1 条：Items[0].Metrics 是到现在为止的累计（含今天），同一个 Metrics 里
+ *   嵌着 Today、Yesterday，分别是今天、昨天当天的数。昨天的收盘累计 = 各项 − Today 同名项；
+ *   前天的收盘累计 = 再减 Yesterday 同名项；
+ * - Today / Yesterday 里没有的项不减；前天那条减出负数、或 Yesterday 一项都没给，都不写；
+ * - 数值可选：没返回的指标不写、不补 0（调研文档 1.7 节）。
  */
-import type { DayKey } from "@leafpress/core";
-
 import { ZhihuApiError } from "./errors.js";
 
 /** 平台数据项（WorkTotals 的键）→ 单篇接口 Metrics 的字段名 */
@@ -34,9 +27,12 @@ export type ZhihuMetricKey = keyof typeof METRIC_FIELDS;
 /** 一天的各项累计（只含有返回值的项；没返回的不补 0） */
 export type MetricTotals = Partial<Record<ZhihuMetricKey, number>>;
 
-export interface ContentStatsDay {
-  day: DayKey;
-  totals: MetricTotals;
+/** 一篇不带日期的响应解析出的快照 */
+export interface ContentStats {
+  /** 昨天收盘的累计 */
+  yesterday: MetricTotals;
+  /** 前天收盘的累计：第一次拉这篇时能补的全部历史；Yesterday 没给或减出负数就没有 */
+  dayBefore?: MetricTotals;
 }
 
 function record(value: unknown): Record<string, unknown> | undefined {
@@ -68,12 +64,6 @@ function totalsOf(
   return Object.keys(totals).length > 0 ? totals : undefined;
 }
 
-function dayOf(value: unknown): DayKey | undefined {
-  return typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value)
-    ? value
-    : undefined;
-}
-
 /** 从响应（可能是外层 { Code, Message, Data }，也可能直接是 Data）里读出 Items 数组 */
 function itemsOf(payload: unknown): Record<string, unknown>[] {
   const data = record(payload);
@@ -91,57 +81,65 @@ function itemsOf(payload: unknown): Record<string, unknown>[] {
 }
 
 /**
- * 带起止日期的响应 → 每天的累计（按日期升序）。
- * 返回 undefined 表示「只有一条整段合计」，拆不出每天，调用方跳过补历史。
- * 同一天出现多行（不该有）时按最后一行；日期升序排序后返回。
+ * 从一段累计里减掉另一段（Today / Yesterday）同名项的值；那段里没有的项不减。
+ * strict 为 true 时减出负数就整段作废（前天那条不写）；为 false 时负数的项丢弃、
+ * 其余照用（个别项对不上时不至于整篇作废）。requireAny 为 true 时那段一项都没给
+ * 也返回 undefined（拿不到前天的数，不硬造一条和昨天一样的）。
+ * 一项都不剩返回 undefined。
  */
-export function parseDailySeries(
-  payload: unknown,
-): ContentStatsDay[] | undefined {
-  const rows = itemsOf(payload);
-  const byDay = new Map<DayKey, MetricTotals>();
-  let dated = 0;
-  for (const item of rows) {
-    const metrics = record(item["Metrics"]);
-    const day = dayOf(metrics?.["Date"]);
-    const totals = totalsOf(metrics);
-    if (day === undefined || totals === undefined) continue;
-    byDay.set(day, totals);
-    dated += 1;
-  }
-  if (dated <= 1) return undefined;
-  return [...byDay.entries()]
-    .sort(([left], [right]) => left.localeCompare(right))
-    .map(([day, totals]) => ({ day, totals }));
-}
-
-/**
- * 不带日期的响应 → 截止昨天的累计。
- * - Items 为空数组：这篇没有统计数据（空数组 ≠ 各指标为零），返回 undefined；
- * - 有「今日」数（Metrics.Today）时，累计减掉 Today 的部分；
- * - 一项指标都没返回：undefined（调用方跳过这篇）。
- */
-export function parseCumulative(payload: unknown): MetricTotals | undefined {
-  const rows = itemsOf(payload);
-  if (rows.length === 0) return undefined;
-  const metrics = record(rows[0]?.["Metrics"]);
-  const totals = totalsOf(metrics);
-  if (totals === undefined) return undefined;
-  const today = record(metrics?.["Today"]);
-  if (today === undefined) return totals;
-
+function minusSpan(
+  totals: MetricTotals,
+  span: Record<string, unknown> | undefined,
+  options: { strict: boolean; requireAny?: boolean },
+): MetricTotals | undefined {
   const result: MetricTotals = {};
   let any = false;
+  let subtracted = false;
   for (const key of Object.keys(totals) as ZhihuMetricKey[]) {
     const total = totals[key];
     if (total === undefined) continue;
-    const field = METRIC_FIELDS[key];
-    const todays = metricOf(today, field);
-    const value = todays === undefined ? total : total - todays;
-    if (value >= 0) {
-      result[key] = value;
-      any = true;
+    const spent = metricOf(span, METRIC_FIELDS[key]);
+    if (spent !== undefined) subtracted = true;
+    const value = spent === undefined ? total : total - spent;
+    if (value < 0) {
+      if (options.strict) return undefined;
+      continue;
     }
+    result[key] = value;
+    any = true;
   }
-  return any ? result : undefined;
+  if (!any) return undefined;
+  if (options.requireAny === true && !subtracted) return undefined;
+  return result;
+}
+
+/**
+ * 不带日期的响应 → 昨天的收盘累计（和第一次拉这篇时前天的收盘累计）。
+ * - Items 为空数组：这篇没有统计数据（空数组 ≠ 各指标为零），返回 undefined；
+ * - 一项指标都没返回（或减 Today 后一项不剩）：undefined，调用方跳过这篇；
+ * - options.dayBefore 为 true 时顺带算前天（Metrics.Yesterday 再减一遍），
+ *   没给 Yesterday 或减出负数就没有前天那条。
+ */
+export function parseContentStats(
+  payload: unknown,
+  options: { dayBefore?: boolean } = {},
+): ContentStats | undefined {
+  const rows = itemsOf(payload);
+  if (rows.length === 0) return undefined;
+  const metrics = record(rows[0]?.["Metrics"]);
+  const cumulative = totalsOf(metrics);
+  if (cumulative === undefined) return undefined;
+  const yesterday = minusSpan(cumulative, record(metrics?.["Today"]), {
+    strict: false,
+  });
+  if (yesterday === undefined) return undefined;
+  const stats: ContentStats = { yesterday };
+  if (options.dayBefore) {
+    const dayBefore = minusSpan(yesterday, record(metrics?.["Yesterday"]), {
+      strict: true,
+      requireAny: true,
+    });
+    if (dayBefore !== undefined) stats.dayBefore = dayBefore;
+  }
+  return stats;
 }

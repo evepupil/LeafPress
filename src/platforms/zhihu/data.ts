@@ -1,25 +1,24 @@
 /**
  * 知乎拿数据（创作者账号数据 + 每篇内容的累计数据）。接口见 docs/调研/知乎开放平台接口.md，
- * 取数节奏见 docs/模块设计/平台适配-知乎.md「拿数据」一节：
+ * 取数节奏见 docs/模块设计/平台适配-知乎.md「拿数据」一节（2026-10-10 实测后的做法）：
  *
- * - 一天只拉一次：lastSnapshotDay（账号上次拉到的最后一天，即昨天收盘的记录日）已到昨天就直接
- *   「已是最新」，不发请求；
- * - 账号数（粉丝、昨日阅读）creator_account_stats 一次；作品每篇 creator_content_stats 一次，
- *   都用规范化后的 https 链接请求；
- * - 账号那一行记在昨天（数据是昨天收盘的，属于哪天就记哪天）；
- * - 作品快照记「昨天收盘」的累计；从没记过（没有 totalsDay）且窗口没盖住发布日的，再用起止日期补一段
- *   历史：累计(d) = 累计(昨天) − Σ 当天(d+1…昨天)，减出负数或按日期下降 → 整次失败不写库；
- * - 每次运行最多 90 次请求（1 次账号 + 每篇 1 次，补历史再 1 次）：窗口盖不住的排后面轮流，这次没拉到的下次接着轮；
+ * - 一天只拉一次：lastSnapshotDay（账号上次拉到的最后一天，即昨天收盘的记录日）已到昨天
+ *   就直接「已是最新」，一个请求都不发；
+ * - 拉之前先查一次额度（GET /quota?APIIDs=creator，查询本身不占额度、也不算在本次用量里）：
+ *   本次最多用 RemainingQuota − 10 次请求；查不到按 90 次兜底；
+ * - 账号数（粉丝、昨日阅读）creator_account_stats 一次，行记在昨天（数据是昨天收盘的，
+ *   属于哪天就记哪天）；作品每篇 creator_content_stats 一次，用规范化后的 https 链接、
+ *   不带日期请求（带起止日期的只回一条整段合计，拆不出每天，不再发）；
+ * - 作品快照记「昨天收盘」：Metrics（到现在的累计，含今天）− Today 同名项；第一次拉这篇
+ *   （它还没有快照）时多写一条前天 = 再减 Yesterday 同名项，减出负数不写。知乎拿不到
+ *   逐日历史，更早的天补不了；
+ * - 预算装不下的排后面轮流：从没拉过的在前，其余按快照日期从旧到新，这次没拉到的下次接着轮；
  * - 整次失败不写半截：所有快照先攒在内存，全部成功才一次返回。
  */
-import { addDays, DATASET_DAYS, diffDays, maxDay } from "@leafpress/core";
+import { addDays } from "@leafpress/core";
+import type { DayKey, Work } from "@leafpress/core";
 
-import {
-  parseCumulative,
-  parseDailySeries,
-  type ContentStatsDay,
-} from "./api/content-stats.js";
-import { backfillRows } from "./api/backfill.js";
+import { parseContentStats } from "./api/content-stats.js";
 import { createZhihuClient, type ZhihuClient } from "./api/client.js";
 import { ZhihuApiError, ZhihuAuthenticationError } from "./api/errors.js";
 import { zhihuRefOf, zhihuWorks } from "./api/url.js";
@@ -30,19 +29,16 @@ import type {
   DataPullResult,
   DataTool,
 } from "../types.js";
-import type { DayKey, Work, WorkTotals } from "@leafpress/core";
 
-/** 每次拉数据最多发出的请求数（官方成功次数额度一般够 90 次上下，一次拉完一个账号） */
+/** 查不到额度时的兜底：本次拉数据最多发出的请求数 */
 export const MAX_REQUESTS_PER_PULL = 90;
+
+/** 查到额度也留出的余量：本次最多用 RemainingQuota − 10 次，免得把当天的额度用见底 */
+const QUOTA_HEADROOM = 10;
 
 const SETUP_HINT = "在账号详情 · 接入里填";
 const REGENERATE_HINT =
   "在知乎开放平台个人中心重新生成 Access Secret，填到接入里";
-
-interface ZhihuDataToolOptions {
-  /** 等待（目前只在重试退避用，客户端默认自己等）；测试里换成不真等的 */
-  sleep?: (milliseconds: number) => Promise<void>;
-}
 
 function record(value: unknown): Record<string, unknown> | undefined {
   return typeof value === "object" && value !== null && !Array.isArray(value)
@@ -50,7 +46,7 @@ function record(value: unknown): Record<string, unknown> | undefined {
     : undefined;
 }
 
-/** 账号创作数据（调研文档 1 节）：粉丝、昨日阅读。数据是昨天的，行也记在昨天 */
+/** 账号创作数据（调研文档 1 节，实测第 6 条）：粉丝、昨日阅读。数据是昨天的，行也记在昨天 */
 function accountRowOf(
   payload: unknown,
   yesterday: DayKey,
@@ -65,40 +61,25 @@ function accountRowOf(
   const followerTotal = followers?.["Total"];
   if (typeof followerTotal === "number" && Number.isFinite(followerTotal))
     row.followers = followerTotal;
-  const yesterdayMetrics = record(metrics?.["Yesterday"]);
-  const reads = yesterdayMetrics?.["ViewCount"];
+  const reads = record(metrics?.["Yesterday"])?.["ViewCount"];
   if (typeof reads === "number" && Number.isFinite(reads)) row.reads = reads;
   return [row];
 }
 
-/** 一篇的累计快照（昨天的收盘） */
+/** 一篇的快照对象：请求用规范化后的链接，认不出的本来就不在 zhihuWorks 里 */
 interface WorkSnapshot {
   workId: string;
   url: string;
-  publishedAt?: DayKey;
+  /** 上次拉到的最后一天；从没拉过（第一次拉这篇）时没有 */
   totalsDay?: DayKey;
-  existing?: WorkTotals;
 }
 
 function snapshotsOf(works: readonly Work[]): WorkSnapshot[] {
   return zhihuWorks(works).map((work) => ({
     workId: work.id,
-    // 请求用规范化后的链接；认不出的本来就不在 zhihuWorks 里
     url: zhihuRefOf(work.url)?.url ?? "",
-    publishedAt: work.publishedAt,
     totalsDay: work.totalsDay,
-    existing: work.totals,
   }));
-}
-
-/** 这篇这次要不要补历史：没记过累计，且窗口起点还晚于发布日（更早发布的补不了也不必补） */
-function backfillStart(
-  work: WorkSnapshot,
-  windowStart: DayKey,
-): DayKey | undefined {
-  if (work.totalsDay !== undefined) return undefined;
-  if (work.publishedAt === undefined) return windowStart;
-  return maxDay(work.publishedAt, windowStart);
 }
 
 /** 排队顺序：从没拉过的在前，其余按 totalsDay 从旧到新（数字越小越早） */
@@ -108,74 +89,33 @@ function byRecency(left: WorkSnapshot, right: WorkSnapshot): number {
   return leftAge < rightAge ? -1 : leftAge > rightAge ? 1 : 0;
 }
 
-/**
- * 补历史的任务清单（一次最多 90 次请求里放得下的部分）。
- * 每项：这篇，历史从哪天起补，这次花几次请求（不带日期 1 次，补历史再 1 次）。
- */
-interface PlannedWork {
-  snapshot: WorkSnapshot;
-  backfillFrom?: DayKey;
-  cost: number;
-}
-
-function planQueue(
-  snapshots: readonly WorkSnapshot[],
-  yesterday: DayKey,
-  windowStart: DayKey,
-): PlannedWork[] {
-  const queue = snapshots
-    .map((snapshot) => {
-      const backfillFrom =
-        diffDays(backfillStart(snapshot, windowStart) ?? "", "") >= 0
-          ? backfillStart(snapshot, windowStart)
-          : undefined;
-      const needsBackfill =
-        backfillFrom !== undefined && backfillFrom < yesterday;
-      return { snapshot, backfillFrom, cost: needsBackfill ? 2 : 1 };
-    })
-    .sort((left, right) => byRecency(left.snapshot, right.snapshot));
-
-  // 账号那次请求也算在 90 里
-  let budget = MAX_REQUESTS_PER_PULL - 1;
-  const planned: PlannedWork[] = [];
-  for (const item of queue) {
-    if (item.cost > budget) continue;
-    budget -= item.cost;
-    planned.push(item);
+/** 额度查询（实测第 3 条）：creator 额度项的剩余次数；失败或形状不对返回 undefined（按兜底算） */
+async function remainingQuota(
+  client: ZhihuClient,
+): Promise<number | undefined> {
+  try {
+    const rowsRaw = await client.get("/quota", { APIIDs: "creator" });
+    const rows: unknown[] = Array.isArray(rowsRaw) ? rowsRaw : [];
+    const creator = rows.find((row) => record(row)?.["APIID"] === "creator");
+    const remaining = record(creator)?.["RemainingQuota"];
+    return typeof remaining === "number" && Number.isFinite(remaining)
+      ? remaining
+      : undefined;
+  } catch (error) {
+    // 密钥不对要照常报出来（标成过期），其余失败只影响额度的算法，按兜底走
+    if (error instanceof ZhihuAuthenticationError) throw error;
+    return undefined;
   }
-  return planned;
 }
 
-/** 补历史：拿带日期的每天一段数，往回减出每天的收盘累计（api/backfill.ts）；减出负数或下降拖不一致错 */
-function backfillSnapshot(
-  snapshot: WorkSnapshot,
-  series: readonly ContentStatsDay[],
-  yesterdayTotal: WorkTotals,
-  yesterday: DayKey,
-): DataPullResult["works"] {
-  const start = snapshot.publishedAt ?? seriesStart(series);
-  return backfillRows({
-    workId: snapshot.workId,
-    start,
-    yesterday,
-    yesterdayTotal,
-    series,
-  }).map((row) => ({
-    workId: snapshot.workId,
-    day: row.day,
-    totals: row.totals,
-  }));
+/** 本次最多发出的请求数：查到额度按剩余减余量（至少 0），查不到按 90 兜底 */
+function budgetOf(remaining: number | undefined): number {
+  return remaining === undefined
+    ? MAX_REQUESTS_PER_PULL
+    : Math.max(remaining - QUOTA_HEADROOM, 0);
 }
 
-/** 带日期的响应里最早的一天：没发布日可参照时，补到这天为止 */
-function seriesStart(series: readonly ContentStatsDay[]): DayKey {
-  return series[0]?.day ?? "0000-00-00";
-}
-
-async function pull(
-  ctx: PullContext,
-  options: ZhihuDataToolOptions,
-): Promise<DataPullOutcome> {
+async function pull(ctx: PullContext): Promise<DataPullOutcome> {
   const secret = ctx.secret("access-secret")?.trim();
   if (!secret)
     return {
@@ -195,17 +135,30 @@ async function pull(
       },
     };
 
+  const fetchOfContext = ctx.fetch;
   const client: ZhihuClient = createZhihuClient({
     secret,
-    fetch: ctx.fetch,
-    sleep: options.sleep,
+    fetch: fetchOfContext,
+    // 接口限流要留间隔；没给（比如旧调用方）时客户端用自己的等待
+    sleep: async (ms) => {
+      await ctx.sleep?.(ms);
+    },
     now: () => ctx.now,
   });
-  const windowStart = addDays(ctx.today, -DATASET_DAYS);
   const accountRows: DataPullResult["account"] = [];
   const workRows: DataPullResult["works"] = [];
+  let pulledCount = 0;
 
   try {
+    // 0. 额度：先查一次（不占额度、不算用量），按剩余定本次最多用几次
+    const budget = budgetOf(await remainingQuota(client));
+    if (budget < 1)
+      return {
+        ok: false,
+        reason: "知乎开放平台今天的额度剩得不多了，这次不拉",
+        fixHint: "额度每天 0 点重置，明天再拉",
+      };
+
     // 1. 账号数（数据是昨天收盘的，行记在昨天）
     accountRows.push(
       ...accountRowOf(
@@ -214,44 +167,34 @@ async function pull(
       ),
     );
 
-    // 2. 作品快照（按预算排队，放不下的下次轮）
-    const queue = planQueue(snapshotsOf(ctx.works), yesterday, windowStart);
+    // 2. 作品快照（每篇 1 次请求；预算装不下的下次轮）
+    const queue = snapshotsOf(ctx.works)
+      .sort(byRecency)
+      .slice(0, budget - 1);
+    pulledCount = queue.length;
     let done = 0;
-    for (const plan of queue) {
+    for (const snapshot of queue) {
       done += 1;
-      ctx.progress?.(`知乎内容 ${done}/${queue.length}：${plan.snapshot.url}`);
+      ctx.progress?.(`知乎内容 ${done}/${queue.length}：${snapshot.url}`);
       const payload = await client.get("/user/creator_content_stats", {
-        ContentUrl: plan.snapshot.url,
+        ContentUrl: snapshot.url,
       });
-      const cumulative = parseCumulative(payload);
-      if (cumulative === undefined) continue;
-      const totals: WorkTotals = { ...cumulative };
-      if (plan.backfillFrom === undefined || plan.backfillFrom >= yesterday) {
+      const stats = parseContentStats(payload, {
+        dayBefore: snapshot.totalsDay === undefined,
+      });
+      if (stats === undefined) continue;
+      // 第一次拉这篇多写一条前天（Yesterday 里没有或减出负数就没有这条）
+      if (stats.dayBefore !== undefined)
         workRows.push({
-          workId: plan.snapshot.workId,
-          day: yesterday,
-          totals,
+          workId: snapshot.workId,
+          day: addDays(yesterday, -1),
+          totals: { ...stats.dayBefore },
         });
-        continue;
-      }
-      // 补历史（多花一次请求）
-      const historyPayload = await client.get("/user/creator_content_stats", {
-        ContentUrl: plan.snapshot.url,
-        StartDate: plan.backfillFrom,
-        EndDate: yesterday,
+      workRows.push({
+        workId: snapshot.workId,
+        day: yesterday,
+        totals: { ...stats.yesterday },
       });
-      const series = parseDailySeries(historyPayload);
-      workRows.push(
-        ...(series === undefined
-          ? [
-              {
-                workId: plan.snapshot.workId,
-                day: yesterday,
-                totals,
-              },
-            ]
-          : backfillSnapshot(plan.snapshot, series, totals, yesterday)),
-      );
     }
   } catch (error) {
     if (error instanceof ZhihuAuthenticationError)
@@ -272,25 +215,14 @@ async function pull(
   ).length;
   const answers = total - articles;
   let note = `知乎入库 ${total} 篇（文章 ${articles}、回答 ${answers}）`;
-  const skipped = total - queueLength(ctx);
+  const skipped = total - pulledCount;
   if (skipped > 0)
-    note += `；这次拉了 ${total - skipped} 篇，${skipped} 篇下次轮到`;
+    note += `；这次拉了 ${pulledCount} 篇，${skipped} 篇下次轮到`;
   return { ok: true, result: { account: accountRows, works: workRows, note } };
 }
 
-function queueLength(ctx: PullContext): number {
-  const yesterday = addDays(ctx.today, -1);
-  return planQueue(
-    snapshotsOf(ctx.works),
-    yesterday,
-    addDays(ctx.today, -DATASET_DAYS),
-  ).length;
-}
-
-export function createZhihuDataTool(
-  options: ZhihuDataToolOptions = {},
-): DataTool {
-  return { pull: (ctx) => pull(ctx, options) };
+export function createZhihuDataTool(): DataTool {
+  return { pull: (ctx) => pull(ctx) };
 }
 
 export type { DataPullContext };

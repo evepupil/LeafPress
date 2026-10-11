@@ -92,7 +92,8 @@ describe("M3 知乎端到端", () => {
     expect(first.outcomes).toEqual([
       { accountId: zhihuAccountId, status: "ok" },
     ]);
-    expect(api.count).toBe(7); // 导入 2 页 + 账号 1 + 两篇各 2（累计 + 补历史）
+    // 导入 2 页 + 查额度 1 + 账号 1 + 两篇各 1（不带日期，没有逐日补历史）
+    expect(api.count).toBe(6);
 
     // 账号一行：昨天收盘的关注者数
     expect(app.store.snapshots.accountDays(YESTERDAY, YESTERDAY)).toEqual([
@@ -104,8 +105,12 @@ describe("M3 知乎端到端", () => {
         interactions: null,
       },
     ]);
-    // 两篇作品的昨天快照（补历史还写了发布日以来的每天一行，这里只验昨天的收盘累计）
-    const snapshots = app.store.snapshots.workSnapshots(YESTERDAY, YESTERDAY);
+    // 两篇作品的昨天快照（累计减掉 Today；Yesterday 里的数只在第一次拉时用来补前天）
+    // 第一次拉多写一条前天（再减 Yesterday）：文章 120−0=120、再减昨天 20 得前天 100
+    const snapshots = app.store.snapshots.workSnapshots(
+      "2026-10-06",
+      YESTERDAY,
+    );
     const byWork = new Map(snapshots.map((row) => [row.workId, row]));
     expect(byWork.get(answerWorkId)?.totals).toEqual({
       views: 45,
@@ -273,22 +278,19 @@ describe("M3 知乎端到端", () => {
     ]);
     expect(api.count).toBe(sameDay);
 
-    // 给新归档的文章也放好数，时钟推到第二天
+    // 给新归档的文章也放好数（不带日期：累计嵌 Today、Yesterday），时钟推到第二天
     const NEW_URL = "https://zhuanlan.zhihu.com/p/123456";
-    api.setContentStats(NEW_URL, {
-      cumulative: [
-        statsRow(NEW_URL, "123456", { ViewCount: 77, UpvoteCount: 8 }),
-      ],
-      daily: [],
-    });
+    api.setContentStats(NEW_URL, [
+      statsRow(NEW_URL, "123456", { ViewCount: 77, UpvoteCount: 8 }),
+    ]);
     environmentHere.setNow(new Date("2026-10-09T09:00:00+08:00"));
 
     const nextDay = await usecases.pullData({ accountIds: [zhihuAccountId] });
     expect(nextDay.outcomes).toEqual([
       { accountId: zhihuAccountId, status: "ok" },
     ]);
-    // 账号 1 + 三篇作品各 1（旧两篇已有 totalsDay 不补历史，新归档的当天发布也不补）
-    expect(api.count - sameDay).toBe(4);
+    // 查额度 1 + 账号 1 + 三篇各 1（不带日期；旧两篇已有快照不补前天，新归档的没有 Today/Yesterday）
+    expect(api.count - sameDay).toBe(5);
 
     const rows = app.store.snapshots.workSnapshots("2026-10-08", "2026-10-08");
     const archived = rows.find((row) => row.workId === zhihuFromBlogId);

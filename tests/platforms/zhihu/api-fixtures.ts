@@ -48,7 +48,7 @@ export interface ContentItem {
   Summary?: string;
 }
 
-/** 单篇创作数据（creator_content_stats 的行） */
+/** 单篇创作数据（creator_content_stats 的行）：Metrics 是到现在的累计，嵌 Today、Yesterday（实测第 4 条） */
 export interface ContentStatsItem {
   ContentType: string;
   ContentToken: string;
@@ -66,10 +66,11 @@ export class FakeZhihu {
   contents: ContentItem[] = [];
   /** 单篇创作数据：不带日期请求时回的累计行，按规范化后的链接查 */
   cumulativeByUrl = new Map<string, ContentStatsItem[]>();
-  /** 单篇创作数据：带起止日期请求时回的每天一行，按规范化后的链接查 */
-  dailyByUrl = new Map<string, ContentStatsItem[]>();
   /** 账号创作数据（creator_account_stats 用） */
   accountStats: Record<string, unknown> = {};
+  /** creator 额度项的剩余次数（quota 用）；配 true 让查额度失败（测兑底） */
+  quotaRemaining = 200;
+  quotaFails = false;
 
   readonly fetch: typeof fetch = async (input, init) => {
     const url = new URL(
@@ -113,23 +114,24 @@ export class FakeZhihu {
         },
       });
     }
+    if (request.path === "/quota") {
+      if (this.quotaFails) return failed(90001, "quota read failed");
+      return ok([
+        {
+          APIID: "creator",
+          APIName: "创作能力",
+          TotalQuota: this.quotaRemaining + 5,
+          TotalUsed: 5,
+          RemainingQuota: this.quotaRemaining,
+        },
+      ]);
+    }
     if (request.path === "/user/creator_account_stats")
       return ok(this.accountStats);
     if (request.path === "/user/creator_content_stats") {
       const raw = request.query["ContentUrl"] ?? "";
       const url = normalizeZhihuUrl(raw);
-      const start = request.query["StartDate"];
-      const end = request.query["EndDate"];
       if (url === undefined) return failed(10001, "content not found");
-      if (start && end) {
-        // 带起止日期：回每天一行的形状，按区间过滤
-        const rows = (this.dailyByUrl.get(url) ?? []).filter((row) => {
-          const day = row.Metrics["Date"];
-          return typeof day === "string" && day >= start && day <= end;
-        });
-        return ok({ Items: rows });
-      }
-      // 不带日期：回累计行
       return ok({ Items: this.cumulativeByUrl.get(url) ?? [] });
     }
     return failed(10001, "unknown api");
@@ -214,6 +216,7 @@ export function makePullContext(options: PullContextOptions): DataPullContext {
     secret: (key) => secrets[key],
     exec: () => Promise.reject(new Error("拿数据不该调外部命令")),
     fetch: options.fetch,
+    sleep: () => Promise.resolve(),
     ...(options.lastSnapshotDay === undefined
       ? {}
       : { lastSnapshotDay: options.lastSnapshotDay }),
@@ -242,6 +245,7 @@ export function makeImportContext(
     fetch:
       options.fetch ??
       (() => Promise.reject(new Error("这个测试没给假的 fetch"))),
+    sleep: () => Promise.resolve(),
     today: "2026-10-09",
   };
 }
