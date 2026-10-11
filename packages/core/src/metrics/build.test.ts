@@ -152,7 +152,49 @@ describe("buildDataset", () => {
     ])
     expect(result.workDays["zhihu-post"]).toEqual([
       { day: "2026-10-01", reads: 100, interactions: 10 },
-      { day: "2026-10-02", reads: 30, interactions: 4 },
+      // 评论前一天没有：这条的 1 条不计入，只有点赞的差 3
+      { day: "2026-10-02", reads: 30, interactions: 3 },
+    ])
+  })
+
+  it("博客补的历史快照缺访客：有访客的第一天增量记 0，之后按两条之差算", () => {
+    // 前三条快照只有访问，第四条起才有访客
+    const works = [makeWork("backfill", "b", "2026-10-01")]
+    const workSnapshots = [
+      snapshot("backfill", "2026-10-01", { pageviews: 100 }),
+      snapshot("backfill", "2026-10-02", { pageviews: 130 }),
+      snapshot("backfill", "2026-10-03", { pageviews: 150 }),
+      snapshot("backfill", "2026-10-04", { pageviews: 160, visitors: 80 }),
+      snapshot("backfill", "2026-10-05", { pageviews: 175, visitors: 90 }),
+    ]
+    const result = buildDataset({ today, accounts, works, accountDays: [], workSnapshots })
+    expect(result.workDays.backfill).toEqual([
+      { day: "2026-10-01", reads: 100, interactions: 0 },
+      { day: "2026-10-02", reads: 30, interactions: 0 },
+      { day: "2026-10-03", reads: 20, interactions: 0 },
+      // 前一条没有访客：这条是起点，累计的 80 不算当天新增
+      { day: "2026-10-04", reads: 10, interactions: 0 },
+      { day: "2026-10-05", reads: 15, interactions: 10 },
+    ])
+  })
+
+  it("知乎互动类数据项按项相减：哪一边缺了的项不参与当天的增量", () => {
+    const works = [makeWork("zhihu-item", "a", "2026-10-01")]
+    const workSnapshots = [
+      snapshot("zhihu-item", "2026-10-01", { views: 100, likes: 10 }),
+      // 评论是这条才有的：不计入，互动只有点赞的差 3
+      snapshot("zhihu-item", "2026-10-02", { views: 130, likes: 13, comments: 5 }),
+      // 两条都有：点赞 3 + 评论 4
+      snapshot("zhihu-item", "2026-10-03", { views: 150, likes: 16, comments: 9 }),
+      // 这条缺点赞：只有评论的差 3
+      snapshot("zhihu-item", "2026-10-04", { views: 160, comments: 12 }),
+    ]
+    const result = buildDataset({ today, accounts, works, accountDays: [], workSnapshots })
+    expect(result.workDays["zhihu-item"]).toEqual([
+      { day: "2026-10-01", reads: 100, interactions: 10 },
+      { day: "2026-10-02", reads: 30, interactions: 3 },
+      { day: "2026-10-03", reads: 20, interactions: 7 },
+      { day: "2026-10-04", reads: 10, interactions: 3 },
     ])
   })
 })

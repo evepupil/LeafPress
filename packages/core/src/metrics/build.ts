@@ -1,7 +1,17 @@
 import { addDays, daysBetween } from "../dates/index.ts"
 import { PLATFORMS } from "../catalog/index.ts"
-import type { Account, AccountDayRecord, DayKey, MetricsDataset, PlatformId, Work, WorkDay, WorkSnapshotRecord } from "../types/index.ts"
-import { secondaryValue } from "./secondary.ts"
+import type {
+  Account,
+  AccountDayRecord,
+  DayKey,
+  MetricsDataset,
+  PlatformId,
+  Work,
+  WorkDay,
+  WorkSnapshotRecord,
+  WorkTotals,
+} from "../types/index.ts"
+import { secondaryOf, secondaryValue } from "./secondary.ts"
 
 export const DATASET_DAYS = 182
 
@@ -16,6 +26,29 @@ function counts(platformId: PlatformId, totals: Record<string, number>): { reads
 
 function nonNegative(value: number): number {
   return Math.max(0, value)
+}
+
+/**
+ * 第二个数的增量：前一条快照里没有要用的数据项、这一条有，这一条算起点，增量记 0，
+ * 不把整个累计当成当天新增（博客补的历史只有访问，访客是后来才有的）。
+ * 互动类按项算：两边都有的项才相减，哪一边缺了的项不参与当天的增量。
+ */
+function secondaryDelta(platformId: PlatformId, current: WorkTotals, previous: WorkTotals): number {
+  const platform = PLATFORMS[platformId]
+  const secondary = secondaryOf(platform)
+  if (secondary.kind === "metric") {
+    if (previous[secondary.key] === undefined) return 0
+    return nonNegative((current[secondary.key] ?? 0) - (previous[secondary.key] ?? 0))
+  }
+  let sum = 0
+  for (const metric of platform.metrics) {
+    if (!metric.interaction) continue
+    const currentValue = current[metric.key]
+    const previousValue = previous[metric.key]
+    if (currentValue === undefined || previousValue === undefined) continue
+    sum += currentValue - previousValue
+  }
+  return nonNegative(sum)
 }
 
 export function buildDataset(input: {
@@ -53,7 +86,7 @@ export function buildDataset(input: {
       if (previous) {
         const previousCounts = counts(account.platform, previous.totals)
         reads = nonNegative(current.reads - previousCounts.reads)
-        interactions = nonNegative(current.interactions - previousCounts.interactions)
+        interactions = secondaryDelta(account.platform, snapshot.totals, previous.totals)
       } else if (work.publishedAt && work.publishedAt <= snapshot.day && snapshot.day <= addDays(work.publishedAt, 1)) {
         reads = current.reads
         interactions = current.interactions
