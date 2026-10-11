@@ -2,10 +2,12 @@
  * 博客的拿数据工具：从 Umami 共享链接拉访问数据。
  *
  * - 账号每天：全站每天的访问（pageviews 日序列）和访客（同一次返回里的 sessions 序列，不加发请求）；
- *   接口没给某天的会话数时，那天的访客写 null。
+ *   接口没给某天的会话数时，那天的访客写 null。这一段每次都拉整个数据窗口：半年窗口的第一天和
+ *   全站第一天有数据里较晚的那天到昨天，以前拉过的日子重写一遍，把当时还没有的访客补上；访问的数
+ *   不变，记录库按天覆盖。窗口不超过 221 天，一般一次请求就够。
  * - 作品累计：每篇文章每天结束时的累计访问，昨天那条带访客（算法见 cumulative.ts、work-snapshots.ts）；
- *   查不到访问的文章昨天记一条 0。
- * - 起点：账号里有对得上的作品还没有任何累计数据（刚导入或刚发布），或这个账号从没拉过 → 补历史，
+ *   查不到访问的文章昨天记一条 0。这一段照旧只拉起点到昨天。
+ * - 起点（作品快照的起点）：账号里有对得上的作品还没有任何累计数据（刚导入或刚发布），或这个账号从没拉过 → 补历史，
  *   起点按发布日期收窄（见 history-start.ts）；否则从上次拉到的那天的后一天开始。
  * - 任何一步失败都整次失败，不返回半截数据。
  */
@@ -115,7 +117,7 @@ async function pullFromUmami(
     ctx.lastSnapshotDay === undefined
       ? undefined
       : maxDay(addDays(ctx.lastSnapshotDay, 1), windowStart);
-  // 平常就从那天开始；补历史要先看过日序列才知道从哪天开始
+  // 作品快照的起点。平常就从那天开始；补历史要先看过日序列才知道从哪天开始
   let start: DayKey | undefined = backfill ? undefined : dayAfterLastPull;
   if (start !== undefined && start > yesterday) return upToDate();
 
@@ -125,8 +127,10 @@ async function pullFromUmami(
       shareUrl,
       ...(options.sleep === undefined ? {} : { sleep: options.sleep }),
     });
+    // 账号每天每次都拉整个数据窗口（半年窗口第一天到昨天）：以前拉过的日子重写一遍，
+    // 把当时还没有的访客补上；访问的数不变，记录库按天覆盖
     const series = await client.pageviews(
-      dayRangeInTimezone(start ?? windowStart).startAt,
+      dayRangeInTimezone(windowStart).startAt,
       dayRangeInTimezone(yesterday).endAt,
     );
     const visitsByDay = new Map(
@@ -136,11 +140,12 @@ async function pullFromUmami(
     const visitorsByDay = new Map(
       series.map((point) => [point.day, point.sessions] as const),
     );
+    // 全站第一天有数据的日期（不早于窗口第一天）；整个窗口都没有数据就没什么可写的
+    const firstDataDay = daysBetween(windowStart, yesterday).find(
+      (day) => (visitsByDay.get(day) ?? 0) > 0,
+    );
+    if (firstDataDay === undefined) return upToDate();
     if (backfill) {
-      const firstDataDay = daysBetween(windowStart, yesterday).find(
-        (day) => (visitsByDay.get(day) ?? 0) > 0,
-      );
-      if (firstDataDay === undefined) return upToDate();
       start = historyStart({
         firstDataDay,
         freshPublishedDays: freshWorks.map((work) => work.publishedAt),
@@ -150,13 +155,15 @@ async function pullFromUmami(
     }
     if (start === undefined) return upToDate();
 
-    const days = daysBetween(start, yesterday);
-    const account = days.map((day) => ({
+    // 账号每天：从窗口第一天和全站第一天有数据里较晚的那天（就是 firstDataDay）到昨天，一天不缺
+    const account = daysBetween(firstDataDay, yesterday).map((day) => ({
       day,
       followers: null,
       reads: visitsByDay.get(day) ?? 0,
       interactions: visitorsByDay.get(day) ?? null,
     }));
+
+    const days = daysBetween(start, yesterday);
 
     const works: WorkSnapshotsResult =
       tracked.size === 0

@@ -384,7 +384,7 @@ describe("补历史", () => {
 describe("平常拉", () => {
   const stored = (day: DayKey, pageviews: number) => ({ day, pageviews });
 
-  it("平常一天：只要昨天；3 次请求（取令牌、日序列、全量累计），没有单日请求", async () => {
+  it("平常一天：账号每天覆盖整个窗口并带访客，作品只查昨天；3 次请求（取令牌、日序列、全量累计），没有单日请求", async () => {
     const server = new FakeUmami(FIVE_DAYS);
     const works = [
       makeWork("b-1", "a", { totals: stored("2026-10-07", 6) }),
@@ -396,7 +396,12 @@ describe("平常拉", () => {
       await pull(server, { works, lastSnapshotDay: "2026-10-07" }),
     );
 
+    // 账号每天：从全站第一天有数据的 10-04 到昨天一天不缺，以前拉过的日子重写一遍，把访客补上
     expect(result.account).toEqual([
+      { day: "2026-10-04", followers: null, reads: 5, interactions: 5 },
+      { day: "2026-10-05", followers: null, reads: 5, interactions: 4 },
+      { day: "2026-10-06", followers: null, reads: 12, interactions: 12 },
+      { day: "2026-10-07", followers: null, reads: 8, interactions: 8 },
       { day: "2026-10-08", followers: null, reads: 9, interactions: 9 },
     ]);
     expect(groupByWork(result)).toEqual({
@@ -407,7 +412,7 @@ describe("平常拉", () => {
     expect(result.note).toBe("入库 3 篇文章");
     expect(server.requests).toHaveLength(3);
     expect(requestedDays(server, "pageviews")).toEqual([
-      "2026-10-08~2026-10-08",
+      "2026-04-10~2026-10-08",
     ]);
     expect(requestedDays(server, "expanded")).toEqual([
       "2000-01-01~2026-10-08",
@@ -427,6 +432,8 @@ describe("平常拉", () => {
     );
 
     expect(result.account.map((row) => row.day)).toEqual([
+      "2026-10-04",
+      "2026-10-05",
       "2026-10-06",
       "2026-10-07",
       "2026-10-08",
@@ -510,7 +517,13 @@ describe("平常拉", () => {
       await pull(server, { works, lastSnapshotDay: "2026-10-07" }),
     );
 
-    expect(result.account).toHaveLength(1);
+    expect(result.account.map((row) => row.day)).toEqual([
+      "2026-10-04",
+      "2026-10-05",
+      "2026-10-06",
+      "2026-10-07",
+      "2026-10-08",
+    ]);
     expect(Object.keys(groupByWork(result))).toEqual(["b-1"]);
   });
 
@@ -527,6 +540,7 @@ describe("平常拉", () => {
       await pull(server, { works, lastSnapshotDay: "2026-10-06" }),
     );
 
+    // 账号每天覆盖整个窗口，10-07、10-08 都在；只有一次日序列请求（加上取令牌和全量累计，共 3 次）
     expect(result.account).toEqual([
       { day: "2026-10-07", followers: null, reads: 3, interactions: 3 },
       { day: "2026-10-08", followers: null, reads: 3, interactions: 2 },
@@ -609,13 +623,14 @@ describe("平常拉", () => {
     expect(requestedDays(server, "pageviews")).toEqual([
       "2026-04-10~2026-10-08",
     ]);
-    expect(result.account[0]?.day).toBe("2026-04-10");
-    expect(result.account).toHaveLength(182);
+    // 账号每天从全站第一天有数据的 10-04 起（之前的窗口没有访问，不写）
+    expect(result.account[0]?.day).toBe("2026-10-04");
+    expect(result.account).toHaveLength(5);
     expect(result.account.find((row) => row.day === "2026-10-08")?.reads).toBe(
       9,
     );
-    expect(result.account.find((row) => row.day === "2026-05-01")?.reads).toBe(
-      0,
+    expect(result.account.find((row) => row.day === "2026-10-05")?.reads).toBe(
+      5,
     );
   });
 
@@ -626,7 +641,10 @@ describe("平常拉", () => {
       await pull(server, { works: [], lastSnapshotDay: "2026-10-05" }),
     );
 
+    // 没有作品也照旧：账号每天覆盖整个窗口（从全站第一天有数据的 10-04 起）
     expect(result.account.map((row) => row.day)).toEqual([
+      "2026-10-04",
+      "2026-10-05",
       "2026-10-06",
       "2026-10-07",
       "2026-10-08",
@@ -875,9 +893,24 @@ describe("没有访问的作品", () => {
     );
 
     expect(server.requests).toHaveLength(3);
-    expect(result.account).toEqual([
-      { day: "2026-10-08", followers: null, reads: 4, interactions: 4 },
-    ]);
+    // 账号每天覆盖整个窗口（从全站第一天有数据的 10-04 起），把以前拉过、还没有的访客补上；
+    // 中间没访问的日子也照写（访问 0、访客 0）
+    const days = result.account.map((row) => row.day);
+    expect(days[0]).toBe("2026-10-04");
+    expect(days[days.length - 1]).toBe("2026-10-08");
+    expect(days).toHaveLength(5);
+    expect(result.account[0]).toEqual({
+      day: "2026-10-04",
+      followers: null,
+      reads: 2,
+      interactions: 2,
+    });
+    expect(result.account[days.length - 1]).toEqual({
+      day: "2026-10-08",
+      followers: null,
+      reads: 4,
+      interactions: 4,
+    });
     expect(groupByWork(result)).toEqual({
       "b-1": { "2026-10-08": { pageviews: 0, visitors: 0 } },
     });
@@ -932,8 +965,9 @@ describe("补历史的起点按发布日期", () => {
       await pull(server, { works, lastSnapshotDay: "2026-10-07" }),
     );
 
-    // 起点是发布日期的前一天 10-05；账号每天和作品快照都从那天接上
+    // 起点是发布日期的前一天 10-05；作品快照从那天接上，账号每天从全站第一天有数据的 10-04 覆盖整个窗口
     expect(result.account.map((row) => row.day)).toEqual([
+      "2026-10-04",
       "2026-10-05",
       "2026-10-06",
       "2026-10-07",
@@ -1035,6 +1069,7 @@ describe("补历史的起点按发布日期", () => {
     );
 
     expect(result.account.map((row) => row.day)).toEqual([
+      "2026-10-04",
       "2026-10-05",
       "2026-10-06",
       "2026-10-07",
@@ -1054,7 +1089,13 @@ describe("补历史的起点按发布日期", () => {
       await pull(server, { works, lastSnapshotDay: "2026-10-07" }),
     );
 
-    expect(result.account.map((row) => row.day)).toEqual(["2026-10-08"]);
+    expect(result.account.map((row) => row.day)).toEqual([
+      "2026-10-04",
+      "2026-10-05",
+      "2026-10-06",
+      "2026-10-07",
+      "2026-10-08",
+    ]);
     expect(server.requests).toHaveLength(3);
     expect(groupByWork(result)).toEqual({
       "b-1": { "2026-10-08": { pageviews: 11, visitors: 10 } },
