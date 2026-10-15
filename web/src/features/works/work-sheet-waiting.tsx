@@ -12,7 +12,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { openFolder, submitFeedback } from "@/state/actions/works"
 import { focusRing } from "@/lib/styles"
 import { copyWithToast } from "./work-sheet-actions"
-import { copyPageUrlOf } from "./work-sheet-copy-page"
+import { publishPageUrlOf } from "./work-sheet-waiting-publish"
 
 export function WorkSheetWaiting({ work, detail }: { work: Work; detail?: WorkDetail }) {
   const [text, setText] = useState("")
@@ -20,7 +20,7 @@ export function WorkSheetWaiting({ work, detail }: { work: Work; detail?: WorkDe
   const workflow = workflowById(work.workflowId)
   const stepName = workflow?.steps[work.step]?.name
   const folder = detail?.folder
-  const copyPage = copyPageUrlOf(work.id, detail)
+  const publishPage = publishPageUrlOf(work.id, detail)
   const ready = text.trim().length > 0
   const submit = async () => {
     if (!ready || saving) return
@@ -70,12 +70,12 @@ export function WorkSheetWaiting({ work, detail }: { work: Work; detail?: WorkDe
           </IconButton>
         </div>
       )}
-      {copyPage && (
+      {publishPage && (
         <div className="mt-2">
-          <Button variant="outline" size="sm" asChild data-copy-page>
-            <a href={copyPage} target="_blank" rel="noreferrer">
+          <Button variant="outline" size="sm" asChild data-publish-page>
+            <a href={publishPage} target="_blank" rel="noreferrer">
               <ExternalLink />
-              打开复制页
+              打开发布稿
             </a>
           </Button>
         </div>
