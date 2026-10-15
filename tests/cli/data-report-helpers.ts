@@ -1,4 +1,4 @@
-import { execSync, spawnSync } from "node:child_process";
+import { spawnSync } from "node:child_process";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
@@ -15,11 +15,6 @@ import { openStore } from "../../src/store/open.js";
 
 const repoRoot = fileURLToPath(new URL("../../", import.meta.url));
 const cli = join(repoRoot, "dist", "cli", "main.js");
-
-/** 集成测试跑的是构建后的 dist，先构建一次 */
-export function buildCli(): void {
-  execSync("pnpm build", { cwd: repoRoot, stdio: "pipe", timeout: 120_000 });
-}
 
 export function runCli(home: string, args: readonly string[]) {
   return spawnSync(process.execPath, [cli, "--home", home, ...args], {

@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { ImportSummary } from "@leafpress/core";
-import { buildCli, invoke, runCli } from "./data-report-helpers.js";
+import { invoke, runCli } from "./data-report-helpers.js";
 
 const repoRoot = fileURLToPath(new URL("../../", import.meta.url));
 const cli = join(repoRoot, "dist", "cli", "main.js");
@@ -14,7 +14,6 @@ let tempHome: string;
 let tempRepoBase: string;
 
 beforeAll(() => {
-  buildCli();
   tempHome = mkdtempSync(join(tmpdir(), "leafpress-import-home-"));
   tempRepoBase = mkdtempSync(join(tmpdir(), "leafpress-import-repo-"));
 }, 120_000);

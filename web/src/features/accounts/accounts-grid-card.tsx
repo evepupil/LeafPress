@@ -93,19 +93,7 @@ function Stat({ label, children }: { label: string; children: ReactNode }) {
 
 /** 现有账号的卡片：点卡片任何地方进账号详情，「手上的活」单独去作品页 */
 export function AccountCard({ summary }: { summary: AccountSummary }) {
-  const {
-    account: a,
-    hasData,
-    followersKnown,
-    followers,
-    followers7d,
-    reads7d,
-    readsChange,
-    postsThisWeek,
-    weeklyGain,
-    stale,
-    daysSincePublish,
-  } = summary
+  const { account: a, hasData, followers, followers7d, reads7d, readsChange, postsThisWeek, weeklyGain, stale, daysSincePublish } = summary
   const pulls = usePulls()
   const pull = pulls.find((item) => item.accountId === a.id)
   const setup = useMemo(() => setupView(a, PLATFORMS[a.platform], { pull }), [a, pull])
@@ -137,11 +125,11 @@ export function AccountCard({ summary }: { summary: AccountSummary }) {
       <div className="grid grid-cols-3 gap-2 border-t border-line pt-2.5">
         <Stat label={PLATFORMS[a.platform].audienceLabel}>
           <span className="flex flex-wrap items-baseline gap-x-1">
-            {/* 粉丝数拿不到（博客的 Umami 不给订阅数）写「—」，不写 0；增减也不显示 */}
+            {/* 没有当前粉丝观测时写「—」，周增减的空值也由 Delta 显示为「—」 */}
             <span className="text-sm font-medium tabular" data-account-followers>
-              {followersKnown ? formatCount(followers) : "—"}
+              {followers === null ? "—" : formatCount(followers)}
             </span>
-            {followersKnown && <Delta value={followers7d} kind="count" />}
+            <Delta value={followers7d} kind="count" />
           </span>
         </Stat>
         <Stat label="本周发布">
@@ -166,8 +154,8 @@ export function AccountCard({ summary }: { summary: AccountSummary }) {
             配置接入
           </Link>
         )}
-        {/* 小柱状图画的是每周粉丝增减，粉丝数拿不到时不画 */}
-        {followersKnown && <MiniBars values={weeklyGain} className="ml-auto" />}
+        {/* 小柱状图画每周粉丝增减；没有可计算的周不画柱 */}
+        {weeklyGain.some((gain) => gain !== null) && <MiniBars values={weeklyGain} className="ml-auto" />}
       </div>
     </div>
   )

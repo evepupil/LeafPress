@@ -3,7 +3,7 @@ import {
   dataShowPayload,
   executeDataShow,
 } from "../../src/cli/commands/data-show.js";
-import { fakeUseCases } from "./data-show-fixtures.js";
+import { dataset, fakeUseCases, zhihu } from "./data-show-fixtures.js";
 
 describe("leafpress data show：--json 内容", () => {
   it("账号只带 id、名称、平台，作品只带编号、标题、链接、发布日，其余的数照旧", () => {
@@ -73,6 +73,37 @@ describe("leafpress data show：--json 内容", () => {
       value: 9,
       compare: 0,
     });
+  });
+
+  it("首次粉丝观测之前的摘要、走势空档保留为 null", () => {
+    const daily = dataset.daily[zhihu.id] ?? [];
+    const partialDataset = {
+      ...dataset,
+      daily: {
+        ...dataset.daily,
+        [zhihu.id]: daily.map((point) =>
+          point.day < "2026-10-03" ? { ...point, followers: null } : point,
+        ),
+      },
+    };
+    const payload = dataShowPayload(
+      executeDataShow(fakeUseCases(partialDataset, [zhihu]), { range: "4w" }),
+    );
+    expect(payload.summaries[0]).toMatchObject({
+      followers: 102,
+      followers7d: null,
+      followers30d: null,
+    });
+    expect(
+      payload.series?.followers?.points.find(
+        (point) => point.start === "2026-09-30",
+      )?.value,
+    ).toBeNull();
+    expect(
+      payload.series?.followers?.points.find(
+        (point) => point.start === "2026-10-03",
+      )?.value,
+    ).toBe(92);
   });
 
   it("粉丝拿不到时粉丝和增减写 null，没数据的号 dataThrough 写 null", () => {

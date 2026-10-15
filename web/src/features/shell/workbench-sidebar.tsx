@@ -72,7 +72,7 @@ export function WorkbenchSidebar({ onNavigate }: { onNavigate?: () => void }) {
           account,
           href: accountHref(account.id),
           // 数据还没读到时不显示；读到了但这个号拿不到粉丝数（博客的 Umami 不给订阅数）写「—」，不写 0
-          followers: summary ? (summary.followersKnown ? formatCount(summary.followers) : "—") : undefined,
+          followers: summary ? (summary.followers === null ? "—" : formatCount(summary.followers)) : undefined,
         }
       }),
     [accounts, metricsInput],

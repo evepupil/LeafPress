@@ -123,7 +123,7 @@ function MetricTab({
         <Delta value={tab.result.change} className="shrink-0" />
       </span>
       <span data-metric-value={tab.id} className="truncate text-xl font-medium text-fg tabular">
-        {formatCount(tab.result.value)}
+        {tab.result.value === null ? "—" : formatCount(tab.result.value)}
       </span>
     </button>
   )
@@ -150,7 +150,9 @@ export function MetricChartCard({ scope, className }: { scope: string; className
   const current = tabs.find((tab) => tab.id === metric) ?? tabs[0]
   if (!current) return <EmptyState icon={ChartLine} title="正在读取数据" className={className} />
   // 本期和上一期每个点都是 0, 才算没数据；只有上一期有数时仍然画图，让人看到是本期掉到了 0
-  const hasData = current.result.points.some((point) => point.value !== 0 || (point.compare ?? 0) !== 0)
+  const hasData = current.result.points.some(
+    (point) => (point.value !== null && point.value !== 0) || (point.compare !== null && point.compare !== 0),
+  )
   const compareId = `compare-${scope}`
 
   return (

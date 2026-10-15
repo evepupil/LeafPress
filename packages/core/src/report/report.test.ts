@@ -77,12 +77,47 @@ describe("周报", () => {
     expect(report.rows.map((row) => [row.account.id, row.hasData, row.followersKnown, row.delta, row.posts])).toEqual([
       ["a", true, true, 20, 1],
       ["b", true, true, 5, 1],
-      ["c", false, false, 0, 1],
+      ["c", false, false, null, 1],
     ])
     expect(report.followersKnown).toBe(true)
     expect(report.published.map((item) => item.work.id)).toEqual(["c-new", "z-new", "b-new"])
     expect(report.rows[0]?.best?.weekReads).toBe(50)
     expect(report.note).toEqual(note)
+  })
+
+  it("周初早于首次粉丝观测时，行的增减和合计都是 null", () => {
+    const late = makeAccount("late", "zhihu", { name: "后加入账号" })
+    const followerByDay: Record<string, number> = {
+      "2026-10-03": 100,
+      "2026-10-04": 101,
+      "2026-10-05": 102,
+      "2026-10-06": 102,
+      "2026-10-07": 102,
+    }
+    const lateInput = {
+      dataset: {
+        ...dataset,
+        daily: {
+          late: daysBetween("2026-10-01", "2026-10-07").map((day) => ({
+            day,
+            followers: followerByDay[day] ?? null,
+            reads: 1,
+            interactions: 1,
+            posts: 0,
+          })),
+        },
+        lastDays: { late: "2026-10-07" },
+      },
+      accounts: [late],
+      works: [],
+      notes: [],
+    }
+    const report = weekReport(lateInput, "2026-09-28")
+
+    expect(report.rows[0]).toMatchObject({ followersKnown: true, followersStart: null, followersEnd: 101, delta: null })
+    expect(report.followersKnown).toBe(false)
+    expect(report.totals.delta).toBeNull()
+    expect(report.digest).not.toContain(expect.stringContaining("粉丝合计"))
   })
 
   it("本周截至昨天，空周不虚报发布；过去无发布周保留无发布句", () => {
@@ -129,8 +164,8 @@ describe("周报", () => {
     }
     const report = weekReport(umamiInput, "2026-09-28")
     expect(report.followersKnown).toBe(false)
-    expect(report.rows.map((row) => [row.account.id, row.hasData, row.followersKnown, row.delta])).toEqual([["u", true, false, 0]])
-    expect(report.totals).toEqual({ delta: 0, posts: 1, reads: 14, interactions: 0 })
+    expect(report.rows.map((row) => [row.account.id, row.hasData, row.followersKnown, row.delta])).toEqual([["u", true, false, null]])
+    expect(report.totals).toEqual({ delta: null, posts: 1, reads: 14, interactions: 0 })
     // 最后一篇 9-29 发的，离周末 5 天，不算断更；只有两句，没有「粉丝合计」
     expect(report.digest).toEqual(["这周发了 1 篇：博客 1 篇。", "浏览 14，比上周 0%。"])
 
@@ -159,7 +194,7 @@ describe("周报", () => {
     expect(report.totals.delta).toBe(20)
     expect(report.rows.map((row) => [row.account.id, row.followersKnown, row.delta])).toEqual([
       ["a", true, 20],
-      ["u", false, 0],
+      ["u", false, null],
     ])
     expect(report.digest[1]).toBe("粉丝合计 +20，其中小叶（知乎）+20。")
   })
@@ -208,7 +243,7 @@ describe("周报", () => {
     // 周末 10-04：新博客有每天的数，旧视频号 9-29 发过作品；空号都没有
     expect(ids("2026-09-28")).toEqual(["late", "worksOnly"])
     const week = weekReport(lateInput, "2026-09-28")
-    expect(week.totals).toEqual({ delta: 0, posts: 1, reads: 7, interactions: 0 })
+    expect(week.totals).toEqual({ delta: null, posts: 1, reads: 7, interactions: 0 })
     expect(week.digest[0]).toBe("这周发了 1 篇：B站 1 篇。")
     // 周末 9-27：作品还没发（9-29 才发），只剩新博客
     expect(ids("2026-09-21")).toEqual(["late"])

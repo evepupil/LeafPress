@@ -21,13 +21,13 @@ describe("粉丝与流量基础统计", () => {
     workDays: {},
   }
 
-  it("粉丝空洞取最近观测，早于首次观测沿用首次值，从未观测返回零", () => {
+  it("首次观测前和从未观测都返回 null，空洞继续沿用最近观测", () => {
     expect(followersOn(dataset, "a", "2026-10-03")).toBe(500)
     expect(followersOn(dataset, "a", "2026-10-07")).toBe(510)
     expect(followersOn(dataset, "a", "2026-09-30")).toBeNull()
     expect(followersOn(dataset, "a", "2026-10-20")).toBe(510)
-    expect(followersAt(dataset, "a", "2026-09-30")).toBe(500)
-    expect(followersAt(dataset, "missing", "2026-09-30")).toBe(0)
+    expect(followersAt(dataset, "a", "2026-09-30")).toBeNull()
+    expect(followersAt(dataset, "missing", "2026-09-30")).toBeNull()
   })
 
   it("按闭区间累加账号日流量", () => {
@@ -83,6 +83,39 @@ describe("账号概况", () => {
     expect(summary.dataThrough).toBe("2026-10-07")
   })
 
+  it("中途开始拉取时保留首日之前的空值，跨过首日的近 7 天增减为 null", () => {
+    const late = makeAccount("late")
+    const followerByDay: Record<string, number> = {
+      "2026-10-03": 100,
+      "2026-10-04": 101,
+      "2026-10-05": 103,
+      "2026-10-06": 103,
+      "2026-10-07": 105,
+      "2026-10-08": 106,
+    }
+    const lateDaily = daysBetween("2026-10-01", "2026-10-08").map((day) => ({
+      day,
+      followers: followerByDay[day] ?? null,
+      reads: 1,
+      interactions: 0,
+      posts: 0,
+    }))
+    const lateDataset: MetricsDataset = {
+      today: "2026-10-09",
+      latestDay: "2026-10-08",
+      daily: { late: lateDaily },
+      lastDays: { late: "2026-10-08" },
+      workDays: {},
+    }
+    const summary = accountSummary({ dataset: lateDataset, accounts: [late], works: [] }, late)
+
+    expect(followersAt(lateDataset, "late", "2026-10-02")).toBeNull()
+    expect(followersAt(lateDataset, "late", "2026-10-03")).toBe(100)
+    expect(followersAt(lateDataset, "late", "2026-10-04")).toBe(101)
+    expect(summary).toMatchObject({ followers: 106, followers7d: null, followers30d: null })
+    expect(summary.weeklyGain.at(-1)).toBe(5)
+  })
+
   // Umami 不给订阅数，每天粉丝为空；访问数 10-04 及以前每天 5，之后每天 0
   const umami = makeAccount("umami", "blog", { name: "技术博客" })
   const umamiDaily = daysBetween("2026-09-20", "2026-10-07").map((day) => ({
@@ -106,8 +139,8 @@ describe("账号概况", () => {
     expect(summary.hasData).toBe(true)
     expect(summary.followersKnown).toBe(false)
     expect(summary.dataThrough).toBe("2026-10-04")
-    expect(summary).toMatchObject({ followers: 0, followers7d: 0, followers30d: 0 })
-    expect(summary.weeklyGain).toEqual(Array.from({ length: 12 }, () => 0))
+    expect(summary).toMatchObject({ followers: null, followers7d: null, followers30d: null })
+    expect(summary.weeklyGain).toEqual(Array.from({ length: 12 }, () => null))
     expect(summary.reads7d).toBe(20)
     expect(summary.readsChange).toBeCloseTo(-3 / 7, 10)
   })
@@ -132,7 +165,7 @@ describe("账号概况", () => {
     expect(summary.hasData).toBe(false)
     expect(summary.followersKnown).toBe(false)
     expect(summary.dataThrough).toBeNull()
-    expect(summary.followers).toBe(0)
+    expect(summary.followers).toBeNull()
     expect(summary.works).toBe(1)
     expect(summary.postsThisWeek).toBe(1)
     expect(summary.lastPublishedAt).toBe("2026-10-06")

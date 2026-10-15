@@ -28,7 +28,6 @@ import {
   type ShownReport,
 } from "./data-report-expect.js";
 import {
-  buildCli,
   invoke,
   runCli,
   setupLargeAccounts,
@@ -39,7 +38,6 @@ let tempHome: string;
 let today: DayKey;
 
 beforeAll(() => {
-  buildCli();
   tempHome = mkdtempSync(join(tmpdir(), "leafpress-readonly-report-"));
   today = dayOfDate(new Date());
 }, 120_000);

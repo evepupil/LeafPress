@@ -3,8 +3,7 @@
  * 概况、排行、周报的每一行都带一份，几个账号就超过 agent 工具 30K 字的输出上限。
  * 这里把账号收成 { id, name, platform }，作品收成 { id, title, url, publishedAt }，其余的数照旧。
  *
- * 另一条规矩：拿不到的数写 null，不写 0。博客的 Umami 不给订阅数，共享规则里它的粉丝是占位的 0，
- * agent 读到 0 会当成「没有订阅者」，所以 followersKnown 为 false 的粉丝和增减在这里一律换成 null。
+ * 没有对应日期观测的粉丝数写 null，不写 0；共享规则给出的逐日、逐周空值照实保留。
  */
 import type {
   Account,
@@ -50,7 +49,7 @@ export interface SlimSummary {
   hasData: boolean;
   /** 记录库里真正有数的最后一天，窗口里没有记录为 null。比顶层 latestDay 早，说明最近几天没拉到，那几天的 0 是补出来的 */
   dataThrough: DayKey | null;
-  /** 粉丝和增减为 null 表示这个平台拿不到粉丝数 */
+  /** 粉丝不可用或对应日期未观测时为 null */
   followers: number | null;
   followers7d: number | null;
   followers30d: number | null;
@@ -61,7 +60,7 @@ export interface SlimSummary {
   works: number;
   lastPublishedAt: DayKey | null;
   daysSincePublish: number | null;
-  weeklyGain: number[] | null;
+  weeklyGain: (number | null)[] | null;
   stale: boolean;
 }
 
@@ -74,7 +73,7 @@ export interface SlimSeriesPoint {
   label: string;
   start: DayKey;
   end: DayKey;
-  value: number;
+  value: number | null;
   compare: number | null;
 }
 
@@ -107,7 +106,7 @@ export interface SlimWeekReport {
   end: DayKey;
   complete: boolean;
   rows: SlimWeekRow[];
-  /** 一个账号都拿不到粉丝数时 delta 为 null */
+  /** 至少一个账号周初、周末都有观测时才有 delta，否则为 null */
   totals: {
     delta: number | null;
     posts: number;

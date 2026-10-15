@@ -11,11 +11,11 @@ import type { MetricsInput, RankedWork } from "../metrics/types.ts"
 export interface WeekRow {
   account: Account
   hasData: boolean
-  /** 这个号拿不拿得到粉丝数；false 时 followersStart、followersEnd、delta 的 0 只是占位，不是真的 0，显示时写「—」 */
+  /** 这个号是否曾拿到粉丝数；单周数据是否可计算看 delta 是否为 null */
   followersKnown: boolean
-  followersStart: number
-  followersEnd: number
-  delta: number
+  followersStart: number | null
+  followersEnd: number | null
+  delta: number | null
   posts: number
   reads: number
   /** 这个账号自己的第二个数（知乎是互动，博客是访客；见 secondary.ts），字段名沿用 interactions */
@@ -28,10 +28,10 @@ export interface WeekReport {
   end: DayKey
   complete: boolean
   rows: WeekRow[]
-  /** 有没有哪个账号拿得到粉丝数；false 时 totals.delta 的 0 只是占位，粉丝合计显示「—」 */
+  /** 至少一个账号在周初和周末都有粉丝观测；否则 totals.delta 为 null */
   followersKnown: boolean
-  /** delta 只加拿得到粉丝数的账号；interactions 只合计 combinedSecondary 包含的账号，名字看选中的平台 */
-  totals: { delta: number; posts: number; reads: number; interactions: number }
+  /** delta 只合计周初、周末都有数的账号；interactions 只合计 combinedSecondary 包含的账号 */
+  totals: { delta: number | null; posts: number; reads: number; interactions: number }
   readsChange: number | null
   published: RankedWork[]
   digest: string[]
@@ -52,16 +52,19 @@ function readsBetween(dataset: MetricsDataset, work: Work, start: DayKey, end: D
 function sumRows(rows: WeekRow[]): WeekReport["totals"] {
   // 几个账号合计第二个数时，访客和互动不能相加：只合计 combinedSecondary 包含的账号（见 secondary.ts）
   const secondaryCombined = combinedSecondary(rows.map((row) => PLATFORMS[row.account.platform]))
-  return rows.reduce(
+  const followerRows = rows.filter((row) => row.delta !== null)
+  const totals = rows.reduce(
     (sum, row) => ({
-      // 粉丝合计只加拿得到粉丝数的账号
-      delta: sum.delta + (row.followersKnown ? row.delta : 0),
       posts: sum.posts + row.posts,
       reads: sum.reads + row.reads,
       interactions: sum.interactions + (secondaryCombined.includes(PLATFORMS[row.account.platform]) ? row.interactions : 0),
     }),
-    { delta: 0, posts: 0, reads: 0, interactions: 0 },
+    { posts: 0, reads: 0, interactions: 0 },
   )
+  return {
+    ...totals,
+    delta: followerRows.length > 0 ? followerRows.reduce((total, row) => total + (row.delta ?? 0), 0) : null,
+  }
 }
 
 /**
@@ -96,7 +99,7 @@ function weekRows(input: MetricsInput, week: DayKey, end: DayKey): WeekRow[] {
         followersKnown: followersKnown(dataset, account.id),
         followersStart,
         followersEnd,
-        delta: followersEnd - followersStart,
+        delta: followersStart !== null && followersEnd !== null ? followersEnd - followersStart : null,
         posts: accountWorks.filter((work) => work.publishedAt && work.publishedAt >= week && work.publishedAt <= end).length,
         reads: sumFlow(dataset, account.id, week, end, "reads"),
         interactions: sumFlow(dataset, account.id, week, end, "interactions"),
@@ -147,9 +150,10 @@ export function weekReport(input: MetricsInput & { notes: WeeklyNote[] }, week: 
   const lead = complete ? "这周" : `本周到${weekdayLabel(end)}`
   digest.push(totals.posts > 0 ? `${lead}发了 ${totals.posts} 篇：${breakdown}。` : `${lead}还没有发布。`)
 
-  // 粉丝这一句只看拿得到粉丝数的账号；一个都拿不到（比如只有博客）就不写，免得写出「粉丝合计 0」
-  const gainer = rows.filter((row) => row.followersKnown).sort((a, b) => b.delta - a.delta)[0]
-  if (gainer) digest.push(`粉丝合计 ${formatSigned(totals.delta)}，其中${accountLabel(gainer.account)}${formatSigned(gainer.delta)}。`)
+  // 没有完整周初、周末观测的账号不能进入粉丝合计。
+  const completeFollowerRows = rows.filter((row): row is WeekRow & { delta: number } => row.delta !== null)
+  const gainer = completeFollowerRows.sort((a, b) => b.delta - a.delta)[0]
+  if (gainer) digest.push(`粉丝合计 ${formatSigned(totals.delta ?? 0)}，其中${accountLabel(gainer.account)}${formatSigned(gainer.delta)}。`)
   const best = rows
     .map((row) => row.best)
     .filter((item): item is NonNullable<WeekRow["best"]> => item !== null)
@@ -165,8 +169,8 @@ export function weekReport(input: MetricsInput & { notes: WeeklyNote[] }, week: 
     if (!last?.publishedAt) continue
     const idle = diffDays(end, last.publishedAt)
     if (idle > 14) {
-      // 拿不到粉丝数的号不写「订阅 +0」：那个 0 是占位
-      const audience = row.followersKnown ? `，${PLATFORMS[row.account.platform].audienceLabel} ${formatSigned(row.delta)}` : ""
+      // 没有完整的粉丝周变化时不写粉丝增减。
+      const audience = row.delta !== null ? `，${PLATFORMS[row.account.platform].audienceLabel} ${formatSigned(row.delta)}` : ""
       digest.push(`${row.account.name} 已经 ${idle} 天没更新${audience}。`)
     }
   }
@@ -176,7 +180,7 @@ export function weekReport(input: MetricsInput & { notes: WeeklyNote[] }, week: 
     end,
     complete,
     rows,
-    followersKnown: rows.some((row) => row.followersKnown),
+    followersKnown: totals.delta !== null,
     totals,
     readsChange,
     published,

@@ -26,13 +26,13 @@ function platformsOf(summaries: readonly AccountSummary[]) {
 /**
  * 概况表的一行。没数据的号，数字列写「—」：补出来的 0 不是真的 0。
  * 本周发布不受影响：发了作品就算发布，不管有没有数据，和网页一致。
- * 粉丝拿不到（博客的 Umami 不给订阅数）也写「—」，不写 0。
+ * 粉丝无当前观测时写「—」，不写 0；增减若缺少比较区间也写「—」。
  */
 function summaryRow(summary: AccountSummary, today: DayKey): string[] {
   const { hasData } = summary;
   return [
     summary.account.name,
-    summary.followersKnown ? formatCount(summary.followers) : "—",
+    summary.followers === null ? "—" : formatCount(summary.followers),
     hasData ? formatCount(summary.reads7d) : "—",
     hasData ? formatSignedPercent(summary.readsChange) : "—",
     hasData ? formatCount(summary.interactions7d) : "—",
@@ -57,15 +57,17 @@ function renderSeries(
   const { followers, reads, interactions, posts } = result.series;
   const partial = lastWeekIsPartial(result);
   const lastIndex = reads.points.length - 1;
-  const valueAt = (metric: MetricResult, index: number): string =>
-    formatCount(metric.points[index]?.value ?? 0);
+  const valueAt = (metric: MetricResult, index: number): string => {
+    const value = metric.points[index]?.value;
+    return value === null || value === undefined ? "—" : formatCount(value);
+  };
   return reads.points.map((point, index) => {
     // 没过完的那一周只统计到数据的最后一天，不标出来会像是这一周掉下去了
     const label =
       partial && index === lastIndex
         ? `${point.label}（到${formatDay(result.latestDay, result.today)}）`
         : point.label;
-    // 选中的账号都拿不到粉丝数时写「—」，不写占位的 0
+    // 没有对应日期的粉丝观测时写「—」
     const followersText = followers.available ? valueAt(followers, index) : "—";
     // 第二个数按选中的平台取名：全是博客叫「访客」，混着叫「互动」（共享规则合计时只加互动类）
     return `${label}  粉丝 ${followersText}  ${metricLabel} ${valueAt(reads, index)}  ${secondaryLabel} ${valueAt(interactions, index)}  发布 ${valueAt(posts, index)}`;

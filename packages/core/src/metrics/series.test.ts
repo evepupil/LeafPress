@@ -48,6 +48,29 @@ describe("指标走势", () => {
     })
   })
 
+  it("中途开始拉取时，首个粉丝观测之前的走势点为空", () => {
+    const followerByDay: Record<string, number> = { "2026-10-03": 100, "2026-10-04": 101 }
+    const lateDaily: DailyPoint[] = daysBetween("2026-10-01", "2026-10-07").map((day) => ({
+      day,
+      followers: followerByDay[day] ?? (day > "2026-10-04" ? 102 : null),
+      reads: 1,
+      interactions: 0,
+      posts: 0,
+    }))
+    const lateInput = {
+      dataset: { ...dataset, daily: { late: lateDaily }, lastDays: { late: "2026-10-07" } },
+      accounts: [makeAccount("late")],
+      works: [],
+    }
+    const result = metricSeries(lateInput, "late", "followers", "4w")
+
+    expect(result.change).toBeNull()
+    expect(result.points.find((point) => point.key === "2026-09-30")?.value).toBeNull()
+    expect(result.points.find((point) => point.key === "2026-10-02")?.value).toBeNull()
+    expect(result.points.find((point) => point.key === "2026-10-03")?.value).toBe(100)
+    expect(result.points.find((point) => point.key === "2026-10-04")?.value).toBe(101)
+  })
+
   it("12 周按周取 12 点，最近一周截止昨天并对比 12 周前同周", () => {
     const result = metricSeries(input, "all", "followers", "12w")
     expect(result.change).toBeCloseTo((1378 - 1223) / 1223, 10)
@@ -119,7 +142,7 @@ describe("指标走势", () => {
       end: "2026-10-11",
       title: "10月5日 – 10月11日",
       value: 583,
-      compare: 500,
+      compare: null,
     })
     expect(metricSeries(mondayInput, "a", "reads", "12w").value).toBe(147)
   })
@@ -151,7 +174,7 @@ describe("拿不到粉丝的账号", () => {
 
   it("选中的账号都拿不到粉丝时，粉丝一项标成没有，其余几项照常", () => {
     const followers = metricSeries(mixed, "b", "followers", "12w")
-    expect(followers).toMatchObject({ metric: "followers", available: false, value: 0, change: null })
+    expect(followers).toMatchObject({ metric: "followers", available: false, value: null, change: null })
     // 80 天正好 20 个 1、2、3、4 的循环，每个循环 10
     const reads = metricSeries(mixed, "b", "reads", "12w")
     expect(reads).toMatchObject({ available: true, value: 200 })

@@ -73,19 +73,21 @@ export function ReportAccounts() {
                   </td>
                   {row.hasData ? (
                     <>
-                      {/* 粉丝数拿不到（博客的 Umami 不给订阅数）时粉丝和增减都写「—」，不写 0 */}
+                      {/* 两端分别显示观测值，周初缺值时仍显示周末粉丝 */}
                       <td className="px-3 text-right whitespace-nowrap">
-                        {row.followersKnown ? (
+                        {row.followersStart !== null || row.followersEnd !== null ? (
                           <>
-                            <span className="tabular text-fg-2">{formatCount(row.followersStart)} → </span>
-                            <span className="tabular">{formatCount(row.followersEnd)}</span>
+                            <span className="tabular text-fg-2">
+                              {row.followersStart === null ? "—" : formatCount(row.followersStart)} →{" "}
+                            </span>
+                            <span className="tabular">{row.followersEnd === null ? "—" : formatCount(row.followersEnd)}</span>
                           </>
                         ) : (
                           <span className="text-xs text-fg-2">—</span>
                         )}
                       </td>
                       <td className="px-3 text-right">
-                        <Delta value={row.followersKnown ? row.delta : null} kind="count" />
+                        <Delta value={row.delta} kind="count" />
                       </td>
                     </>
                   ) : (
@@ -113,8 +115,8 @@ export function ReportAccounts() {
                 <td className="px-3">合计</td>
                 <td className="px-3" />
                 <td className="px-3 text-right">
-                  {/* 粉丝合计只加拿得到的账号；一个都拿不到就写「—」 */}
-                  <Delta value={report.followersKnown ? totals.delta : null} kind="count" />
+                  {/* 周初、周末没有完整观测的账号不参与粉丝合计 */}
+                  <Delta value={totals.delta} kind="count" />
                 </td>
                 <td className="px-3 text-right tabular whitespace-nowrap">{totals.posts}</td>
                 <td className="px-3 text-right tabular">{formatCount(totals.reads)}</td>

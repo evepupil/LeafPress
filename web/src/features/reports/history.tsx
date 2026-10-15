@@ -42,7 +42,7 @@ export function ReportHistory() {
               <span className="flex items-center gap-2 text-xs text-fg-2 tabular">
                 <span>发布 {report.totals.posts}</span>
                 <span aria-hidden>·</span>
-                <span>粉丝 {report.followersKnown ? formatSigned(report.totals.delta) : "—"}</span>
+                <span>粉丝 {report.totals.delta === null ? "—" : formatSigned(report.totals.delta)}</span>
                 <span aria-hidden>·</span>
                 <span>浏览 {formatCount(report.totals.reads)}</span>
               </span>

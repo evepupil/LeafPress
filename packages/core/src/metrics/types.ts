@@ -18,16 +18,14 @@ export interface RankedWork {
 export interface AccountSummary {
   account: Account
   hasData: boolean
-  /**
-   * 这个号拿不拿得到粉丝数（博客的 Umami 不给订阅数）。
-   * 为 false 时 followers、followers7d、followers30d、weeklyGain 的 0 只是占位，不是真的 0，显示时写「—」
-   */
+  /** 这个账号的数据集中是否至少有一次非空粉丝观测 */
   followersKnown: boolean
-  /** 记录库里真正有数的最后一天，窗口里没有记录为 null。比 latestDay 早，说明最近几天没拉到，那几天的 0 是补出来的 */
+  /** 当前日期没有观测值，或近 7/30 天、周增减的任一端缺值时为 null */
+  followers: number | null
+  followers7d: number | null
+  followers30d: number | null
+  /** 记录库里真正有数的最后一天，窗口里没有记录为 null */
   dataThrough: DayKey | null
-  followers: number
-  followers7d: number
-  followers30d: number
   reads7d: number
   readsChange: number | null
   interactions7d: number
@@ -35,7 +33,7 @@ export interface AccountSummary {
   works: number
   lastPublishedAt: DayKey | null
   daysSincePublish: number | null
-  weeklyGain: number[]
+  weeklyGain: (number | null)[]
   stale: boolean
 }
 
@@ -50,18 +48,15 @@ export interface SeriesPoint {
   title: string
   /** 这一点算到哪天：按天的点同 key；按周的点是周日，最后一周没过完时是数据的最后一天 */
   end: DayKey
-  value: number
+  value: number | null
   compare: number | null
 }
 
 export interface MetricResult {
   metric: MetricId
-  /**
-   * 选中的账号里有没有哪个拿得到这一项。目前只有粉丝会是 false（选中的账号都拿不到粉丝数）：
-   * 这时 value、change、points 里的 0 只是占位，不是真的 0，界面不要给这一项，命令行写「—」
-   */
+  /** 选中的账号里有没有哪个拿得到这一项。目前只有粉丝会是 false（选中的账号都没有粉丝观测）：这时 value 和粉丝 points 为 null */
   available: boolean
-  value: number
+  value: number | null
   change: number | null
   points: SeriesPoint[]
 }

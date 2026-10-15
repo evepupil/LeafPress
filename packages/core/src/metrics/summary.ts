@@ -14,6 +14,8 @@ export function accountSummary(input: MetricsInput, account: Account): AccountSu
   )
   const daysSincePublish = lastPublished ? diffDays(dataset.today, lastPublished) : null
   const followers = followersAt(dataset, account.id, latest)
+  const followersStart7d = followersAt(dataset, account.id, addDays(latest, -7))
+  const followersStart30d = followersAt(dataset, account.id, addDays(latest, -30))
   const reads7d = sumFlow(dataset, account.id, addDays(latest, -6), latest, "reads")
   const readsPrev = sumFlow(dataset, account.id, addDays(latest, -13), addDays(latest, -7), "reads")
   const dataWeek = weekStartOf(latest)
@@ -21,7 +23,9 @@ export function accountSummary(input: MetricsInput, account: Account): AccountSu
   const weeklyGain = Array.from({ length: 12 }, (_, index) => {
     const week = addDays(dataWeek, -7 * (11 - index))
     const end = week > latest ? latest : addDays(week, 6) > latest ? latest : addDays(week, 6)
-    return followersAt(dataset, account.id, end) - followersAt(dataset, account.id, addDays(week, -1))
+    const start = followersAt(dataset, account.id, addDays(week, -1))
+    const finish = followersAt(dataset, account.id, end)
+    return start !== null && finish !== null ? finish - start : null
   })
 
   return {
@@ -30,8 +34,8 @@ export function accountSummary(input: MetricsInput, account: Account): AccountSu
     followersKnown: followersKnown(dataset, account.id),
     dataThrough: lastDataDay(dataset, account.id),
     followers,
-    followers7d: followers - followersAt(dataset, account.id, addDays(latest, -7)),
-    followers30d: followers - followersAt(dataset, account.id, addDays(latest, -30)),
+    followers7d: followers !== null && followersStart7d !== null ? followers - followersStart7d : null,
+    followers30d: followers !== null && followersStart30d !== null ? followers - followersStart30d : null,
     reads7d,
     readsChange: readsPrev > 0 ? (reads7d - readsPrev) / readsPrev : null,
     interactions7d: sumFlow(dataset, account.id, addDays(latest, -6), latest, "interactions"),

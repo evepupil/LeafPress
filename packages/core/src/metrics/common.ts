@@ -15,15 +15,9 @@ export function followersOn(dataset: MetricsDataset, accountId: string, day: Day
   return result?.followers ?? null
 }
 
-/**
- * 统计里用的粉丝数：那天没有就沿用第一次拉到的；这个号从没拉到过粉丝数返回 0。
- * 这个 0 是占位，不是真的 0 个粉丝：显示和求和之前先看 followersKnown（coverage.ts）。
- */
-export function followersAt(dataset: MetricsDataset, accountId: string, day: DayKey): number {
-  const atDay = followersOn(dataset, accountId, day)
-  if (atDay !== null) return atDay
-  const first = (dataset.daily[accountId] ?? []).find((point) => point.followers !== null)
-  return first?.followers ?? 0
+/** 粉丝数：仅沿用目标日期之前最近一次观测；首次观测之前和从未观测均为 null。 */
+export function followersAt(dataset: MetricsDataset, accountId: string, day: DayKey): number | null {
+  return followersOn(dataset, accountId, day)
 }
 
 export function sumFlow(dataset: MetricsDataset, accountId: string, start: DayKey, end: DayKey, key: FlowKey): number {

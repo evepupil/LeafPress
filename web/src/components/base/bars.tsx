@@ -4,9 +4,11 @@ import { cn } from "cn"
  * 小柱状图：中性灰阶，负数用更浅的灰画在基线下面（提炼：图表不靠颜色）。
  * 最后一根是还没过完的这一期，用深色标出来。
  */
-export function MiniBars({ values, height = 16, className }: { values: number[]; height?: number; className?: string }) {
-  const max = Math.max(1, ...values.map((value) => Math.abs(value)))
-  const signed = values.some((value) => value < 0)
+export function MiniBars({ values, height = 16, className }: { values: (number | null)[]; height?: number; className?: string }) {
+  const observed = values.filter((value): value is number => value !== null)
+  const max = Math.max(1, ...observed.map((value) => Math.abs(value)))
+  const signed = observed.some((value) => value < 0)
+  const lastIndex = values.reduce((last, value, index) => (value === null ? last : index), -1)
   const span = signed ? height / 2 : height
   return (
     <svg
@@ -17,9 +19,10 @@ export function MiniBars({ values, height = 16, className }: { values: number[];
       className={cn("shrink-0", className)}
     >
       {values.map((value, i) => {
+        if (value === null) return null
         const h = Math.max(1, (Math.abs(value) / max) * span)
         const y = signed ? (value >= 0 ? height / 2 - h : height / 2) : height - h
-        const last = i === values.length - 1
+        const last = i === lastIndex
         return (
           <rect
             key={i}

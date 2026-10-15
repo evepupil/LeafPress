@@ -50,8 +50,25 @@ describe("leafpress report：计算", () => {
       week: "2026-09-28",
       end: "2026-10-04",
       complete: true,
-      totals: { delta: 3, posts: 0, reads: 38, interactions: 10 },
+      totals: { delta: null, posts: 0, reads: 38, interactions: 10 },
     });
+    expect(result.report.rows[0]).toMatchObject({
+      followersStart: null,
+      followersEnd: 93,
+      delta: null,
+    });
+    const report = reportPayload(result).report;
+    expect(report.rows[0]).toMatchObject({
+      followersStart: null,
+      followersEnd: 93,
+      delta: null,
+    });
+    expect(report.totals.delta).toBeNull();
+    const accountLine = renderReport(result)
+      .split("\n")
+      .find((line) => line.startsWith("一叶之桐"));
+    expect(accountLine).toContain("— → 93");
+    expect(accountLine).toContain("—");
     expect(result.report.published).toEqual([]);
   });
 

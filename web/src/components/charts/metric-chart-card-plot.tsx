@@ -35,7 +35,7 @@ function PlotTooltip({ active, payload, compare }: { active?: boolean; payload?:
       <div className="flex items-center gap-2">
         <span aria-hidden className="h-0.5 w-3 rounded-full bg-ink" />
         <span className="text-fg-2">本期</span>
-        <span className="ml-auto pl-4 font-medium text-fg tabular">{formatCount(point.value)}</span>
+        <span className="ml-auto pl-4 font-medium text-fg tabular">{point.value === null ? "—" : formatCount(point.value)}</span>
       </div>
       {compare && point.compare !== null && (
         <div className="mt-1 flex items-center gap-2">
@@ -116,7 +116,7 @@ export function MetricPlot({
             strokeWidth={1.25}
             strokeDasharray="3 3"
             dot={false}
-            activeDot={false}
+            connectNulls={false}
             isAnimationActive={false}
           />
         )}
@@ -152,6 +152,7 @@ export function MetricPlot({
             fill={`url(#${fillId})`}
             dot={false}
             activeDot={{ r: 3, fill: "var(--chart-ink)", stroke: "var(--surface-card)", strokeWidth: 1.5 }}
+            connectNulls={false}
             isAnimationActive={false}
           />
         )}

@@ -21,16 +21,18 @@ export function AccountBreakdown() {
   const accounts = useAccounts()
   const input = useMetricsInput()
   const summaries: AccountSummary[] = input ? accounts.map((account) => accountSummary(input, account)) : []
-  // 粉丝合计只加拿得到粉丝数的账号（博客的 Umami 不给订阅数，加进去等于把「没有」当成 0）
-  const followerSummaries = summaries.filter((item) => item.followersKnown)
+  // 合计只加有当前粉丝观测的账号；增减分别只加起止两天都有观测的账号
+  const followerSummaries = summaries.filter((item) => item.followers !== null)
+  const follower7dSummaries = summaries.filter((item) => item.followers7d !== null)
+  const follower30dSummaries = summaries.filter((item) => item.followers30d !== null)
   const followersTotal = followerSummaries.length > 0
   // 第二个数的列名和合计：知乎是互动、博客是访客，混着写「互动 / 访客」，合计只加共享规则包含的账号（见 breakdown-labels.ts）
   const secondaryLabel = breakdownSecondaryLabel(summaries)
   const secondaryTotal = combinedSecondary7d(summaries)
   const total = {
-    followers: followerSummaries.reduce((sum, item) => sum + item.followers, 0),
-    followers7d: followerSummaries.reduce((sum, item) => sum + item.followers7d, 0),
-    followers30d: followerSummaries.reduce((sum, item) => sum + item.followers30d, 0),
+    followers: followerSummaries.reduce((sum, item) => sum + (item.followers ?? 0), 0),
+    followers7d: follower7dSummaries.length > 0 ? follower7dSummaries.reduce((sum, item) => sum + (item.followers7d ?? 0), 0) : null,
+    followers30d: follower30dSummaries.length > 0 ? follower30dSummaries.reduce((sum, item) => sum + (item.followers30d ?? 0), 0) : null,
     reads7d: summaries.reduce((sum, item) => sum + item.reads7d, 0),
   }
 
@@ -78,13 +80,13 @@ export function AccountBreakdown() {
                 </td>
                 {item.hasData ? (
                   <>
-                    {/* 粉丝数拿不到时三格都写「—」；Delta 传 null 就是「—」 */}
-                    <td className="px-3 text-right tabular">{item.followersKnown ? formatCount(item.followers) : "—"}</td>
+                    {/* 每项只在对应日期有观测时显示；Delta 会将不可计算的增减显示为「—」 */}
+                    <td className="px-3 text-right tabular">{item.followers === null ? "—" : formatCount(item.followers)}</td>
                     <td className="px-3 text-right">
-                      <Delta value={item.followersKnown ? item.followers7d : null} kind="count" />
+                      <Delta value={item.followers7d} kind="count" />
                     </td>
                     <td className="px-3 text-right">
-                      <Delta value={item.followersKnown ? item.followers30d : null} kind="count" />
+                      <Delta value={item.followers30d} kind="count" />
                     </td>
                     <td className="px-3 text-right">
                       <span className="flex items-center justify-end gap-1.5">
@@ -113,10 +115,10 @@ export function AccountBreakdown() {
               <td className="px-3 text-left">合计</td>
               <td className="px-3 text-right tabular">{followersTotal ? formatCount(total.followers) : "—"}</td>
               <td className="px-3 text-right">
-                <Delta value={followersTotal ? total.followers7d : null} kind="count" />
+                <Delta value={total.followers7d} kind="count" />
               </td>
               <td className="px-3 text-right">
-                <Delta value={followersTotal ? total.followers30d : null} kind="count" />
+                <Delta value={total.followers30d} kind="count" />
               </td>
               <td className="px-3 text-right tabular">{formatCount(total.reads7d)}</td>
               {/* 合计只加共享规则包含的账号（有互动平台就只加互动类，博客的访客看它自己那行），一个都不包含写「—」 */}
