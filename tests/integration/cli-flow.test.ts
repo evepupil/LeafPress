@@ -1,4 +1,4 @@
-import { execSync, spawnSync } from "node:child_process";
+import { spawnSync } from "node:child_process";
 import {
   existsSync,
   mkdirSync,
@@ -18,13 +18,8 @@ const cli = join(repoRoot, "dist", "cli", "main.js");
 let home: string;
 
 beforeAll(() => {
-  execSync("pnpm build", {
-    cwd: repoRoot,
-    stdio: "pipe",
-    timeout: 120_000,
-  });
   home = mkdtempSync(join(tmpdir(), "leafpress-cli-flow-"));
-}, 120_000);
+});
 
 afterAll(() => {
   if (home !== undefined) rmSync(home, { recursive: true, force: true });
