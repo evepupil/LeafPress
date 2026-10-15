@@ -199,5 +199,54 @@ export const ZHIHU_ARTICLE: WorkflowDef = {
   requires: [],
 }
 
+/** 小红书图文卡片：卡片稿和文案交给 AI，出图和归档交给代码，发布由作者在手机上完成 */
+export const XHS_CARDS: WorkflowDef = {
+  id: "xhs-cards",
+  name: "图文卡片",
+  platform: "xiaohongshu",
+  from: "any",
+  summary: "AI 写卡片稿和文案，代码排成卡片图，你在手机上发，回来归档链接。",
+  steps: [
+    {
+      id: "draft",
+      name: "写卡片稿和文案",
+      kind: "ai",
+      tool: "按账号档案写",
+      produces: ["卡片.md", "文案.md"],
+      instructions:
+        "先整份读账号档案、要求和来源（转来的作品先读原稿）。" +
+        "把内容写成小红书图文卡片稿，存到 {folder}/卡片.md：封面一张、要点 4～8 张、总结一张，格式照下面的样子；" +
+        "再写笔记文案存到 {folder}/文案.md：第一行 `# 标题`（20 字以内），正文 1000 字以内，不放链接，" +
+        "最后一行 3～8 个话题标签（`#话题` 用空格分开）。\n\n" +
+        "卡片稿 `卡片.md` 的格式：\n\n" +
+        "```markdown\n" +
+        "# 封面这一句：勾人的一句话（18 字以内）\n" +
+        "副标题一行（可选，24 字以内）\n\n" +
+        "---\n\n" +
+        "## 要点标题（16 字以内）\n" +
+        "- 一条一行，每页最多 5 条\n" +
+        "- 每页正文合计 120 字以内\n\n" +
+        "---\n\n" +
+        "## 总结：标题\n" +
+        "- 同要点页\n" +
+        "```\n\n" +
+        "页与页之间用单独一行 `---` 分开；第一页必须是封面，以 `# ` 开头；最后一页的标题以「总结」开头；" +
+        "其余是要点页，以 `## ` 开头；页数 3～18。",
+    },
+    { id: "render", name: "排版卡片", kind: "code", tool: "卡片出图", produces: ["小红书发布稿.html"] },
+    {
+      id: "publish",
+      name: "你在手机上发",
+      kind: "manual",
+      ask:
+        "卡片图在 {folder}/卡片/，文案在 {folder}/文案.md；也可以在网页上点「打开发布稿」看图、复制文案。" +
+        "把图传到手机，在小红书发图文笔记，发完把分享链接（整段分享文字也行）贴在下面；要改就写要改哪里。",
+    },
+    { id: "archive", name: "归档链接", kind: "code", tool: "记录库" },
+  ],
+  say: "把这篇做成小红书图文卡片",
+  requires: [],
+}
+
 /** 全部发布工作流：平台专用的在前，通用的在最后 */
-export const WORKFLOWS: WorkflowDef[] = [BLOG_WRITE, ZHIHU_ANSWER, ZHIHU_FROM_BLOG, ZHIHU_ARTICLE, GENERAL_WRITE]
+export const WORKFLOWS: WorkflowDef[] = [BLOG_WRITE, ZHIHU_ANSWER, ZHIHU_FROM_BLOG, ZHIHU_ARTICLE, XHS_CARDS, GENERAL_WRITE]

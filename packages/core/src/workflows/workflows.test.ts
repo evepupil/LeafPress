@@ -1,7 +1,7 @@
 import { expect, test } from "vitest"
 
 import { GENERAL_WRITE, WORKFLOWS } from "../catalog/index.ts"
-import { BLOG_WRITE, ZHIHU_ANSWER, ZHIHU_ARTICLE, ZHIHU_FROM_BLOG } from "../catalog/workflows.ts"
+import { BLOG_WRITE, XHS_CARDS, ZHIHU_ANSWER, ZHIHU_ARTICLE, ZHIHU_FROM_BLOG } from "../catalog/workflows.ts"
 import type { PlatformId, WorkflowDef, WorkSource } from "../types/index.ts"
 import { fillTemplate, isUsable, pickFromList, pickWorkflow, workflowsFor, workflowById } from "./workflows.ts"
 import type { StepVars } from "./workflows.ts"
@@ -12,10 +12,12 @@ const WORK_SOURCE: WorkSource = { kind: "work", workId: "b-1" }
 const IMPORT_SOURCE: WorkSource = { kind: "import" }
 const QUESTION_BRIEF = "回答 https://www.zhihu.com/question/123456 里的这个问题"
 
-test("博客选博客写稿，其余平台和来源回落通用写稿", () => {
+test("博客选博客写稿，B站回落通用写稿，小红书配到图文卡片", () => {
+  // 知乎按自己的 from 规则挑，另在下面单独的测试里验
   for (const platform of ["blog", "bilibili", "xiaohongshu"] as PlatformId[]) {
     for (const source of [IDEA_SOURCE, NEW_SOURCE, WORK_SOURCE, IMPORT_SOURCE]) {
-      expect(pickWorkflow(platform, source, "blog", QUESTION_BRIEF)).toBe(platform === "blog" ? BLOG_WRITE : GENERAL_WRITE)
+      const expected = platform === "blog" ? BLOG_WRITE : platform === "xiaohongshu" ? XHS_CARDS : GENERAL_WRITE
+      expect(pickWorkflow(platform, source, "blog", QUESTION_BRIEF)).toBe(expected)
     }
   }
 })
@@ -38,6 +40,18 @@ test("知乎：灵感或新建、要求里贴了问题链接 → 回答问题；
   expect(pickWorkflow("zhihu", IMPORT_SOURCE, undefined, QUESTION_BRIEF)).toBe(GENERAL_WRITE)
 })
 
+test("小红书：灵感、直接新建、博客作品、从平台导入都配到图文卡片；别的平台不受影响", () => {
+  // xhs-cards 的 from 是 any，四种来源都挑它
+  expect(pickWorkflow("xiaohongshu", IDEA_SOURCE)).toBe(XHS_CARDS)
+  expect(pickWorkflow("xiaohongshu", NEW_SOURCE)).toBe(XHS_CARDS)
+  expect(pickWorkflow("xiaohongshu", WORK_SOURCE, "blog")).toBe(XHS_CARDS)
+  expect(pickWorkflow("xiaohongshu", WORK_SOURCE, "zhihu")).toBe(XHS_CARDS)
+  expect(pickWorkflow("xiaohongshu", IMPORT_SOURCE)).toBe(XHS_CARDS)
+  // B站和知乎没有受影响：B站仍回落通用，知乎灵感仍配写文章
+  expect(pickWorkflow("bilibili", IDEA_SOURCE)).toBe(GENERAL_WRITE)
+  expect(pickWorkflow("zhihu", IDEA_SOURCE)).toBe(ZHIHU_ARTICLE)
+})
+
 test("博客、B站的灵感加问题链接不受 question 影响：平台没有 questionPattern 就永远配不到 question 工作流", () => {
   for (const platform of ["blog", "bilibili"] as PlatformId[]) {
     for (const source of [IDEA_SOURCE, NEW_SOURCE]) {
@@ -55,6 +69,7 @@ test("workflowsFor：平台专用的在前，通用的在后；没有专用的�
   expect(workflowsFor("blog")).toEqual([BLOG_WRITE, GENERAL_WRITE])
   expect(workflowsFor("zhihu")).toEqual([ZHIHU_ANSWER, ZHIHU_FROM_BLOG, ZHIHU_ARTICLE, GENERAL_WRITE])
   expect(workflowsFor("bilibili")).toEqual([GENERAL_WRITE])
+  expect(workflowsFor("xiaohongshu")).toEqual([XHS_CARDS, GENERAL_WRITE])
 })
 
 /** 自造的一份列表（不含 catalog 里的定义），验证通用挑选规则 */
@@ -152,14 +167,16 @@ test("fillTemplate：替换值中的美元符号和其他占位符保持原样",
   expect(fillTemplate("{account} 到 {platform} / {folder}", vars)).toBe("省钱$$攻略 到 平台{account}$& / 任务$&")
 })
 
-test("WORKFLOWS 目录：博客写稿、知乎三条在通用写稿前；知乎三条按回答、改写、写文章排", () => {
-  expect(WORKFLOWS).toEqual([BLOG_WRITE, ZHIHU_ANSWER, ZHIHU_FROM_BLOG, ZHIHU_ARTICLE, GENERAL_WRITE])
+test("WORKFLOWS 目录：博客写稿、知乎三条、小红书卡片在通用写稿前；知乎三条按回答、改写、写文章排", () => {
+  expect(WORKFLOWS).toEqual([BLOG_WRITE, ZHIHU_ANSWER, ZHIHU_FROM_BLOG, ZHIHU_ARTICLE, XHS_CARDS, GENERAL_WRITE])
   expect(BLOG_WRITE.platform).toBe("blog")
   expect(BLOG_WRITE.from).toBe("any")
   expect(ZHIHU_ANSWER.platform).toBe("zhihu")
   expect(ZHIHU_ANSWER.from).toBe("question")
   expect(ZHIHU_FROM_BLOG.from).toBe("blog-work")
   expect(ZHIHU_ARTICLE.from).toBe("idea")
+  expect(XHS_CARDS.platform).toBe("xiaohongshu")
+  expect(XHS_CARDS.from).toBe("any")
   expect(GENERAL_WRITE.platform).toBe("any")
   expect(GENERAL_WRITE.from).toBe("any")
 })
