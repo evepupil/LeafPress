@@ -20,7 +20,8 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "test": "vitest run",
-    "gate": "pnpm --filter @leafpress/core gate && pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm build && pnpm --filter leafpress-web gate"
+    "test:edge": "vitest run --config vitest.edge.config.ts",
+    "gate": "pnpm --filter @leafpress/core gate && pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm test:edge && pnpm build && pnpm --filter leafpress-web gate"
   },
   "dependencies": {
     "@hono/node-server": "2.1.4",

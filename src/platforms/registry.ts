@@ -4,6 +4,8 @@ import { createBlogImporter } from "./blog/import.js";
 import { createBlogHandlers } from "./blog/steps/index.js";
 import { createUmamiDataTool } from "./blog/umami/data.js";
 import { GENERAL_HANDLERS } from "./general/index.js";
+import { createEdgeCardRenderer } from "./xiaohongshu/cards/edge.js";
+import { createXhsHandlers } from "./xiaohongshu/steps/index.js";
 import { createZhihuDataTool } from "./zhihu/data.js";
 import { createZhihuImporter } from "./zhihu/import.js";
 import { ZHIHU_STEP_HANDLERS } from "./zhihu/steps/index.js";
@@ -22,7 +24,7 @@ export interface PlatformRuntimeOptions {
   sleep?: (ms: number) => Promise<void>;
 }
 
-/** 登记已实现的代码步骤、拿数据的工具、导入工具：通用写稿 + 博客 + 知乎 */
+/** 登记已实现的代码步骤、拿数据的工具、导入工具：通用写稿 + 博客 + 知乎 + 小红书 */
 export function createPlatformRuntime(
   options: PlatformRuntimeOptions = {},
 ): PlatformRuntime {
@@ -30,6 +32,10 @@ export function createPlatformRuntime(
     ...Object.entries(GENERAL_HANDLERS),
     ...Object.entries(createBlogHandlers(options)),
     ...Object.entries(ZHIHU_STEP_HANDLERS),
+    // 小红书卡片出图用本机 Edge；起 Edge 是在步骤执行时，登记时不起
+    ...Object.entries(
+      createXhsHandlers({ renderer: createEdgeCardRenderer() }),
+    ),
   ]);
   const dataTools: Partial<Record<PlatformId, DataTool>> = {
     blog: createUmamiDataTool(),
