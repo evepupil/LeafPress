@@ -84,3 +84,4 @@ skills/leafpress/
 | 2026-10-09 | 速查加 `account set`（密钥走 `--stdin`，任何输出不带值）和 `account import`（要先配好 `repo-path` 和 `site-url`）两条，共 29 条 |
 | 2026-10-10 | M3：SKILL.md 加「知乎写稿」一节（工作流自动配、写作规则在账号档案里、先确认大纲、稿子格式、复制页不用自己写、密钥走 `--stdin`、拉数据一天一次）；reference.md 加「知乎：三条工作流的注意事项」一节，`account import` 一行补知乎要先配 `access-secret` |
 | 2026-10-12 | 查数据的 JSON 说明加一句：`interactions` 是第二个数，知乎是互动、博客是访客，看 `secondaryLabel` |
+| 2026-10-16 | M5：SKILL.md 加「小红书图文卡片」一节（只写两份稿子、卡片稿和文案的限制、排版失败照清单改、分享链接长链短链都认）；reference.md 加「小红书：图文卡片的注意事项」一节 |
