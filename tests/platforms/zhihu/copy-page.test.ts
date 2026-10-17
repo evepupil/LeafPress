@@ -90,6 +90,7 @@ describe("知乎 copy-page：标题处理", () => {
       expect(page).not.toContain("<h1>");
       expect(bodyHtml(page)).toContain("<p>回答的第一段。</p>");
       expect(page).not.toContain("原文：");
+      expect(page).not.toContain("首发于个人博客：");
     });
   });
 });
@@ -215,7 +216,7 @@ describe("知乎 copy-page：链接", () => {
     );
   });
 
-  it("有来源作品时文末加「原文：<链接>」，作者自己写过的不再加", async () => {
+  it("博客改写文末加「首发于个人博客：<链接>」，作者自己写过的不再加；其他工作流仍写「原文」", async () => {
     const sourceWork = { url: "https://blog.example.test/posts/old/" };
     await withFixture(
       { workflowId: "zhihu-from-blog", sourceWork },
@@ -224,7 +225,7 @@ describe("知乎 copy-page：链接", () => {
         await generateCopyPage(fixture.ctx);
         const body = bodyHtml(await readPage(fixture.folder));
         expect(body).toContain(
-          '<p>原文：<a href="https://blog.example.test/posts/old/">https://blog.example.test/posts/old/</a></p>',
+          '<p>首发于个人博客：<a href="https://blog.example.test/posts/old/">https://blog.example.test/posts/old/</a></p>',
         );
       },
     );
@@ -234,12 +235,25 @@ describe("知乎 copy-page：链接", () => {
       async (fixture) => {
         await fixture.writeFile(
           "文章.md",
-          "# 标题\n\n正文。\n\n原文：https://blog.example.test/posts/old/\n",
+          "# 标题\n\n正文。\n\n首发于个人博客：https://blog.example.test/posts/old/\n",
         );
         await generateCopyPage(fixture.ctx);
         const body = bodyHtml(await readPage(fixture.folder));
-        expect((body.match(/原文：/g) ?? []).length, "自己写了就不重复加").toBe(
-          1,
+        expect(
+          (body.match(/首发于个人博客：/g) ?? []).length,
+          "自己写了就不重复加",
+        ).toBe(1);
+      },
+    );
+
+    await withFixture(
+      { workflowId: "zhihu-article", sourceWork },
+      async (fixture) => {
+        await fixture.writeFile("文章.md", "# 标题\n\n正文。\n");
+        await generateCopyPage(fixture.ctx);
+        const body = bodyHtml(await readPage(fixture.folder));
+        expect(body).toContain(
+          '<p>原文：<a href="https://blog.example.test/posts/old/">https://blog.example.test/posts/old/</a></p>',
         );
       },
     );

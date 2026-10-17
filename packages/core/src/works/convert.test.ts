@@ -78,7 +78,8 @@ describe("转作品", () => {
     const source = { kind: "work", work: origin, platform: "blog" } as const
     const [created] = convert(source, [account("zhihu-1", "zhihu")], "  改写  ", { at, ids: ["z-30"], firstOrder: 1 })
     expect(workSourceOf(source)).toEqual({ kind: "work", workId: "b-4" })
-    expect(defaultBrief(source)).toBe("照这个平台的写法改写，文末附原文链接。")
+    expect(defaultBrief(source)).toBe("照这个平台的写法改写，文末注明首发于个人博客。")
+    expect(defaultBrief({ kind: "work", work: origin, platform: "zhihu" })).toBe("照这个平台的写法改写，文末附原文链接。")
     expect(created).toMatchObject({
       title: "  原作品标题  ",
       brief: "改写",

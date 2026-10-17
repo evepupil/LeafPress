@@ -200,7 +200,7 @@ describe("M3 知乎端到端", () => {
     );
     expect(page).toContain(`src="${PNG_DATA_URL}"`);
     expect(page).toContain(`href="${SITE_URL}/posts/demo/"`);
-    expect(page).toContain(`原文：<a href="${SITE_URL}/posts/demo/"`);
+    expect(page).toContain(`首发于个人博客：<a href="${SITE_URL}/posts/demo/"`);
     expect((page.match(/<figure class="fig"/g) ?? []).length).toBe(2);
     // 停在等你处理（你去发布）
     expect(run.detail.work.status).toBe("waiting");

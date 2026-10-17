@@ -14,7 +14,10 @@ export function workSourceOf(source: ConvertSource): WorkSource {
 /** 转作品时的默认要求文字。 */
 export function defaultBrief(source: ConvertSource): string {
   if (source.kind === "idea") return source.idea.detail
-  if (source.kind === "work") return "照这个平台的写法改写，文末附原文链接。"
+  if (source.kind === "work") {
+    // 博客来源是作者自己的原稿，标「首发」表明是原作者；其他平台来源仍写「附原文链接」
+    return source.platform === "blog" ? "照这个平台的写法改写，文末注明首发于个人博客。" : "照这个平台的写法改写，文末附原文链接。"
+  }
   return ""
 }
 

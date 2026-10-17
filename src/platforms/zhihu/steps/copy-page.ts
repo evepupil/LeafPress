@@ -4,7 +4,8 @@
  * 照规格《平台适配 · 知乎》第 1～6 条：
  * 1. 去掉开头的 frontmatter；文章取第一行 `# 标题` 当标题（正文里去掉），回答没有标题；
  * 2. 以 `/` 开头的站内链接补成来源博客的完整网址（取来源作品链接的 `协议://主机`）；
- * 3. 博客改写（有来源作品）在文末加「原文：<来源博客文章链接>」；
+ * 3. 博客改写（有来源作品）在文末加「首发于个人博客：<来源博客文章链接>」（原稿是作者自己的博客，
+ *    标「首发」表明是原作者；其他工作流带来源时仍加「原文：」）；
  * 4. 图片一律内嵌成 data URL：先任务文件夹里的同名文件，再来源博客仓库 `public/` 下对应路径，
  *    再用 ctx.fetch 下载（站内拼站点地址、外链原样，10 秒超时）；
  *    都拿不到换成占位行「【图片缺失：<原地址>】」；
@@ -49,11 +50,12 @@ export interface PreparedDraft {
   title?: string;
 }
 
-/** 读稿子、摘标题；文章去掉第一行 `# 标题` */
+/** 读稿子、摘标题；文章去掉第一行 `# 标题`；fromBlog 是不是博客改写工作流 */
 function prepareDraft(
   source: string,
   isAnswer: boolean,
   sourceUrl: string | undefined,
+  fromBlog: boolean,
 ): PreparedDraft {
   let body = stripFrontmatter(source);
   let title: string | undefined;
@@ -65,9 +67,11 @@ function prepareDraft(
     }
   }
   body = body.trim();
-  // 博客改写：文末加原文链接；作者自己写了就不重复加
+  // 文末加来源链接：博客改写标「首发于个人博客」（作者是原稿作者），其他来源仍写「原文」；
+  // 作者自己写了就不重复加
   if (sourceUrl && !body.includes(sourceUrl)) {
-    body = `${body}\n\n原文：${sourceUrl}`;
+    const label = fromBlog ? "首发于个人博客：" : "原文：";
+    body = `${body}\n\n${label}${sourceUrl}`;
   }
   return { body, title };
 }
@@ -97,7 +101,12 @@ export const generateCopyPage: CodeStepHandler = async (
   }
 
   const sourceUrl = ctx.sourceWork?.url;
-  const draft = prepareDraft(source, isAnswer, sourceUrl);
+  const draft = prepareDraft(
+    source,
+    isAnswer,
+    sourceUrl,
+    ctx.workflow.id === "zhihu-from-blog",
+  );
   const siteOrigin = siteOriginOf(sourceUrl);
 
   // 图片内嵌按稿子里的原地址找；站内链接的补全在渲染时改 token，两不耽误
