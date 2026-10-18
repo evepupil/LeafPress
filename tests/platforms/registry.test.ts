@@ -62,5 +62,11 @@ describe("平台适配登记表", () => {
       undefined,
       undefined,
     ]);
+    expect(runtime.questionFinder("zhihu")).toBeDefined();
+    expect(
+      (["blog", ...others] as PlatformId[]).map((platform) =>
+        runtime.questionFinder(platform),
+      ),
+    ).toEqual([undefined, undefined, undefined]);
   });
 });

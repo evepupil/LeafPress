@@ -20,3 +20,11 @@ export class ZhihuApiError extends Error {
     this.name = "ZhihuApiError";
   }
 }
+
+/** 每秒请求限流重试耗尽；Code 仍为 30001，但不代表当天额度用完。 */
+export class ZhihuRateLimitError extends ZhihuApiError {
+  constructor(message: string) {
+    super(message, 30001);
+    this.name = "ZhihuRateLimitError";
+  }
+}

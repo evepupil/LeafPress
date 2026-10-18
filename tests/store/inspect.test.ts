@@ -23,9 +23,9 @@ describe("只读检查记录库", () => {
   it("文件不存在时不创建目录或数据库", async () => {
     await withTempDir((directory) => {
       const missing = join(directory, "not-created", "store.sqlite");
-      expect(inspectStore(missing, 2)).toEqual({
+      expect(inspectStore(missing, 3)).toEqual({
         exists: false,
-        expectedVersion: 2,
+        expectedVersion: 3,
       });
       expect(existsSync(join(directory, "not-created"))).toBe(false);
       expect(existsSync(missing)).toBe(false);
@@ -38,10 +38,10 @@ describe("只读检查记录库", () => {
       await writeFile(dbFile, Buffer.alloc(0));
       const filesBefore = (await readdir(directory)).sort();
 
-      expect(inspectStore(dbFile, 2)).toEqual({
+      expect(inspectStore(dbFile, 3)).toEqual({
         exists: true,
         version: 0,
-        expectedVersion: 2,
+        expectedVersion: 3,
       });
       expect((await readdir(directory)).sort()).toEqual(filesBefore);
       expect(statSync(dbFile).size).toBe(0);
@@ -57,10 +57,10 @@ describe("只读检查记录库", () => {
       const filesBefore = (await readdir(directory)).sort();
       const before = await sha256File(dbFile);
 
-      expect(inspectStore(dbFile, 2)).toEqual({
+      expect(inspectStore(dbFile, 3)).toEqual({
         exists: true,
         version: 1,
-        expectedVersion: 2,
+        expectedVersion: 3,
       });
       expect((await readdir(directory)).sort()).toEqual(filesBefore);
       expect(await sha256File(dbFile)).toBe(before);
@@ -74,15 +74,15 @@ describe("只读检查记录库", () => {
       try {
         writer.exec("PRAGMA journal_mode = WAL");
         writer.exec("CREATE TABLE inspect_wal (value TEXT)");
-        writer.exec("PRAGMA user_version = 3");
+        writer.exec("PRAGMA user_version = 4");
         writer.prepare("INSERT INTO inspect_wal VALUES (?)").run("wal");
         expect(statSync(`${dbFile}-wal`).size).toBeGreaterThan(0);
         const filesBefore = (await readdir(directory)).sort();
 
-        expect(inspectStore(dbFile, 2)).toEqual({
+        expect(inspectStore(dbFile, 3)).toEqual({
           exists: true,
-          version: 3,
-          expectedVersion: 2,
+          version: 4,
+          expectedVersion: 3,
         });
         expect((await readdir(directory)).sort()).toEqual(filesBefore);
       } finally {
@@ -95,13 +95,13 @@ describe("只读检查记录库", () => {
     await withTempDir((directory) => {
       const dbFile = join(directory, "store.sqlite");
       const writer = new DatabaseSync(dbFile);
-      writer.exec("PRAGMA user_version = 3");
+      writer.exec("PRAGMA user_version = 4");
       writer.close();
 
-      expect(inspectStore(dbFile, 2)).toEqual({
+      expect(inspectStore(dbFile, 3)).toEqual({
         exists: true,
-        version: 3,
-        expectedVersion: 2,
+        version: 4,
+        expectedVersion: 3,
       });
     });
   });

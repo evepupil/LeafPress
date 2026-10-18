@@ -151,6 +151,9 @@ export function spyUseCases(
   const useCases = {
     bootstrap,
     dataset: readDataset,
+    gatherIdeas: vi.fn(() => Promise.resolve({ sources: [], pool: [] })),
+    listCandidates: vi.fn(() => []),
+    skipCandidates: vi.fn(() => []),
   } as unknown as UseCases;
   return { useCases, bootstrap, dataset: readDataset };
 }

@@ -19,7 +19,11 @@
 import { setTimeout as delay } from "node:timers/promises";
 
 import { redactSecrets } from "../../../config/redact.js";
-import { ZhihuApiError, ZhihuAuthenticationError } from "./errors.js";
+import {
+  ZhihuApiError,
+  ZhihuAuthenticationError,
+  ZhihuRateLimitError,
+} from "./errors.js";
 
 /** 接口根地址（调研文档 0 节） */
 const API_BASE = "https://developer.zhihu.com/api/v1";
@@ -126,9 +130,8 @@ function businessExhausted(
 ): ZhihuApiError {
   const detail = detailOf(message);
   if (code === 30001)
-    return new ZhihuApiError(
+    return new ZhihuRateLimitError(
       `知乎开放平台限流（每秒调用次数超了），重试 3 次仍不行${detail}`,
-      code,
     );
   return new ZhihuApiError(
     `知乎开放平台请求失败（90001），重试 3 次仍不行${detail}`,
@@ -284,6 +287,12 @@ export function createZhihuClient(options: ZhihuClientOptions): ZhihuClient {
         return await transport(urlOf(path, query));
       } catch (error) {
         if (error instanceof ZhihuAuthenticationError) throw error;
+        if (error instanceof ZhihuRateLimitError) {
+          const message = scrub(error.message);
+          throw message === error.message
+            ? error
+            : new ZhihuRateLimitError(message);
+        }
         if (error instanceof ZhihuApiError) {
           const message = scrub(error.message);
           throw message === error.message

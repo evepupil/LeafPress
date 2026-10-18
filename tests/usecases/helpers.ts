@@ -13,7 +13,9 @@ import type {
   CodeStepHandler,
   DataTool,
   PostImporter,
+  QuestionFinder,
 } from "../../src/platforms/types.js";
+import type { ReadDevActivity } from "../../src/ideas/types.js";
 import type { AppContext } from "../../src/usecases/context.js";
 
 export interface TestClock {
@@ -33,6 +35,9 @@ export interface TestOptions {
   codeStep?: CodeStepHandler;
   dataTool?: DataTool;
   importer?: PostImporter;
+  questionFinder?: QuestionFinder;
+  readDevActivity?: ReadDevActivity;
+  devRoots?: readonly string[];
   warn?: (message: string) => void;
 }
 
@@ -78,6 +83,9 @@ export async function withUseCases<T>(
     importer(platform) {
       return platform === "blog" ? options.importer : undefined;
     },
+    questionFinder(platform) {
+      return platform === "zhihu" ? options.questionFinder : undefined;
+    },
   };
   let app: AppContext | undefined;
   try {
@@ -86,8 +94,14 @@ export async function withUseCases<T>(
       now: () => new Date(current),
       newToken: () => `token-${++serial}`,
       ...(options.catalog === undefined ? {} : { catalog: options.catalog }),
+      readDevActivity: options.readDevActivity ?? (() => Promise.resolve([])),
+      devRoots: options.devRoots ?? [],
+      sleep: async () => {},
       platforms:
-        options.codeStep || options.dataTool || options.importer
+        options.codeStep ||
+        options.dataTool ||
+        options.importer ||
+        options.questionFinder
           ? runtime
           : undefined,
       ...(options.warn === undefined ? {} : { warn: options.warn }),

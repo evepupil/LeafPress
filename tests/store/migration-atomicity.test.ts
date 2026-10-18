@@ -140,7 +140,7 @@ describe("记录库迁移原子性", () => {
       ).toThrow(
         expect.objectContaining({
           code: "MIGRATION_FAILED",
-          message: "记录库版本为 2，高于当前代码支持的版本 1。",
+          message: "记录库版本为 3，高于当前代码支持的版本 1。",
         }),
       );
     });

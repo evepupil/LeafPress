@@ -132,3 +132,30 @@ export const BUSINESS_SCHEMA_SQL = `
         updated_at TEXT NOT NULL
       );
     `;
+
+// 第 3 版只新增候选相关表和序号，升级作者真实数据目录时不触碰旧表和旧记录。
+export const IDEA_CANDIDATES_SCHEMA_SQL = `
+      CREATE TABLE idea_candidates (
+        id TEXT PRIMARY KEY,
+        key TEXT NOT NULL UNIQUE,
+        kind TEXT NOT NULL,
+        title TEXT NOT NULL,
+        url TEXT,
+        account_id TEXT REFERENCES accounts(id) ON DELETE SET NULL,
+        score REAL NOT NULL,
+        state TEXT NOT NULL,
+        idea_id TEXT,
+        payload TEXT NOT NULL,
+        first_seen_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      );
+      CREATE INDEX idea_candidates_state ON idea_candidates(state);
+      CREATE UNIQUE INDEX idea_candidates_idea ON idea_candidates(idea_id) WHERE idea_id IS NOT NULL;
+
+      CREATE TABLE idea_probes (
+        key TEXT PRIMARY KEY,
+        at TEXT NOT NULL
+      );
+
+      INSERT INTO meta (key, value) VALUES ('serial_candidate', 0);
+    `;

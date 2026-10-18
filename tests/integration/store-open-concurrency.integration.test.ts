@@ -124,9 +124,9 @@ describe("记录库并发打开", () => {
     const results = await runWorkers(dbFile, directory, "fresh", 6);
     for (const result of results) expect(result.code, result.output).toBe(0);
     const reports = results.map((result) => parseReport(result.output));
-    expect(reports.every((report) => report.to === 2)).toBe(true);
+    expect(reports.every((report) => report.to === 3)).toBe(true);
     expect(
-      reports.every((report) => report.from === 0 || report.from === 2),
+      reports.every((report) => report.from === 0 || report.from === 3),
     ).toBe(true);
     expect(reports.every((report) => report.backupPath === undefined)).toBe(
       true,
@@ -134,7 +134,7 @@ describe("记录库并发打开", () => {
     expect(existsSync(join(directory, "fresh", "backups"))).toBe(false);
 
     const store = openStore(dbFile);
-    expect(store.migration).toEqual({ from: 2, to: 2 });
+    expect(store.migration).toEqual({ from: 3, to: 3 });
     store.close();
   }, 90_000);
 
@@ -160,12 +160,12 @@ describe("记录库并发打开", () => {
     const results = await runWorkers(dbFile, directory, "upgrade", 6);
     for (const result of results) expect(result.code, result.output).toBe(0);
     const reports = results.map((result) => parseReport(result.output));
-    expect(reports.every((report) => report.to === 2)).toBe(true);
+    expect(reports.every((report) => report.to === 3)).toBe(true);
     expect(
       reports.filter((report) => report.backupPath !== undefined),
     ).toHaveLength(1);
     expect(
-      reports.every((report) => report.from === 1 || report.from === 2),
+      reports.every((report) => report.from === 1 || report.from === 3),
     ).toBe(true);
 
     const backupPath = reports.find((report) => report.backupPath)?.backupPath;
@@ -186,7 +186,7 @@ describe("记录库并发打开", () => {
     ]);
 
     const upgraded = openStore(dbFile);
-    expect(upgraded.migration).toEqual({ from: 2, to: 2 });
+    expect(upgraded.migration).toEqual({ from: 3, to: 3 });
     upgraded.close();
   }, 90_000);
 });

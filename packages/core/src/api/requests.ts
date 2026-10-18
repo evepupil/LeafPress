@@ -48,6 +48,11 @@ export interface AddIdeaInput {
   accountId?: string
   source: IdeaSource
   sourceDetail?: string
+  /**
+   * 跑灵感时由哪个候选变来（c-…）：候选必须还在池里（new），加完标成已推并记下灵感编号；
+   * 没给 accountId、sourceDetail 时按候选补上（见 docs/模块设计/灵感-跑灵感.md）
+   */
+  candidateId?: string
 }
 
 /** PATCH /api/ideas/:id；null 表示清空 */

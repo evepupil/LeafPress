@@ -5,10 +5,12 @@ import { DatabaseSync } from "node:sqlite";
 
 import { LeafPressError } from "../shared/errors.js";
 import { createAccountsRepo } from "./accounts.js";
+import { createIdeaCandidatesRepo } from "./candidates.js";
 import { createIdeasRepo } from "./ideas.js";
 import { createMetaRepo } from "./meta.js";
 import { migrate, MIGRATIONS } from "./migrations.js";
 import { createNotesRepo } from "./notes.js";
+import { createIdeaProbesRepo } from "./probes.js";
 import { createPullsRepo } from "./pulls.js";
 import {
   storeFailed,
@@ -49,6 +51,8 @@ export function openStore(
       accounts: createAccountsRepo(context),
       settings: createSettingsRepo(context),
       ideas: createIdeasRepo(context),
+      candidates: createIdeaCandidatesRepo(context),
+      probes: createIdeaProbesRepo(context),
       works: createWorksRepo(context),
       snapshots: createSnapshotsRepo(context),
       pulls: createPullsRepo(context),

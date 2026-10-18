@@ -8,6 +8,13 @@ import {
 } from "./repo-common.js";
 import { storeFailed } from "./sql.js";
 
+const SERIAL_KEYS = {
+  work: "serial_work",
+  idea: "serial_idea",
+  account: "serial_account",
+  candidate: "serial_candidate",
+} satisfies Record<Parameters<MetaRepo["nextSerial"]>[0], string>;
+
 export function createMetaRepo(context: RepoContext): MetaRepo {
   return {
     version() {
@@ -33,7 +40,7 @@ export function createMetaRepo(context: RepoContext): MetaRepo {
       });
     },
     nextSerial(name) {
-      const key = `serial_${name}`;
+      const key = SERIAL_KEYS[name];
       return writeRepo(context, "meta", "key, value", () => {
         const row = context.db
           .prepare("SELECT value FROM meta WHERE key = ?")

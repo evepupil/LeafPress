@@ -2,6 +2,7 @@ import type {
   Account,
   CodeOutcome,
   DayKey,
+  QuestionVia,
   Work,
   WorkflowDef,
   WorkflowStep,
@@ -123,8 +124,59 @@ export interface PostImporter {
   list(ctx: ImportContext): Promise<ImportOutcome>;
 }
 
+/** 跑灵感时平台的找问题工具拿到的东西（目前只有知乎有，见 docs/模块设计/灵感-跑灵感.md） */
+export interface QuestionFinderContext {
+  /** 用哪个账号的身份去找（知乎账号；个性化推荐按它的画像） */
+  account: Account;
+  /** 主题词（去过重、去过空白，最多 5 个）；为空时不跑主题推荐，热榜也没法筛，一并跳过 */
+  topics: string[];
+  /** 这次拿去反找问题的博客作品（用例挑好的，最多 3 篇） */
+  blogs: { workId: string; title: string }[];
+  /** 不用再找的问题编号：作者答过的、已在灵感或作品里的、推过或不要的、14 天内跳过的 */
+  skipQuestionIds: ReadonlySet<string>;
+  /** 最多给几个问题补回答摘要（问题回答接口和问题推荐共用每天 100 次的额度） */
+  summaryLimit: number;
+  secret(key: string): string | undefined;
+  fetch: typeof fetch;
+  /** 等待（接口限流时留间隔、重试前退避）；测试里换成不真等的。没给时用真实的等待 */
+  sleep?(ms: number): Promise<void>;
+  progress?(message: string): void;
+}
+
+/** 找到的一个问题（还没去重到候选池，用例来合并） */
+export interface FoundQuestion {
+  questionId: string;
+  title: string;
+  /** 规范成 https://www.zhihu.com/question/<编号>，不带查询参数 */
+  url: string;
+  via: QuestionVia[];
+  topics: string[];
+  blogWorkIds: string[];
+  /** 补了摘要的才有内容 */
+  answerSummaries: string[];
+}
+
+/** 每种找法各自的结果：一种找法出错不影响别的 */
+export interface QuestionFinderStage {
+  /** personal 个性化推荐、topic 主题推荐、blog 博客反找、hot 热榜、summary 补回答摘要 */
+  stage: QuestionVia | "summary";
+  found: number;
+  warning?: string;
+}
+
+export type QuestionFinderOutcome =
+  | { ok: true; questions: FoundQuestion[]; stages: QuestionFinderStage[] }
+  /** 根本跑不了（没配密钥、密钥失效）；expiredKey 同拿数据工具，用例会把它标成过期 */
+  | { ok: false; reason: string; fixHint?: string; expiredKey?: string };
+
+export interface QuestionFinder {
+  find(ctx: QuestionFinderContext): Promise<QuestionFinderOutcome>;
+}
+
 export interface PlatformRuntime {
   codeStep(workflowId: string, stepId: string): CodeStepHandler | undefined;
   dataTool(platform: Account["platform"]): DataTool | undefined;
   importer(platform: Account["platform"]): PostImporter | undefined;
+  /** 跑灵感时找值得回答的问题；平台没有就是 undefined */
+  questionFinder(platform: Account["platform"]): QuestionFinder | undefined;
 }

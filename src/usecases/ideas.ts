@@ -7,6 +7,7 @@ import {
   updateIdea as applyUpdateIdea,
   type AddIdeaInput,
   type Idea,
+  type IdeaCandidate,
   type IdeaSource,
   type IdeaStatus,
   type MoveIdeaInput,
@@ -48,6 +49,37 @@ export function createIdeasUseCases(
     addIdeas(inputs: AddIdeaInput[]): Idea[] {
       const { at } = nowParts(app);
       return app.store.transaction(() => {
+        const candidateById = new Map<string, IdeaCandidate>();
+        const candidateErrors: string[] = [];
+        const seenCandidateIds = new Set<string>();
+        for (const input of inputs) {
+          const candidateId = input.candidateId;
+          if (candidateId === undefined) continue;
+          if (seenCandidateIds.has(candidateId)) {
+            candidateErrors.push(`候选 ${candidateId} 在本批里重复`);
+            continue;
+          }
+          seenCandidateIds.add(candidateId);
+          const candidate = app.store.candidates.get(candidateId);
+          if (!candidate) {
+            candidateErrors.push(`候选 ${candidateId} 不存在`);
+            continue;
+          }
+          if (candidate.state !== "new") {
+            const reason =
+              candidate.state === "suggested"
+                ? "已经推过"
+                : candidate.state === "rejected"
+                  ? "已标为不要"
+                  : "不在池里";
+            candidateErrors.push(`候选 ${candidateId} ${reason}`);
+            continue;
+          }
+          candidateById.set(candidateId, candidate);
+        }
+        if (candidateErrors.length)
+          throw new LeafPressError("USAGE", candidateErrors.join("\n"));
+
         const ideas = app.store.ideas.list();
         const firstOrder = topIdeaOrder(ideas, "inbox") - inputs.length + 1;
         return inputs.map((input, index) => {
@@ -58,8 +90,18 @@ export function createIdeasUseCases(
               "USAGE",
               `灵感来源不合法：${String(input.source)}`,
             );
-          if (input.accountId !== undefined)
-            requireAccount(app, input.accountId);
+          const candidate =
+            input.candidateId === undefined
+              ? undefined
+              : candidateById.get(input.candidateId);
+          const accountId = input.accountId ?? candidate?.accountId;
+          if (accountId !== undefined) requireAccount(app, accountId);
+          const sourceDetail =
+            input.sourceDetail ??
+            candidate?.url ??
+            (candidate?.payload.kind === "devlog"
+              ? candidate.payload.path
+              : undefined);
           const serial = app.store.meta.nextSerial("idea");
           const idea: Idea = {
             id: newIdeaId(serial),
@@ -67,18 +109,22 @@ export function createIdeasUseCases(
             detail: input.detail ?? "",
             status: "inbox",
             source: input.source,
-            ...(input.sourceDetail === undefined
-              ? {}
-              : { sourceDetail: input.sourceDetail }),
-            ...(input.accountId === undefined
-              ? {}
-              : { accountId: input.accountId }),
+            ...(sourceDetail === undefined ? {} : { sourceDetail }),
+            ...(accountId === undefined ? {} : { accountId }),
             order: firstOrder + index,
             createdAt: at,
             updatedAt: at,
             workIds: [],
           };
           app.store.ideas.insert(idea);
+          if (candidate) {
+            app.store.candidates.update({
+              ...candidate,
+              state: "suggested",
+              ideaId: idea.id,
+              updatedAt: at,
+            });
+          }
           return idea;
         });
       });
@@ -139,8 +185,16 @@ export function createIdeasUseCases(
     },
 
     deleteIdea(id: string): void {
+      const { at } = nowParts(app);
       app.store.transaction(() => {
         requireIdea(app, id);
+        const candidate = app.store.candidates.getByIdea(id);
+        if (candidate?.state === "suggested")
+          app.store.candidates.update({
+            ...candidate,
+            state: "rejected",
+            updatedAt: at,
+          });
         app.store.ideas.remove(id);
       });
     },

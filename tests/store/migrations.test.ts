@@ -21,12 +21,12 @@ async function withDirectory<T>(
 }
 
 describe("记录库升级", () => {
-  it("新库升级到第 2 版，表、meta 初值和报告正确", async () => {
+  it("新库升级到第 3 版，表、meta 初值和报告正确", async () => {
     await withDirectory((directory) => {
       const dbFile = join(directory, "nested", "store.sqlite");
       const store = openStore(dbFile);
       try {
-        expect(store.migration).toEqual({ from: 0, to: 2 });
+        expect(store.migration).toEqual({ from: 0, to: 3 });
         const db = new DatabaseSync(dbFile, { readOnly: true });
         try {
           const tables = db
@@ -39,6 +39,8 @@ describe("记录库升级", () => {
             "account_days",
             "account_settings",
             "accounts",
+            "idea_candidates",
+            "idea_probes",
             "ideas",
             "meta",
             "pulls",
@@ -54,18 +56,89 @@ describe("记录库升级", () => {
           ).toEqual([
             { key: "seq", value: 0 },
             { key: "serial_account", value: 0 },
+            { key: "serial_candidate", value: 0 },
             { key: "serial_idea", value: 0 },
             { key: "serial_work", value: 0 },
             { key: "snapshot_seq", value: 0 },
           ]);
           expect(db.prepare("PRAGMA user_version").get()).toEqual({
-            user_version: 2,
+            user_version: 3,
           });
         } finally {
           db.close();
         }
       } finally {
         store.close();
+      }
+    });
+  });
+
+  it("第 2 版的库升级到第 3 版，旧数据保持且候选表与序号就绪", async () => {
+    await withDirectory((directory) => {
+      const dbFile = join(directory, "store-v2.sqlite");
+      const versionTwo = openStore(dbFile, {
+        migrations: MIGRATIONS.slice(0, 2),
+      });
+      const oldAccount = {
+        id: "old-account",
+        platform: "blog" as const,
+        name: "旧账号",
+        stage: "active" as const,
+        since: "2025-01-01",
+        createdAt: "2025-01-01T00:00:00+08:00",
+        updatedAt: "2025-02-01T00:00:00+08:00",
+      };
+      const oldIdea = {
+        id: "old-idea",
+        text: "升级前的灵感",
+        detail: "旧数据不应变化",
+        status: "promising" as const,
+        source: "devlog" as const,
+        order: 4,
+        createdAt: "2025-01-02T00:00:00+08:00",
+        updatedAt: "2025-02-02T00:00:00+08:00",
+        workIds: [],
+      };
+      try {
+        expect(versionTwo.migration).toEqual({ from: 0, to: 2 });
+        versionTwo.accounts.insert(oldAccount);
+        versionTwo.ideas.insert(oldIdea);
+      } finally {
+        versionTwo.close();
+      }
+
+      const upgraded = openStore(dbFile);
+      try {
+        expect(upgraded.migration).toMatchObject({ from: 2, to: 3 });
+        expect(upgraded.accounts.get("old-account")).toEqual(oldAccount);
+        expect(upgraded.ideas.get("old-idea")).toEqual(oldIdea);
+        expect(upgraded.meta.version()).toEqual({ seq: 2, snapshotSeq: 0 });
+        expect(upgraded.meta.nextSerial("candidate")).toBe(1);
+        expect(upgraded.probes.get("blog:b-3")).toBeUndefined();
+        expect(upgraded.candidates.list()).toEqual([]);
+
+        const db = new DatabaseSync(dbFile, { readOnly: true });
+        try {
+          expect(db.prepare("PRAGMA user_version").get()).toEqual({
+            user_version: 3,
+          });
+          expect(
+            db
+              .prepare("SELECT key, value FROM meta WHERE key = ?")
+              .get("serial_candidate"),
+          ).toEqual({ key: "serial_candidate", value: 1 });
+          expect(
+            db
+              .prepare(
+                "SELECT name FROM sqlite_master WHERE type = 'table' AND name IN ('idea_candidates', 'idea_probes') ORDER BY name",
+              )
+              .all(),
+          ).toEqual([{ name: "idea_candidates" }, { name: "idea_probes" }]);
+        } finally {
+          db.close();
+        }
+      } finally {
+        upgraded.close();
       }
     });
   });
@@ -156,7 +229,7 @@ describe("记录库升级", () => {
 
       const upgraded = openStore(dbFile);
       try {
-        expect(upgraded.migration).toMatchObject({ from: 1, to: 2 });
+        expect(upgraded.migration).toMatchObject({ from: 1, to: 3 });
         const backupPath = upgraded.migration.backupPath;
         expect(backupPath).toMatch(
           /[/\\]backups[/\\]store\.sqlite\.bak-v1-\d{17}-\d+$/,

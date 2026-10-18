@@ -1,8 +1,10 @@
 import type {
   AccountDayRecord,
   AccountStage,
+  CandidateState,
   DayKey,
   Idea,
+  IdeaCandidate,
   IsoTime,
   PlatformId,
   PullRecord,
@@ -69,6 +71,31 @@ export interface IdeasRepo {
   remove(id: string): void;
 }
 
+/**
+ * 灵感候选（表 idea_candidates，第 3 版升级加的）。payload 整个存成 JSON；
+ * key 唯一：同一个问题、同一个作品、同一个项目的同一周只有一行，状态在这一行上变。
+ */
+export interface IdeaCandidatesRepo {
+  /** 全部候选，或只要某几种状态的；按 kind、score 从高到低、再按 id */
+  list(filter?: { state?: CandidateState[] }): IdeaCandidate[];
+  get(id: string): IdeaCandidate | undefined;
+  getByKey(key: string): IdeaCandidate | undefined;
+  /** 变成这条灵感的候选（已推、不要的才有） */
+  getByIdea(ideaId: string): IdeaCandidate | undefined;
+  /** key 已存在抛 STORE_FAILED */
+  insert(candidate: IdeaCandidate): void;
+  /** 整行更新（key 不改）；不存在抛 STORE_FAILED */
+  update(candidate: IdeaCandidate): void;
+  /** 删掉一行（池满挤不进去、AI 没看过的候选）；不存在什么都不做 */
+  remove(id: string): void;
+}
+
+/** 某件事上次做是什么时候（表 idea_probes），例如某篇博客上次拿去反找问题的时间：键 blog:<作品编号> */
+export interface IdeaProbesRepo {
+  get(key: string): IsoTime | undefined;
+  set(key: string, at: IsoTime): void;
+}
+
 export interface WorksRepo {
   /** 全部作品，带记录和反馈历史（各自按写入先后） */
   list(): Work[];
@@ -121,7 +148,7 @@ export interface StoreVersion {
 export interface MetaRepo {
   version(): StoreVersion;
   /** 取下一个序号（从 1 开始），原子地加一 */
-  nextSerial(name: "work" | "idea" | "account"): number;
+  nextSerial(name: "work" | "idea" | "account" | "candidate"): number;
 }
 
 export interface Migration {
@@ -148,6 +175,8 @@ export interface Store {
   readonly accounts: AccountsRepo;
   readonly settings: SettingsRepo;
   readonly ideas: IdeasRepo;
+  readonly candidates: IdeaCandidatesRepo;
+  readonly probes: IdeaProbesRepo;
   readonly works: WorksRepo;
   readonly snapshots: SnapshotsRepo;
   readonly pulls: PullsRepo;

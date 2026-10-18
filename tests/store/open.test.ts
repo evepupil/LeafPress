@@ -9,18 +9,18 @@ import { account, withStore, work } from "./helpers.js";
 describe("openStore", () => {
   it("打开启用 WAL 和外键，重复打开不再迁移", async () => {
     await withStore((store, dbFile) => {
-      expect(store.migration).toEqual({ from: 0, to: 2 });
+      expect(store.migration).toEqual({ from: 0, to: 3 });
       store.accounts.insert(account());
       expect(inspectStore(dbFile, MIGRATIONS.length)).toEqual({
         exists: true,
-        version: 2,
-        expectedVersion: 2,
+        version: 3,
+        expectedVersion: 3,
       });
       store.close();
 
       const reopened = openStore(dbFile);
       try {
-        expect(reopened.migration).toEqual({ from: 2, to: 2 });
+        expect(reopened.migration).toEqual({ from: 3, to: 3 });
         const db = new DatabaseSync(dbFile, { readOnly: true });
         try {
           expect(db.prepare("PRAGMA journal_mode").get()).toEqual({
@@ -61,7 +61,7 @@ describe("openStore", () => {
           backup.prepare("SELECT key, value FROM account_settings").all(),
         ).toEqual([{ key: "timezone", value: "Asia/Shanghai" }]);
         expect(backup.prepare("PRAGMA user_version").get()).toEqual({
-          user_version: 2,
+          user_version: 3,
         });
       } finally {
         backup.close();

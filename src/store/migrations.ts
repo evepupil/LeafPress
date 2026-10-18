@@ -2,7 +2,10 @@ import { mkdirSync, unlinkSync } from "node:fs";
 import { basename, dirname, resolve } from "node:path";
 import type { DatabaseSync } from "node:sqlite";
 
-import { BUSINESS_SCHEMA_SQL } from "./migration-sql.js";
+import {
+  BUSINESS_SCHEMA_SQL,
+  IDEA_CANDIDATES_SCHEMA_SQL,
+} from "./migration-sql.js";
 import { LeafPressError } from "../shared/errors.js";
 import type { Migration, MigrationReport } from "./types.js";
 
@@ -112,6 +115,11 @@ export const MIGRATIONS: readonly Migration[] = [
     version: 2,
     name: "切换到业务记录模型",
     sql: BUSINESS_SCHEMA_SQL,
+  },
+  {
+    version: 3,
+    name: "增加灵感候选池",
+    sql: IDEA_CANDIDATES_SCHEMA_SQL,
   },
 ];
 

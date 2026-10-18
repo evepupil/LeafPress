@@ -7,6 +7,7 @@ import { GENERAL_HANDLERS } from "./general/index.js";
 import { createEdgeCardRenderer } from "./xiaohongshu/cards/edge.js";
 import { createXhsHandlers } from "./xiaohongshu/steps/index.js";
 import { createZhihuDataTool } from "./zhihu/data.js";
+import { createZhihuQuestionFinder } from "./zhihu/ideas/finder.js";
 import { createZhihuImporter } from "./zhihu/import.js";
 import { ZHIHU_STEP_HANDLERS } from "./zhihu/steps/index.js";
 import type {
@@ -45,6 +46,9 @@ export function createPlatformRuntime(
     blog: createBlogImporter(),
     zhihu: createZhihuImporter(),
   };
+  const questionFinders = {
+    zhihu: createZhihuQuestionFinder(),
+  };
 
   return {
     codeStep(workflowId, stepId) {
@@ -55,6 +59,9 @@ export function createPlatformRuntime(
     },
     importer(platform) {
       return importers[platform];
+    },
+    questionFinder(platform) {
+      return platform === "zhihu" ? questionFinders.zhihu : undefined;
     },
   };
 }

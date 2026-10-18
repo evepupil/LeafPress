@@ -1,7 +1,16 @@
-import type { AddIdeaInput, Idea, IdeaStatus, UseCases } from "@leafpress/core";
+import type {
+  AddIdeaInput,
+  CandidateState,
+  GatherReport,
+  Idea,
+  IdeaCandidate,
+  IdeaStatus,
+  UseCases,
+} from "@leafpress/core";
 import type { CliContext } from "../context.js";
 import { renderTable, tableCell } from "../output.js";
 import { LeafPressError } from "../../shared/errors.js";
+import { renderCandidatePool } from "./ideas-candidates-render.js";
 import {
   commandOptions,
   emitSuccess,
@@ -24,6 +33,80 @@ const IDEA_SOURCES = [
   "batch",
   "schedule",
 ] as const;
+
+const CANDIDATE_STATES: readonly CandidateState[] = [
+  "new",
+  "suggested",
+  "skipped",
+  "rejected",
+];
+
+export function parseTopics(value: string | undefined): string[] | undefined {
+  if (value === undefined) return undefined;
+  return value
+    .split(/[，,]/u)
+    .map((topic) => topic.trim())
+    .filter((topic) => topic.length > 0);
+}
+
+export function executeGatherIdeas(
+  usecases: Pick<UseCases, "gatherIdeas">,
+  topics?: string[],
+  onProgress?: (message: string) => void,
+): Promise<GatherReport> {
+  if (topics === undefined && onProgress === undefined)
+    return usecases.gatherIdeas();
+  return usecases.gatherIdeas({
+    ...(topics === undefined ? {} : { topics }),
+    ...(onProgress === undefined ? {} : { onProgress }),
+  });
+}
+
+export function executeListCandidates(
+  usecases: Pick<UseCases, "listCandidates">,
+  state?: string,
+): IdeaCandidate[] {
+  const filter = enumValues(state, CANDIDATE_STATES, "候选状态");
+  return usecases.listCandidates(
+    filter === undefined ? undefined : { state: filter },
+  );
+}
+
+export function executeSkipCandidates(
+  usecases: Pick<UseCases, "skipCandidates">,
+  rawIds: string | undefined,
+  rest: boolean,
+): IdeaCandidate[] {
+  const ids = (rawIds ?? "")
+    .split(/[，,\s]+/u)
+    .map((id) => id.trim())
+    .filter((id) => id.length > 0);
+  if (rest && ids.length > 0) {
+    throw new LeafPressError("USAGE", "编号和 --rest 只能选一种。");
+  }
+  if (rest) return usecases.skipCandidates("rest");
+  if (ids.length === 0) {
+    throw new LeafPressError("USAGE", "请提供候选编号，或使用 --rest。");
+  }
+  return usecases.skipCandidates(ids);
+}
+
+export function renderGatherReport(report: GatherReport): string {
+  const sourceLines = report.sources.map(
+    (source) =>
+      `${source.name}：找到 ${source.found} 条，新进池 ${source.added} 条${source.warning === undefined ? "" : `，警告：${source.warning}`}`,
+  );
+  const pool = renderCandidatePool(report.pool);
+  return sourceLines.length === 0
+    ? pool
+    : [...sourceLines, "", pool].join("\n");
+}
+
+export function renderSkippedCandidates(
+  candidates: readonly IdeaCandidate[],
+): string {
+  return `已跳过 ${candidates.length} 条`;
+}
 
 export function executeIdeas(
   usecases: Pick<UseCases, "listIdeas">,
@@ -75,6 +158,7 @@ export function parseIdeaBatch(raw: string): AddIdeaInput[] {
       "accountId",
       "source",
       "sourceDetail",
+      "candidateId",
     ] as const) {
       if (item[field] !== undefined && typeof item[field] !== "string") {
         throw new LeafPressError(
@@ -102,6 +186,9 @@ export function parseIdeaBatch(raw: string): AddIdeaInput[] {
         : {}),
       ...(typeof item["sourceDetail"] === "string"
         ? { sourceDetail: item["sourceDetail"] }
+        : {}),
+      ...(typeof item["candidateId"] === "string"
+        ? { candidateId: item["candidateId"] }
         : {}),
     };
   });
@@ -141,6 +228,39 @@ export async function run(
   const operation = requiredString(args[0], "灵感操作");
   const options = commandOptions(args.slice(1));
   const usecases = await context.getUseCases();
+  if (operation === "gather") {
+    const topics = parseTopics(
+      typeof options["topics"] === "string" ? options["topics"] : undefined,
+    );
+    // 进度不混入 stdout，避免污染 agent 读取的 --json 结果。
+    const report = await executeGatherIdeas(usecases, topics, (message) => {
+      process.stderr.write(`${message}\n`);
+    });
+    emitSuccess(
+      context,
+      { sources: report.sources, pool: report.pool },
+      renderGatherReport(report),
+    );
+    return;
+  }
+  if (operation === "candidates") {
+    const candidates = executeListCandidates(
+      usecases,
+      typeof options["state"] === "string" ? options["state"] : undefined,
+    );
+    emitSuccess(context, { candidates }, renderCandidatePool(candidates));
+    return;
+  }
+  if (operation === "skip") {
+    const ids = positionalText(args.slice(1));
+    const candidates = executeSkipCandidates(
+      usecases,
+      ids,
+      options["rest"] === true,
+    );
+    emitSuccess(context, { candidates }, renderSkippedCandidates(candidates));
+    return;
+  }
   if (operation === "list") {
     const result = executeIdeas(
       usecases,
@@ -149,7 +269,8 @@ export async function run(
     emitSuccess(context, { ideas: result }, renderIdeas(result));
     return;
   }
-  if (operation !== "add") throw new Error(`未知 ideas 操作：${operation}`);
+  if (operation !== "add")
+    throw new LeafPressError("USAGE", `未知 ideas 操作：${operation}`);
 
   let inputs: AddIdeaInput[];
   if (options["stdin"] === true) {

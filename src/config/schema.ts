@@ -32,12 +32,21 @@ const LeaseSchema = z.strictObject({
     .default(120),
 });
 
+const IdeasSchema = z.strictObject({
+  devRoots: z
+    .array(
+      z.string().refine((value) => value.trim().length > 0, "不能为空字符串"),
+    )
+    .optional(),
+});
+
 export const ConfigSchema = z.strictObject({
   version: z.literal(2, { error: "必须是 2" }),
   server: ServerSchema.default({ port: 3210 }),
   browser: BrowserSchema.default({}),
   schedule: ScheduleSchema.default({ dataPullAt: "06:00" }),
   lease: LeaseSchema.default({ minutes: 120 }),
+  ideas: IdeasSchema.default({}),
 });
 
 export type LeafPressConfig = z.output<typeof ConfigSchema>;

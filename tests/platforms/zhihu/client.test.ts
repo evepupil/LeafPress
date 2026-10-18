@@ -4,6 +4,7 @@ import { createZhihuClient } from "../../../src/platforms/zhihu/api/client.js";
 import {
   ZhihuApiError,
   ZhihuAuthenticationError,
+  ZhihuRateLimitError,
 } from "../../../src/platforms/zhihu/api/errors.js";
 import {
   ACCESS_SECRET,
@@ -283,8 +284,10 @@ describe("业务错误码", () => {
       failed(30001, "second limit exceeded"),
     ]);
 
+    expect(error).toBeInstanceOf(ZhihuRateLimitError);
     expect(error).toMatchObject({
-      name: "ZhihuApiError",
+      name: "ZhihuRateLimitError",
+      code: 30001,
       message:
         "知乎开放平台限流（每秒调用次数超了），重试 3 次仍不行：second limit exceeded",
     });

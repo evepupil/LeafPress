@@ -1,4 +1,5 @@
 import { spawnSync } from "node:child_process";
+import { Readable } from "node:stream";
 import { fileURLToPath } from "node:url";
 import type {
   Account,
@@ -63,6 +64,30 @@ describe("CLI 入口", () => {
       "export",
       "skill",
     ]);
+    const ideas = program.commands.find(
+      (command) => command.name() === "ideas",
+    );
+    expect(ideas?.commands.map((command) => command.name())).toEqual([
+      "add",
+      "gather",
+      "candidates",
+      "skip",
+    ]);
+    expect(
+      ideas?.commands
+        .find((command) => command.name() === "gather")
+        ?.options.map((option) => option.long),
+    ).toContain("--topics");
+    expect(
+      ideas?.commands
+        .find((command) => command.name() === "candidates")
+        ?.options.map((option) => option.long),
+    ).toContain("--state");
+    expect(
+      ideas?.commands
+        .find((command) => command.name() === "skip")
+        ?.options.map((option) => option.long),
+    ).toContain("--rest");
     const data = program.commands.find((command) => command.name() === "data");
     expect(data?.commands.map((command) => command.name())).toEqual([
       "pull",
@@ -274,6 +299,112 @@ describe("CLI 入口", () => {
       expect(invalidSourceResult.error?.code).toBe("USAGE");
       expect(invalidSourceResult.error?.message).toContain("来源不合法");
     } finally {
+      process.exitCode = previous;
+    }
+  });
+
+  it("ideas 子命令经 Commander 解析后把参数传给对应用例", async () => {
+    const gatherIdeas = vi.fn(
+      (input?: Parameters<UseCases["gatherIdeas"]>[0]) => {
+        input?.onProgress?.("正在收集");
+        return Promise.resolve({ sources: [], pool: [] });
+      },
+    );
+    const listCandidates = vi.fn(() => []);
+    const skipCandidates = vi.fn(() => []);
+    const context = createCliContext(
+      { json: true },
+      {
+        env: {},
+        homedir: ".",
+        useCases: fakeUseCases({ gatherIdeas, listCandidates, skipCandidates }),
+      },
+    );
+    const createContext = () => context;
+    const previous = process.exitCode;
+    try {
+      process.exitCode = 0;
+      const gathered = await capture(() =>
+        main(["--json", "ideas", "gather", "--topics", "AI，,写作"], {
+          createContext,
+        }),
+      );
+      expect(gatherIdeas.mock.calls[0]?.[0]?.topics).toEqual(["AI", "写作"]);
+      expect(gathered.stderr).toBe("正在收集\n");
+      expect(JSON.parse(gathered.stdout)).toEqual({
+        ok: true,
+        sources: [],
+        pool: [],
+      });
+
+      await capture(() =>
+        main(["--json", "ideas", "candidates", "--state", "new,suggested"], {
+          createContext,
+        }),
+      );
+      expect(listCandidates).toHaveBeenCalledWith({
+        state: ["new", "suggested"],
+      });
+
+      await capture(() =>
+        main(["--json", "ideas", "skip", "c-1,c-2"], { createContext }),
+      );
+      expect(skipCandidates).toHaveBeenCalledWith(["c-1", "c-2"]);
+      await capture(() =>
+        main(["--json", "ideas", "skip", "--rest"], { createContext }),
+      );
+      expect(skipCandidates).toHaveBeenLastCalledWith("rest");
+    } finally {
+      process.exitCode = previous;
+    }
+  });
+
+  it("ideas add --stdin 把 candidateId 原样交给用例", async () => {
+    const previous = process.exitCode;
+    const stdin = vi.spyOn(process, "stdin", "get");
+    const addIdeas = vi.fn((inputs: AddIdeaInput[]) =>
+      inputs.map((input, index) =>
+        cast<Idea>({
+          id: `i-${index + 1}`,
+          ...input,
+          status: "inbox",
+        }),
+      ),
+    );
+    const context = createCliContext(
+      { json: true },
+      {
+        env: {},
+        homedir: ".",
+        useCases: fakeUseCases({ addIdeas }),
+      },
+    );
+    stdin.mockReturnValue(
+      Object.assign(
+        Readable.from([
+          '[{"text":"回答这个问题","source":"schedule","candidateId":"c-0042"}]',
+        ]),
+        { fd: 0 as const },
+      ) as NodeJS.ReadStream & { fd: 0 },
+    );
+    try {
+      process.exitCode = 0;
+      const output = await capture(() =>
+        main(["--json", "ideas", "add", "--stdin"], {
+          createContext: () => context,
+        }),
+      );
+      expect(addIdeas).toHaveBeenCalledWith([
+        {
+          text: "回答这个问题",
+          source: "schedule",
+          candidateId: "c-0042",
+        },
+      ]);
+      expect(JSON.parse(output.stdout)).toMatchObject({ ok: true });
+      expect(output.stderr).toBe("");
+    } finally {
+      stdin.mockRestore();
       process.exitCode = previous;
     }
   });

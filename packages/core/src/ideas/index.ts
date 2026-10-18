@@ -1,6 +1,8 @@
 import type { Idea, IdeaStatus, IsoTime } from "../types/index.ts"
 import type { RuleFailure } from "../works/engine.ts"
 
+export * from "./candidates.ts"
+
 export type IdeaResult = { ok: true; idea: Idea } | RuleFailure
 
 /** 一列内按 order，再按创建时间从新到旧排列。 */

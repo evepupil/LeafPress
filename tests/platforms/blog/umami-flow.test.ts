@@ -50,6 +50,7 @@ function runtime(): PlatformRuntime {
         ? createUmamiDataTool({ sleep: noSleep })
         : real.dataTool(platform),
     importer: (platform) => real.importer(platform),
+    questionFinder: () => undefined,
   };
 }
 

@@ -38,6 +38,7 @@ function validConfig(): LeafPressConfig {
     browser: { executablePath: "C:/tools/browser.exe" },
     schedule: { dataPullAt: "23:59" },
     lease: { minutes: 45 },
+    ideas: { devRoots: ["C:/code"] },
   };
 }
 
@@ -71,6 +72,7 @@ describe("配置 v2", () => {
       browser: {},
       schedule: { dataPullAt: "06:00" },
       lease: { minutes: 120 },
+      ideas: {},
     });
     expect(inspectConfig(home)).toEqual({ exists: false });
     expect(DEFAULT_CONFIG).toEqual(loadConfig(home));
@@ -101,6 +103,7 @@ describe("配置 v2", () => {
       browser: { executablePath: " edge.exe " },
       schedule: { dataPullAt: "00:00" },
       lease: { minutes: 5 },
+      ideas: {},
     };
     await writeFile(
       join(home, "config.json"),
@@ -115,6 +118,7 @@ describe("配置 v2", () => {
       browser: {},
       schedule: { dataPullAt: "23:59" },
       lease: { minutes: 1440 },
+      ideas: { devRoots: ["C:/code", "D:\\proj"] },
     };
     await writeFile(
       join(home, "config.json"),
@@ -173,6 +177,63 @@ describe("配置 v2", () => {
       loadConfig(home);
     } catch (error) {
       expect((error as Error).message).toContain("schedule.dataPullAt");
+    }
+  });
+
+  it("ideas.devRoots：可配、旧配置缺省 {}、非法值报错", async () => {
+    const home = await makeHome();
+
+    // 旧配置文件（加 ideas 之前写的）没有这一项，照样能读，补上缺省 {}
+    await writeFile(
+      join(home, "config.json"),
+      JSON.stringify({
+        version: 2,
+        server: { port: 4321 },
+        browser: {},
+        schedule: { dataPullAt: "23:59" },
+        lease: { minutes: 45 },
+      }),
+      "utf8",
+    );
+    expect(loadConfig(home).ideas).toEqual({});
+
+    // 显式配了字符串数组时原样读回
+    await writeFile(
+      join(home, "config.json"),
+      JSON.stringify({
+        version: 2,
+        ideas: { devRoots: ["C:/code", "D:/proj"] },
+      }),
+      "utf8",
+    );
+    expect(loadConfig(home).ideas).toEqual({
+      devRoots: ["C:/code", "D:/proj"],
+    });
+
+    // 非法值：元素不是字符串、空字符串、多余字段，都按现有规矩报配置错误且报出路径
+    await expectInvalid(
+      home,
+      JSON.stringify({ version: 2, ideas: { devRoots: ["C:/code", 3] } }),
+    );
+    try {
+      loadConfig(home);
+    } catch (error) {
+      expect((error as Error).message).toContain("ideas.devRoots");
+    }
+
+    await expectInvalid(
+      home,
+      JSON.stringify({ version: 2, ideas: { devRoots: ["   "] } }),
+    );
+
+    await expectInvalid(
+      home,
+      JSON.stringify({ version: 2, ideas: { devRoots: [], extra: 1 } }),
+    );
+    try {
+      loadConfig(home);
+    } catch (error) {
+      expect((error as Error).message).toContain("ideas");
     }
   });
 

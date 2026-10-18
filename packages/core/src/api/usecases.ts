@@ -1,7 +1,10 @@
 import type {
   Account,
+  CandidateState,
   CodeOutcome,
+  GatherReport,
   Idea,
+  IdeaCandidate,
   IdeaStatus,
   IsoTime,
   MetricsDataset,
@@ -118,11 +121,24 @@ export interface UseCases {
 
   // ---------- 灵感 ----------
   listIdeas(filter?: { status?: IdeaStatus[] }): Idea[]
-  /** 一次加多条：按传入的顺序排在收件箱最前面 */
+  /** 一次加多条：按传入的顺序排在收件箱最前面；带 candidateId 的，候选标成已推（候选不在池里时整批不加，USAGE） */
   addIdeas(inputs: AddIdeaInput[]): Idea[]
   updateIdea(id: string, patch: UpdateIdeaInput): Idea
   moveIdea(id: string, input: MoveIdeaInput): Idea
+  /** 删灵感；它是由候选变来的，候选标成不要，以后再也不推 */
   deleteIdea(id: string): void
+
+  // ---------- 跑灵感（命令行给 agent 用，见 docs/模块设计/灵感-跑灵感.md） ----------
+  /**
+   * 从各来源找候选、去重、补回答摘要、打分，放进候选池；返回每个来源的情况和跑完后的整个池。
+   * topics：从知乎账号档案提炼的主题词（agent 传进来，最多 5 个）；不给就只跑不需要主题词的来源。
+   * 某个来源出错（额度用完、密钥失效）只记在它的 warning 里，不影响别的来源。
+   */
+  gatherIdeas(input?: { topics?: string[]; onProgress?: (message: string) => void }): Promise<GatherReport>
+  /** 候选列表；缺省只列池里的（new），各类按 score 从高到低 */
+  listCandidates(filter?: { state?: CandidateState[] }): IdeaCandidate[]
+  /** 把池里的候选标成跳过：给编号，或者 "rest" 表示池里剩下的全部；编号不在池里报 USAGE */
+  skipCandidates(ids: string[] | "rest"): IdeaCandidate[]
 
   // ---------- 账号 ----------
   listAccounts(): Account[]

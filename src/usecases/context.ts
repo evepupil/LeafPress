@@ -1,3 +1,4 @@
+import { setTimeout as delay } from "node:timers/promises";
 import { randomInt } from "node:crypto";
 import { mkdirSync } from "node:fs";
 import type { PlatformId, PlatformInfo } from "@leafpress/core";
@@ -11,6 +12,8 @@ import { loadConfig } from "../config/load.js";
 import type { LeafPressConfig } from "../config/schema.js";
 import { createPlatformRuntime } from "../platforms/registry.js";
 import type { PlatformRuntime } from "../platforms/types.js";
+import { readDevActivity as defaultReadDevActivity } from "../ideas/devlog.js";
+import type { ReadDevActivity } from "../ideas/types.js";
 import { execCommand, type ExecFn } from "../shared/exec.js";
 import { openStore } from "../store/open.js";
 import type { Store } from "../store/types.js";
@@ -25,6 +28,9 @@ export interface AppContext {
   catalog: Record<PlatformId, PlatformInfo>;
   exec: ExecFn;
   fetch: typeof fetch;
+  readDevActivity: ReadDevActivity;
+  devRoots?: readonly string[];
+  sleep(ms: number): Promise<void>;
   /** 现在（测试注入）。 */
   now(): Date;
   /** 新的租约令牌（测试注入）；缺省 8 位小写字母和数字。 */
@@ -39,6 +45,9 @@ export interface OpenAppOptions {
   newToken?: () => string;
   exec?: ExecFn;
   fetch?: typeof fetch;
+  readDevActivity?: ReadDevActivity;
+  devRoots?: readonly string[];
+  sleep?: (ms: number) => Promise<void>;
   platforms?: PlatformRuntime;
   catalog?: Record<PlatformId, PlatformInfo>;
   warn?: (message: string) => void;
@@ -66,6 +75,9 @@ export function openApp(options: OpenAppOptions): AppContext {
     catalog: options.catalog ?? PLATFORMS,
     exec: options.exec ?? execCommand,
     fetch: options.fetch ?? globalThis.fetch.bind(globalThis),
+    readDevActivity: options.readDevActivity ?? defaultReadDevActivity,
+    ...(options.devRoots === undefined ? {} : { devRoots: options.devRoots }),
+    sleep: options.sleep ?? ((ms) => delay(ms)),
     now: options.now ?? (() => new Date()),
     newToken:
       options.newToken ??

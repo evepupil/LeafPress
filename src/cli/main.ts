@@ -271,6 +271,37 @@ export function buildProgram(options: BuildProgramOptions = {}): Command {
     .option("--source-detail <来源补充>", "来源补充");
   addAction(addIdea, () => import("./commands/ideas.js"), "add", getContext);
 
+  const gatherIdeas = ideas
+    .command("gather")
+    .description("收集并整理灵感候选")
+    .option("--topics <词,…>", "知乎主题词");
+  addAction(
+    gatherIdeas,
+    () => import("./commands/ideas.js"),
+    "gather",
+    getContext,
+  );
+  const candidates = ideas
+    .command("candidates")
+    .description("查看灵感候选池")
+    .option("--state <状态,…>", "按候选状态筛选");
+  addAction(
+    candidates,
+    () => import("./commands/ideas.js"),
+    "candidates",
+    getContext,
+  );
+  const skipCandidates = ideas
+    .command("skip [编号...]")
+    .description("跳过未挑选的候选")
+    .option("--rest", "跳过候选池里全部 new 候选");
+  addAction(
+    skipCandidates,
+    () => import("./commands/ideas.js"),
+    "skip",
+    getContext,
+  );
+
   addAction(
     program.command("accounts").description("列出账号"),
     () => import("./commands/accounts.js"),

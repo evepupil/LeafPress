@@ -58,7 +58,7 @@ describe("doctor", () => {
       "ok",
       "utf8",
     );
-    storeVersion(join(home, "leafpress.db"), 2);
+    storeVersion(join(home, "leafpress.db"), 3);
     const taskNameForMock = vi.fn(taskNameFor);
     const scheduleStatus = vi.fn<DoctorScheduleApi["scheduleStatus"]>(() =>
       Promise.resolve({

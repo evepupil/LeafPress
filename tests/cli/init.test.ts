@@ -29,7 +29,7 @@ describe("init", () => {
       configFile: join(home, "config.json"),
       dbFile: join(home, "leafpress.db"),
       configUpgraded: false,
-      migration: { from: 0, to: 2 },
+      migration: { from: 0, to: 3 },
     });
     for (const directory of ["accounts", "tasks", "backups", "logs"])
       expect(existsSync(join(home, directory))).toBe(true);
@@ -41,7 +41,7 @@ describe("init", () => {
       "下一步：运行 leafpress serve 打开工作台",
     );
     expect(await executeInit(context)).toMatchObject({
-      migration: { from: 2, to: 2 },
+      migration: { from: 3, to: 3 },
     });
   });
 
@@ -55,7 +55,7 @@ describe("init", () => {
       configBackup: join(home, "config.v1.json.bak"),
       migration: {
         from: 1,
-        to: 2,
+        to: 3,
         backupPath: join(home, "leafpress.v1.db.bak"),
       },
     };
@@ -65,7 +65,7 @@ describe("init", () => {
       "旧配置里的博客仓库路径没有迁移：接博客时在博客账号的「接入」里重新填。",
     );
     expect(output).toContain(
-      `记录库已从第 1 版升到第 2 版，备份在 ${result.migration.backupPath}`,
+      `记录库已从第 1 版升到第 3 版，备份在 ${result.migration.backupPath}`,
     );
   });
 
