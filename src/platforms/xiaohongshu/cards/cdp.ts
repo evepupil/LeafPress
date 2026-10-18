@@ -94,31 +94,49 @@ export class CdpSession {
   }
 }
 
+/**
+ * Edge 调试端口的 HTTP 地址，两个来源：用户目录里的 DevToolsActivePort 文件（第一行是端口），
+ * 或启动日志里的「DevTools listening on ws://主机:端口/devtools/browser/…」。
+ * 日志里那个 ws 地址连的是整个浏览器，不是页面，往上发 Page.enable 会报「找不到命令」；
+ * 所以只取主机和端口，页面的地址统一去 /json/list 找。
+ */
+export function devtoolsHttpBase(
+  activePortFile: string | null,
+  stderrText: string,
+): string | null {
+  // 文件第一行端口、第二行浏览器路径；还没出现换行时第一行可能没写完，先不用
+  const lines = activePortFile?.split("\n") ?? [];
+  const port = lines.length > 1 ? lines[0]?.trim() : undefined;
+  if (port && /^\d+$/.test(port)) return `http://127.0.0.1:${port}`;
+  const match = stderrText.match(/DevTools listening on ws:\/\/([^/\s]+)\//);
+  return match?.[1] ? `http://${match[1]}` : null;
+}
+
 export async function connectToEdge(
   edge: EdgeProcess,
   userDir: string,
   deadline: number,
 ): Promise<CdpSession> {
-  let wsUrl: string | null = null;
-  while (wsUrl === null && Date.now() < deadline) {
+  let httpBase: string | null = null;
+  while (httpBase === null && Date.now() < deadline) {
+    let activePortFile: string | null = null;
     try {
-      const port = readFileSync(join(userDir, "DevToolsActivePort"), "utf8")
-        .split("\n")[0]
-        ?.trim();
-      if (port && /^\d+$/.test(port)) wsUrl = `http://127.0.0.1:${port}`;
+      activePortFile = readFileSync(
+        join(userDir, "DevToolsActivePort"),
+        "utf8",
+      );
     } catch {
-      // 文件还没写出来，再等一轮
+      // 文件还没写出来，看日志，都没有就再等一轮
     }
-    const match = edge.stderrText().match(/DevTools listening on (ws:\/\/\S+)/);
-    if (wsUrl === null && match?.[1]) wsUrl = match[1];
-    if (wsUrl === null) await sleep(200);
+    httpBase = devtoolsHttpBase(activePortFile, edge.stderrText());
+    if (httpBase === null) await sleep(200);
   }
-  if (wsUrl === null) throw new Error("Edge 的调试端口没起来");
+  if (httpBase === null) throw new Error("Edge 的调试端口没起来");
 
-  let pageWs: string | null = wsUrl.startsWith("ws://") ? wsUrl : null;
+  let pageWs: string | null = null;
   for (let attempt = 0; pageWs === null && attempt < 50; attempt++) {
     try {
-      const response = await fetch(`${wsUrl}/json/list`);
+      const response = await fetch(`${httpBase}/json/list`);
       const pages = (await response.json()) as {
         type: string;
         webSocketDebuggerUrl?: string;
