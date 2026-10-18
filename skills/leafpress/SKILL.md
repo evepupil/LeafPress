@@ -1,6 +1,6 @@
 ---
 name: leafpress
-description: "仅在作者明确提到 LeafPress、给出作品编号（如 z-12、b-3），或要处理 LeafPress 里的灵感、作品、数据时使用；不要因“作品”“灵感”等泛词单独触发。"
+description: "仅在作者明确提到 LeafPress、给出作品编号（如 z-12、b-3），或要处理 LeafPress 里的灵感、作品、数据（包括「跑灵感」）时使用；不要因“作品”“灵感”等泛词单独触发。"
 ---
 
 # LeafPress
@@ -72,6 +72,10 @@ description: "仅在作者明确提到 LeafPress、给出作品编号（如 z-12
 ## 记录灵感
 
 作者要批量记灵感时，把 JSON 数组通过标准输入交给 `leafpress ideas add --stdin --json`。每项含 `text`，可选 `detail`、`accountId`、`source`、`sourceDetail`；需要指定账号时用命令返回的账号编号。
+
+## 跑灵感
+
+作者说「跑灵感」，或者定时任务让你跑灵感时，照同目录的 ideas.md 做：读知乎账号档案提炼主题词 → `leafpress ideas gather` 找候选 → 挑 5～10 条写清来源、为什么值得写、建议角度、相关作品 → `leafpress ideas add --stdin` 交 → `leafpress ideas skip <看过没挑的编号>` 收尾。
 
 ## 边界
 
