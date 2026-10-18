@@ -22,7 +22,6 @@ const STAGES: QuestionFinderStage["stage"][] = [
   "topic",
   "blog",
   "hot",
-  "summary",
 ];
 
 function question(
@@ -65,8 +64,13 @@ function successful(
 
 function finder(
   run: (ctx: QuestionFinderContext) => Promise<QuestionFinderOutcome>,
+  summarize: QuestionFinder["summarize"] = () =>
+    Promise.resolve({
+      ok: true,
+      summaries: new Map(),
+    }),
 ): QuestionFinder {
-  return { find: run };
+  return { find: run, summarize };
 }
 
 function publishWork(
@@ -161,27 +165,42 @@ describe("业务用例：跑灵感", () => {
 
   it("汇总四类来源、合并问题并记录跳过集合、关联作品和博客探测时间", async () => {
     let finderContext: QuestionFinderContext | undefined;
-    const finderImpl = finder((ctx) => {
-      finderContext = ctx;
-      return Promise.resolve(
-        successful(
-          [
-            question("123", "TypeScript 发布流程", ["personal"]),
-            question("123", "TypeScript 发布流程", ["topic", "blog"], {
-              topics: ["TypeScript"],
-              blogWorkIds: ["b-1"],
-            }),
-            question("222", "如何做热榜", ["hot"], { topics: ["TypeScript"] }),
-            question("555", "已有知乎问题", ["personal"]),
-            question("666", "已有灵感问题", ["personal"]),
-            question("777", "博客说明里的问题", ["personal"]),
-            question("888", "不要再推", ["personal"]),
-            question("999", "作者已答过", ["personal"]),
-          ],
-          { personal: 6, topic: 1, blog: 1, hot: 1, summary: 2 },
-        ),
-      );
-    });
+    let summaryQuestionIds: string[] = [];
+    const finderImpl = finder(
+      (ctx) => {
+        finderContext = ctx;
+        return Promise.resolve(
+          successful(
+            [
+              question("123", "TypeScript 发布流程", ["personal"]),
+              question("123", "TypeScript 发布流程", ["topic", "blog"], {
+                topics: ["TypeScript"],
+                blogWorkIds: ["b-1"],
+              }),
+              question("222", "如何做热榜", ["hot"], {
+                topics: ["TypeScript"],
+              }),
+              question("555", "已有知乎问题", ["personal"]),
+              question("666", "已有灵感问题", ["personal"]),
+              question("777", "博客说明里的问题", ["personal"]),
+              question("888", "不要再推", ["personal"]),
+              question("999", "作者已答过", ["personal"]),
+            ],
+            { personal: 6, topic: 1, blog: 1, hot: 1 },
+          ),
+        );
+      },
+      (_ctx, questions) => {
+        summaryQuestionIds = questions.map((item) => item.questionId);
+        return Promise.resolve({
+          ok: true,
+          summaries: new Map([
+            ["123", ["摘要 123"]],
+            ["222", ["摘要 222"]],
+          ]),
+        });
+      },
+    );
     let readArgs: { roots: readonly string[]; since: string } | undefined;
     await withUseCases(
       async ({ usecases, app }) => {
@@ -244,7 +263,7 @@ describe("业务用例：跑灵感", () => {
         expect(finderContext?.blogs).toEqual([
           { workId: blogWork.id, title: "TypeScript 发布流程" },
         ]);
-        expect(finderContext?.summaryLimit).toBe(20);
+        expect(summaryQuestionIds).toEqual(["123", "222"]);
         expect(finderContext?.skipQuestionIds).toEqual(
           new Set(["555", "666", "777", "888"]),
         );
@@ -279,6 +298,7 @@ describe("业务用例：跑灵感", () => {
             topics: ["TypeScript"],
             blogWorkIds: [blogWork.id],
             relatedWorkIds: [blogWork.id],
+            answerSummaries: ["摘要 123"],
           },
         });
         expect(
@@ -623,10 +643,24 @@ describe("业务用例：跑灵感", () => {
     const manyQuestions = Array.from({ length: 22 }, (_, index) =>
       question(String(500 + index), `问题 ${index + 1}`),
     );
-    const questionFinder = finder(() =>
-      Promise.resolve(
-        successful(manyQuestions, { personal: manyQuestions.length }),
-      ),
+    let summaryQuestionIds: string[] = [];
+    const questionFinder = finder(
+      () =>
+        Promise.resolve(
+          successful(manyQuestions, { personal: manyQuestions.length }),
+        ),
+      (_ctx, questions) => {
+        summaryQuestionIds = questions.map((item) => item.questionId);
+        return Promise.resolve({
+          ok: true,
+          summaries: new Map(
+            questions.map(({ questionId }) => [
+              questionId,
+              [`摘要 ${questionId}`],
+            ]),
+          ),
+        });
+      },
     );
     await withUseCases(
       async ({ usecases, app }) => {
@@ -639,6 +673,25 @@ describe("业务用例：跑灵感", () => {
         const report = await usecases.gatherIdeas();
         expect(report.pool).toHaveLength(20);
         expect(report.sources[0]).toMatchObject({ found: 22, added: 20 });
+        expect(summaryQuestionIds).toHaveLength(20);
+        expect(new Set(summaryQuestionIds)).toEqual(
+          new Set(
+            report.pool
+              .filter((candidate) => candidate.payload.kind === "question")
+              .map(
+                (candidate) =>
+                  candidate.payload.kind === "question" &&
+                  candidate.payload.questionId,
+              ),
+          ),
+        );
+        expect(
+          report.pool.every(
+            (candidate) =>
+              candidate.payload.kind === "question" &&
+              candidate.payload.answerSummaries.length > 0,
+          ),
+        ).toBe(true);
         expect(app.store.candidates.list()).toHaveLength(20);
         expect(app.store.candidates.list({ state: ["skipped"] })).toHaveLength(
           0,
@@ -650,6 +703,82 @@ describe("业务用例：跑灵感", () => {
         expect(
           report.sources.find((source) => source.name === "知乎热榜")?.warning,
         ).toBe("没给主题词，跳过");
+      },
+      { questionFinder },
+    );
+  });
+
+  it("摘要部分失败时保留成功结果并报告 warning", async () => {
+    const questionFinder = finder(
+      () =>
+        Promise.resolve(
+          successful([question("801", "问题一"), question("802", "问题二")]),
+        ),
+      () =>
+        Promise.resolve({
+          ok: true,
+          summaries: new Map([["801", ["问题一摘要"]]]),
+          warning: "问题二暂时无法获取回答",
+        }),
+    );
+    await withUseCases(
+      async ({ usecases }) => {
+        addAccount(usecases, "知乎号", "zhihu");
+        const report = await usecases.gatherIdeas();
+        expect(
+          report.sources.find((source) => source.name === "补回答摘要"),
+        ).toMatchObject({
+          found: 1,
+          warning: "问题二暂时无法获取回答",
+        });
+        expect(
+          report.pool.find((item) => item.key === questionKey("801"))?.payload,
+        ).toMatchObject({
+          kind: "question",
+          answerSummaries: ["问题一摘要"],
+        });
+        expect(
+          report.pool.find((item) => item.key === questionKey("802"))?.payload,
+        ).toMatchObject({
+          kind: "question",
+          answerSummaries: [],
+        });
+      },
+      { questionFinder },
+    );
+  });
+
+  it("摘要密钥失效时标记过期但仍保存问题候选", async () => {
+    const questionFinder = finder(
+      () => Promise.resolve(successful([question("803", "待保存的问题")])),
+      () =>
+        Promise.resolve({
+          ok: false,
+          reason: "密钥失效 test-secret",
+          expiredKey: "access-secret",
+        }),
+    );
+    await withUseCases(
+      async ({ usecases }) => {
+        const account = addAccount(usecases, "知乎号", "zhihu", {
+          "access-secret": "test-secret",
+        });
+        const report = await usecases.gatherIdeas();
+        expect(report.pool).toHaveLength(1);
+        expect(report.pool[0]?.payload).toMatchObject({
+          kind: "question",
+          questionId: "803",
+          answerSummaries: [],
+        });
+        expect(
+          report.sources.find((source) => source.name === "补回答摘要")
+            ?.warning,
+        ).toBe("密钥失效 <redacted>");
+        expect(
+          usecases.showAccount(account.id).account.settings,
+        ).toContainEqual(
+          expect.objectContaining({ key: "access-secret", status: "expired" }),
+        );
       },
       { questionFinder },
     );

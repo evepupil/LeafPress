@@ -134,8 +134,6 @@ export interface QuestionFinderContext {
   blogs: { workId: string; title: string }[];
   /** 不用再找的问题编号：作者答过的、已在灵感或作品里的、推过或不要的、14 天内跳过的 */
   skipQuestionIds: ReadonlySet<string>;
-  /** 最多给几个问题补回答摘要（问题回答接口和问题推荐共用每天 100 次的额度） */
-  summaryLimit: number;
   secret(key: string): string | undefined;
   fetch: typeof fetch;
   /** 等待（接口限流时留间隔、重试前退避）；测试里换成不真等的。没给时用真实的等待 */
@@ -152,17 +150,31 @@ export interface FoundQuestion {
   via: QuestionVia[];
   topics: string[];
   blogWorkIds: string[];
-  /** 补了摘要的才有内容 */
+  /** find 不补摘要，一律是空数组；摘要由用例定好进池的问题后调 summarize 补 */
   answerSummaries: string[];
 }
 
 /** 每种找法各自的结果：一种找法出错不影响别的 */
 export interface QuestionFinderStage {
-  /** personal 个性化推荐、topic 主题推荐、blog 博客反找、hot 热榜、summary 补回答摘要 */
-  stage: QuestionVia | "summary";
+  /** personal 个性化推荐、topic 主题推荐、blog 博客反找、hot 热榜 */
+  stage: QuestionVia;
   found: number;
   warning?: string;
 }
+
+/** 给问题补已有回答的摘要时拿到的东西 */
+export interface QuestionSummaryContext {
+  account: Account;
+  secret(key: string): string | undefined;
+  fetch: typeof fetch;
+  sleep?(ms: number): Promise<void>;
+  progress?(message: string): void;
+}
+
+export type QuestionSummaryOutcome =
+  /** summaries：问题编号 → 摘要（每个最多 3 条，没拿到的不在里面）；warning：额度用完等，只补了一部分 */
+  | { ok: true; summaries: Map<string, string[]>; warning?: string }
+  | { ok: false; reason: string; fixHint?: string; expiredKey?: string };
 
 export type QuestionFinderOutcome =
   | { ok: true; questions: FoundQuestion[]; stages: QuestionFinderStage[] }
@@ -171,6 +183,14 @@ export type QuestionFinderOutcome =
 
 export interface QuestionFinder {
   find(ctx: QuestionFinderContext): Promise<QuestionFinderOutcome>;
+  /**
+   * 给进了池的问题补已有回答的摘要：按给的顺序一个个补（每个调一次问题回答接口，取 3 条），
+   * 当天额度用完就停、记 warning；密钥失效返回 ok:false 带 expiredKey；单个问题失败跳过它接着补。
+   */
+  summarize(
+    ctx: QuestionSummaryContext,
+    questions: readonly { questionId: string; url: string }[],
+  ): Promise<QuestionSummaryOutcome>;
 }
 
 export interface PlatformRuntime {

@@ -1,4 +1,4 @@
-import { pickQuestions, relatedWorkIds } from "@leafpress/core";
+import { relatedWorkIds } from "@leafpress/core";
 import type { QuestionVia } from "@leafpress/core";
 
 import { createZhihuClient, type ZhihuClient } from "../api/client.js";
@@ -20,12 +20,15 @@ import type {
   QuestionFinderContext,
   QuestionFinderOutcome,
   QuestionFinderStage,
+  QuestionSummaryContext,
+  QuestionSummaryOutcome,
 } from "../../types.js";
 
 const SETUP_HINT = "在接入里填上开放平台的 Access Secret";
 const REGENERATE_HINT =
   "在知乎开放平台个人中心重新生成 Access Secret，填到接入里";
 const DISCOVERY_QUOTA_WARNING = "今天问题发现的额度用完了";
+const SUMMARY_QUOTA_WARNING = "今天问题发现的额度用完了，只补了";
 const VIA_ORDER: QuestionVia[] = ["personal", "topic", "blog", "hot"];
 
 function warningText(error: unknown): string {
@@ -172,6 +175,7 @@ export function createZhihuQuestionFinder(): QuestionFinder {
         const blogWarnings: string[] = [];
         const blogIds = new Set<string>();
         for (const blog of ctx.blogs) {
+          const relatedBlog = [{ id: blog.workId, title: blog.title }];
           if (discoveryQuotaExhausted)
             addWarning(blogWarnings, DISCOVERY_QUOTA_WARNING);
           else {
@@ -181,6 +185,8 @@ export function createZhihuQuestionFinder(): QuestionFinder {
               true,
             );
             for (const item of recommended ?? []) {
+              if (relatedWorkIds(item.title, relatedBlog).length === 0)
+                continue;
               blogIds.add(item.questionId);
               merge(item, "blog", [], [blog.workId]);
             }
@@ -192,8 +198,7 @@ export function createZhihuQuestionFinder(): QuestionFinder {
             blogWarnings,
             false,
           );
-          // 搜索结果噪音大：标题要和这篇博客算得上相关才要（推荐来的不过这一关）
-          const relatedBlog = [{ id: blog.workId, title: blog.title }];
+          // 两条反找路径的噪音都要按共享标题相关性规则过滤。
           for (const item of searched ?? []) {
             if (relatedWorkIds(item.title, relatedBlog).length === 0) continue;
             blogIds.add(item.questionId);
@@ -225,38 +230,6 @@ export function createZhihuQuestionFinder(): QuestionFinder {
         const questions = [...merged.values()].filter(
           (question) => !ctx.skipQuestionIds.has(question.questionId),
         );
-        const summaryCandidates = questions.map((question) => ({
-          question,
-          via: question.via,
-          score: 0,
-        }));
-
-        ctx.progress?.("知乎问题：补回答摘要");
-        const summaryWarnings: string[] = [];
-        let summaryFound = 0;
-        const summaryTargets = pickQuestions(
-          summaryCandidates,
-          Math.max(0, ctx.summaryLimit),
-        ).map((item) => item.question);
-        if (summaryTargets.length > 0 && discoveryQuotaExhausted)
-          addWarning(summaryWarnings, DISCOVERY_QUOTA_WARNING);
-        for (const question of summaryTargets) {
-          if (discoveryQuotaExhausted) {
-            addWarning(summaryWarnings, DISCOVERY_QUOTA_WARNING);
-            break;
-          }
-          const summaries = await attempt(
-            () => answerSummaries(client, question.url, 3),
-            summaryWarnings,
-            true,
-          );
-          if (summaries && summaries.length > 0) {
-            question.answerSummaries = summaries;
-            summaryFound += 1;
-          }
-        }
-        stages.push(stageOf("summary", summaryFound, summaryWarnings));
-
         for (const question of questions)
           question.via.sort(
             (left, right) => VIA_ORDER.indexOf(left) - VIA_ORDER.indexOf(right),
@@ -272,6 +245,67 @@ export function createZhihuQuestionFinder(): QuestionFinder {
           };
         throw error;
       }
+    },
+
+    async summarize(
+      ctx: QuestionSummaryContext,
+      questions,
+    ): Promise<QuestionSummaryOutcome> {
+      const secret = ctx.secret("access-secret")?.trim();
+      if (!secret)
+        return {
+          ok: false,
+          reason: "知乎账号还没填开放平台密钥",
+          fixHint: SETUP_HINT,
+        };
+
+      const client: ZhihuClient = createZhihuClient({
+        secret,
+        fetch: ctx.fetch,
+        ...(ctx.sleep === undefined
+          ? {}
+          : {
+              sleep: async (ms: number) => {
+                await ctx.sleep?.(ms);
+              },
+            }),
+      });
+      const summaries = new Map<string, string[]>();
+      const warnings: string[] = [];
+      let summarized = 0;
+
+      ctx.progress?.("知乎问题：补回答摘要");
+      for (const question of questions) {
+        try {
+          const found = (await answerSummaries(client, question.url, 3)).slice(
+            0,
+            3,
+          );
+          if (found.length > 0) {
+            summaries.set(question.questionId, found);
+            summarized += 1;
+          }
+        } catch (error) {
+          if (error instanceof ZhihuAuthenticationError)
+            return {
+              ok: false,
+              reason: error.message,
+              fixHint: REGENERATE_HINT,
+              expiredKey: "access-secret",
+            };
+          if (isDiscoveryQuotaError(error)) {
+            addWarning(warnings, `${SUMMARY_QUOTA_WARNING} ${summarized} 个`);
+            break;
+          }
+          addWarning(warnings, warningText(error));
+        }
+      }
+
+      return {
+        ok: true,
+        summaries,
+        ...(warnings.length === 0 ? {} : { warning: warnings.join("；") }),
+      };
     },
   };
 }

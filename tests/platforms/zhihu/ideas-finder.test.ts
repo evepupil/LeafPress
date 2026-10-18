@@ -25,10 +25,7 @@ function question(id: number, title = `问题 ${id}`) {
 function context(
   server: FakeZhihu,
   options: Partial<
-    Pick<
-      QuestionFinderContext,
-      "topics" | "blogs" | "skipQuestionIds" | "summaryLimit"
-    >
+    Pick<QuestionFinderContext, "topics" | "blogs" | "skipQuestionIds">
   > = {},
   accessSecret: string | undefined = ACCESS_SECRET,
 ): QuestionFinderContext {
@@ -37,7 +34,6 @@ function context(
     topics: options.topics ?? [],
     blogs: options.blogs ?? [],
     skipQuestionIds: options.skipQuestionIds ?? new Set<string>(),
-    summaryLimit: options.summaryLimit ?? 20,
     secret: (key) => (key === "access-secret" ? accessSecret : undefined),
     fetch: server.fetch,
     sleep: noSleep,
@@ -56,7 +52,7 @@ function requestSummaryIds(requests: FakeRequest[]): string[] {
 }
 
 describe("知乎找问题工具", () => {
-  it("按五步执行并合并来源、主题词和博客编号，跳过指定问题", async () => {
+  it("按四步执行并合并来源、主题词和博客编号，跳过指定问题", async () => {
     const server = new FakeZhihu();
     server.intercept = (request) => {
       if (request.path === "/user/question_recommendations") {
@@ -111,7 +107,6 @@ describe("知乎找问题工具", () => {
           topics: ["大模型", "编程"],
           blogs: [{ workId: "blog-1", title: "博客题目" }],
           skipQuestionIds: new Set(["102"]),
-          summaryLimit: 20,
         }),
       ),
     );
@@ -138,7 +133,6 @@ describe("知乎找问题工具", () => {
       "199",
       "103",
       "104",
-      "105",
       "106",
       "108",
     ]);
@@ -146,34 +140,32 @@ describe("知乎找问题工具", () => {
       outcome.questions.map((item) => [item.questionId, item]),
     );
     expect(byId.get("101")).toMatchObject({
-      via: ["personal", "topic", "blog"],
+      via: ["personal", "topic"],
       topics: ["大模型"],
-      blogWorkIds: ["blog-1"],
+      blogWorkIds: [],
       url: "https://www.zhihu.com/question/101",
-      answerSummaries: ["已有回答摘要"],
+      answerSummaries: [],
     });
     expect(byId.get("104")).toMatchObject({
       via: ["topic", "hot"],
       topics: ["编程"],
     });
-    expect(byId.get("105")).toMatchObject({
+    expect(byId.get("106")).toMatchObject({
       via: ["blog"],
       blogWorkIds: ["blog-1"],
     });
     expect(byId.has("102")).toBe(false);
-    expect(requestSummaryIds(server.requests)).not.toContain(
-      "https://www.zhihu.com/question/102",
-    );
+    expect(byId.has("105")).toBe(false);
+    expect(requestSummaryIds(server.requests)).toEqual([]);
     expect(outcome.stages).toEqual([
       { stage: "personal", found: 3 },
       { stage: "topic", found: 3 },
-      { stage: "blog", found: 3 },
+      { stage: "blog", found: 1 },
       { stage: "hot", found: 2 },
-      { stage: "summary", found: 7 },
     ]);
   });
 
-  it("没有主题词时跳过主题推荐和热榜，仍返回五个 stage", async () => {
+  it("没有主题词时跳过主题推荐和热榜，仍返回四个 stage", async () => {
     const server = new FakeZhihu();
     server.intercept = (request) => {
       if (request.path === "/user/question_recommendations")
@@ -182,9 +174,7 @@ describe("知乎找问题工具", () => {
     };
 
     const outcome = success(
-      await createZhihuQuestionFinder().find(
-        context(server, { summaryLimit: 0 }),
-      ),
+      await createZhihuQuestionFinder().find(context(server)),
     );
 
     expect(server.requests.map((request) => request.path)).toEqual([
@@ -195,11 +185,10 @@ describe("知乎找问题工具", () => {
       { stage: "topic", found: 0 },
       { stage: "blog", found: 0 },
       { stage: "hot", found: 0 },
-      { stage: "summary", found: 0 },
     ]);
   });
 
-  it("按共享轮流规则挑摘要，受 summaryLimit 限制", async () => {
+  it("找问题只发现，不请求回答摘要", async () => {
     const server = new FakeZhihu();
     server.intercept = (request) => {
       if (request.path === "/user/question_recommendations") {
@@ -207,56 +196,56 @@ describe("知乎找问题工具", () => {
           return ok({ Items: [question(1), question(2)] });
         if (request.query["Query"] === "主题")
           return ok({ Items: [question(2)] });
-        if (request.query["Query"] === "博客")
-          return ok({ Items: [question(3)] });
       }
-      if (request.path === "/content/zhihu_search") return ok({ Items: [] });
       if (request.path === "/content/hot_list")
         return ok({ Items: [question(4, "主题热题")] });
-      if (request.path === "/content/question_answers")
-        return ok({
-          Items: [{ Summary: `摘要 ${request.query["QuestionUrl"]}` }],
-        });
       return failed(10001, "unexpected request");
     };
 
     const outcome = success(
       await createZhihuQuestionFinder().find(
-        context(server, {
-          topics: ["主题"],
-          blogs: [{ workId: "blog-3", title: "博客" }],
-          summaryLimit: 2,
-        }),
+        context(server, { topics: ["主题"] }),
       ),
     );
 
-    expect(requestSummaryIds(server.requests)).toEqual([
-      "https://www.zhihu.com/question/1",
-      "https://www.zhihu.com/question/2",
+    expect(server.requests.map((request) => request.path)).toEqual([
+      "/user/question_recommendations",
+      "/user/question_recommendations",
+      "/content/hot_list",
     ]);
     expect(outcome.questions.map((item) => item.questionId)).toEqual([
       "1",
       "2",
-      "3",
       "4",
     ]);
     expect(outcome.questions.map((item) => item.answerSummaries)).toEqual([
-      ["摘要 https://www.zhihu.com/question/1"],
-      ["摘要 https://www.zhihu.com/question/2"],
+      [],
       [],
       [],
     ]);
-    expect(outcome.stages[4]).toEqual({ stage: "summary", found: 2 });
+    expect(outcome.stages.map((stage) => stage.stage)).toEqual([
+      "personal",
+      "topic",
+      "blog",
+      "hot",
+    ]);
+    expect(requestSummaryIds(server.requests)).toEqual([]);
   });
 
-  it("博客搜索按标题相关性过滤，但保留博客推荐结果", async () => {
+  it("博客推荐和搜索都按标题相关性过滤", async () => {
     const server = new FakeZhihu();
-    const blogTitle = "VS Code 终端中文乱码显示问题";
+    const blogTitle = "Git Bash 中文乱码显示问题";
     server.intercept = (request) => {
       if (request.path === "/user/question_recommendations") {
         if (request.query["Query"] === undefined) return ok({ Items: [] });
         if (request.query["Query"] === blogTitle)
-          return ok({ Items: [question(1, "为什么中国文化进步很慢")] });
+          return ok({
+            Items: [
+              question(1, "为什么中国文化进步很慢"),
+              question(4, "英语学习时发现抛不开中文怎么办？"),
+              question(6, "准大一想学软件工程应该怎么准备？"),
+            ],
+          });
       }
       if (request.path === "/content/zhihu_search")
         return ok({
@@ -267,7 +256,15 @@ describe("知乎找问题工具", () => {
             },
             {
               ContentType: "question",
+              ...question(5, "英语学习时发现抛不开中文怎么办？"),
+            },
+            {
+              ContentType: "question",
               ...question(3, "VS Code 终端中文乱码怎么解决"),
+            },
+            {
+              ContentType: "question",
+              ...question(7, "准大一想学软件工程应该怎么准备？"),
             },
           ],
         });
@@ -277,60 +274,139 @@ describe("知乎找问题工具", () => {
     const outcome = success(
       await createZhihuQuestionFinder().find(
         context(server, {
-          blogs: [{ workId: "blog-vscode", title: blogTitle }],
-          summaryLimit: 0,
+          blogs: [{ workId: "blog-git-bash", title: blogTitle }],
         }),
       ),
     );
 
-    expect(outcome.questions.map((item) => item.questionId)).toEqual([
-      "1",
-      "3",
-    ]);
-    expect(outcome.questions[0]?.blogWorkIds).toEqual(["blog-vscode"]);
-    expect(outcome.questions[1]?.blogWorkIds).toEqual(["blog-vscode"]);
-    expect(outcome.stages[2]).toEqual({ stage: "blog", found: 2 });
+    expect(outcome.questions.map((item) => item.questionId)).toEqual(["3"]);
+    expect(outcome.questions[0]?.blogWorkIds).toEqual(["blog-git-bash"]);
+    expect(outcome.stages[2]).toEqual({ stage: "blog", found: 1 });
   });
 
-  it("摘要轮流覆盖个人推荐、主题推荐和博客反找", async () => {
+  it("summarize 按输入顺序逐题取三条摘要", async () => {
     const server = new FakeZhihu();
     server.intercept = (request) => {
-      if (request.path === "/user/question_recommendations") {
-        const query = request.query["Query"];
-        if (query === undefined)
-          return ok({ Items: [question(1), question(2)] });
-        if (query === "主题") return ok({ Items: [question(3), question(4)] });
-        if (query === "博客甲")
-          return ok({ Items: [question(5), question(6)] });
-        if (query === "博客乙")
-          return ok({ Items: [question(7), question(8)] });
-      }
-      if (request.path === "/content/zhihu_search") return ok({ Items: [] });
-      if (request.path === "/content/hot_list") return ok({ Items: [] });
       if (request.path === "/content/question_answers")
         return ok({
-          Items: [{ Summary: `摘要 ${request.query["QuestionUrl"]}` }],
+          Items: [
+            { Summary: `摘要 ${request.query["QuestionUrl"]}` },
+            { Summary: "第二条摘要" },
+            { Summary: "第三条摘要" },
+            { Summary: "超出上限的摘要" },
+          ],
         });
       return failed(10001, "unexpected request");
     };
+    const questions = [1, 3, 5, 2, 4, 6].map((id) => ({
+      questionId: String(id),
+      url: `https://www.zhihu.com/question/${id}`,
+    }));
 
-    const outcome = success(
-      await createZhihuQuestionFinder().find(
-        context(server, {
-          topics: ["主题"],
-          blogs: [
-            { workId: "blog-a", title: "博客甲" },
-            { workId: "blog-b", title: "博客乙" },
-          ],
-          summaryLimit: 6,
-        }),
-      ),
+    const outcome = await createZhihuQuestionFinder().summarize(
+      context(server),
+      questions,
     );
 
+    expect(outcome.ok).toBe(true);
+    if (!outcome.ok) throw new Error(outcome.reason);
     expect(requestSummaryIds(server.requests)).toEqual(
-      [1, 3, 5, 2, 4, 6].map((id) => `https://www.zhihu.com/question/${id}`),
+      questions.map((item) => item.url),
     );
-    expect(outcome.stages[4]).toEqual({ stage: "summary", found: 6 });
+    expect(
+      server.requests.every((request) => request.query["Limit"] === "3"),
+    ).toBe(true);
+    expect(outcome.summaries.get("1")).toEqual([
+      "摘要 https://www.zhihu.com/question/1",
+      "第二条摘要",
+      "第三条摘要",
+    ]);
+    expect(outcome.summaries.get("6")).toHaveLength(3);
+  });
+
+  it("summary 当天额度耗尽后停止并报告已补数量", async () => {
+    const server = new FakeZhihu();
+    server.intercept = (request) => {
+      if (request.path !== "/content/question_answers")
+        return failed(10001, "unexpected request");
+      if (request.query["QuestionUrl"]?.endsWith("/2"))
+        return failed(30001, "daily quota exceeded");
+      return ok({
+        Items: [{ Summary: `摘要 ${request.query["QuestionUrl"]}` }],
+      });
+    };
+    const questions = [1, 2, 3].map((id) => ({
+      questionId: String(id),
+      url: `https://www.zhihu.com/question/${id}`,
+    }));
+
+    const outcome = await createZhihuQuestionFinder().summarize(
+      context(server),
+      questions,
+    );
+
+    expect(outcome).toMatchObject({
+      ok: true,
+      warning: "今天问题发现的额度用完了，只补了 1 个",
+    });
+    if (!outcome.ok) throw new Error(outcome.reason);
+    expect([...outcome.summaries.keys()]).toEqual(["1"]);
+    expect(requestSummaryIds(server.requests)).toEqual([
+      questions[0]?.url,
+      questions[1]?.url,
+    ]);
+  });
+
+  it("summary 每秒限流或单题失败只记警告并继续", async () => {
+    const server = new FakeZhihu();
+    server.intercept = (request) => {
+      if (request.path !== "/content/question_answers")
+        return failed(10001, "unexpected request");
+      const questionUrl = request.query["QuestionUrl"] ?? "";
+      if (questionUrl.endsWith("/1"))
+        return failed(30001, "second limit exceeded");
+      if (questionUrl.endsWith("/2"))
+        return failed(10001, "answer unavailable");
+      return ok({ Items: [{ Summary: "第三题摘要" }] });
+    };
+    const questions = [1, 2, 3].map((id) => ({
+      questionId: String(id),
+      url: `https://www.zhihu.com/question/${id}`,
+    }));
+
+    const outcome = await createZhihuQuestionFinder().summarize(
+      context(server),
+      questions,
+    );
+
+    expect(outcome.ok).toBe(true);
+    if (!outcome.ok) throw new Error(outcome.reason);
+    expect(outcome.warning).toContain("second limit");
+    expect([...outcome.summaries.keys()]).toEqual(["3"]);
+    expect(requestSummaryIds(server.requests)).toEqual([
+      questions[0]?.url,
+      questions[0]?.url,
+      questions[0]?.url,
+      questions[0]?.url,
+      questions[1]?.url,
+      questions[2]?.url,
+    ]);
+  });
+
+  it("summary 密钥失效时返回过期密钥标记", async () => {
+    const server = new FakeZhihu();
+    server.intercept = () => failed(20001, "bad access secret");
+
+    await expect(
+      createZhihuQuestionFinder().summarize(context(server), [
+        { questionId: "1", url: "https://www.zhihu.com/question/1" },
+      ]),
+    ).resolves.toEqual({
+      ok: false,
+      reason: "知乎开放平台密钥不对或已过期",
+      fixHint: "在知乎开放平台个人中心重新生成 Access Secret，填到接入里",
+      expiredKey: "access-secret",
+    });
   });
 
   it("没配密钥时不发请求，返回设置提示", async () => {
@@ -388,7 +464,6 @@ describe("知乎找问题工具", () => {
         context(server, {
           topics: ["主题一", "主题二"],
           blogs: [{ workId: "blog-1", title: "博客中文乱码问题" }],
-          summaryLimit: 20,
         }),
       ),
     );
@@ -418,15 +493,10 @@ describe("知乎找问题工具", () => {
         warning: "今天问题发现的额度用完了",
       },
       { stage: "hot", found: 1 },
-      {
-        stage: "summary",
-        found: 0,
-        warning: "今天问题发现的额度用完了",
-      },
     ]);
   });
 
-  it("每秒限流重试耗尽只记警告，继续查后续主题词并补摘要", async () => {
+  it("每秒限流重试耗尽只记警告，继续查后续主题词", async () => {
     const server = new FakeZhihu();
     server.intercept = (request) => {
       if (request.path === "/user/question_recommendations") {
@@ -447,7 +517,6 @@ describe("知乎找问题工具", () => {
       await createZhihuQuestionFinder().find(
         context(server, {
           topics: ["触发限流", "继续查找"],
-          summaryLimit: 20,
         }),
       ),
     );
@@ -465,10 +534,7 @@ describe("知乎找问题工具", () => {
       "触发限流",
       "继续查找",
     ]);
-    expect(requestSummaryIds(server.requests)).toEqual([
-      "https://www.zhihu.com/question/1",
-      "https://www.zhihu.com/question/2",
-    ]);
+    expect(requestSummaryIds(server.requests)).toEqual([]);
     expect(outcome.stages).toEqual([
       { stage: "personal", found: 1 },
       {
@@ -479,7 +545,6 @@ describe("知乎找问题工具", () => {
       },
       { stage: "blog", found: 0 },
       { stage: "hot", found: 0 },
-      { stage: "summary", found: 2 },
     ]);
     expect(outcome.stages[1]?.warning).not.toContain("额度用完");
   });
@@ -502,7 +567,7 @@ describe("知乎找问题工具", () => {
 
     const outcome = success(
       await createZhihuQuestionFinder().find(
-        context(server, { topics: ["坏主题", "好主题"], summaryLimit: 0 }),
+        context(server, { topics: ["坏主题", "好主题"] }),
       ),
     );
 
@@ -523,7 +588,6 @@ describe("知乎找问题工具", () => {
       },
       { stage: "blog", found: 0 },
       { stage: "hot", found: 1 },
-      { stage: "summary", found: 0 },
     ]);
     expect(server.requests.map((request) => request.path)).toEqual([
       "/user/question_recommendations",

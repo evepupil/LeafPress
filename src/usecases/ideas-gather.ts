@@ -4,6 +4,7 @@ import {
   DATASET_DAYS,
   dayOf,
   isBlocked,
+  pickQuestions,
   questionKey,
   questionIdsIn,
   relatedWorkIds,
@@ -27,6 +28,7 @@ import type {
   FoundQuestion,
   QuestionFinderOutcome,
   QuestionFinderStage,
+  QuestionSummaryOutcome,
 } from "../platforms/types.js";
 import { listAccounts, nowParts, redactText } from "./support.js";
 import type { AppContext } from "./context.js";
@@ -49,7 +51,6 @@ const QUESTION_STAGES: {
   { stage: "topic", name: "知乎主题推荐" },
   { stage: "blog", name: "博客反找问题" },
   { stage: "hot", name: "知乎热榜" },
-  { stage: "summary", name: "补回答摘要" },
 ];
 
 type CandidateDraft = Omit<
@@ -219,6 +220,19 @@ function stageReport(
   });
 }
 
+function markExpiredQuestionSecret(
+  app: AppContext,
+  account: Account,
+  key: string,
+  reason: string,
+  at: string,
+): void {
+  app.store.transaction(() => {
+    if (app.store.accounts.get(account.id))
+      app.store.settings.markExpired(account.id, key, reason, at);
+  });
+}
+
 function sourceNameForVia(via: QuestionVia): string {
   switch (via) {
     case "personal":
@@ -292,6 +306,78 @@ function isQuestionBlockedByCurrentContent(
   );
 }
 
+function questionSummaryTargets(input: {
+  snapshot: GatherSnapshot;
+  foundQuestions: FoundQuestion[];
+  questionAccountId: string;
+  now: string;
+}): { questionId: string; url: string }[] {
+  const { snapshot, foundQuestions, questionAccountId, now } = input;
+  const { ids, authorTitles } = getQuestionIdsToSkip(
+    snapshot.accounts,
+    snapshot.works,
+    snapshot.ideas,
+    snapshot.candidates,
+    now,
+  );
+  const existingByKey = new Map(
+    snapshot.candidates.map((candidate) => [candidate.key, candidate]),
+  );
+  const pool = new Map<
+    string,
+    {
+      questionId: string;
+      url: string;
+      via: QuestionVia[];
+      score: number;
+      answerSummaries: string[];
+    }
+  >();
+
+  for (const candidate of snapshot.candidates) {
+    if (candidate.state !== "new" || candidate.payload.kind !== "question")
+      continue;
+    const title = titleKey(candidate.title);
+    if (
+      ids.has(candidate.payload.questionId) ||
+      (title !== "" && authorTitles.has(title))
+    )
+      continue;
+    pool.set(candidate.key, {
+      questionId: candidate.payload.questionId,
+      url:
+        candidate.url ??
+        `https://www.zhihu.com/question/${candidate.payload.questionId}`,
+      via: candidate.payload.via,
+      score: candidate.score,
+      answerSummaries: candidate.payload.answerSummaries,
+    });
+  }
+
+  for (const found of mergeFoundQuestions(foundQuestions)) {
+    const draft = questionDraft(found, questionAccountId, snapshot.works);
+    if (isQuestionBlockedByCurrentContent(draft, ids, authorTitles)) continue;
+    const existing = existingByKey.get(draft.key);
+    if (existing && isBlocked(existing, now)) continue;
+    const payload = payloadForExisting(existing, draft, snapshot.works);
+    if (payload.kind !== "question") continue;
+    pool.set(draft.key, {
+      questionId: payload.questionId,
+      url: draft.url ?? `https://www.zhihu.com/question/${payload.questionId}`,
+      via: payload.via,
+      score: scoreQuestion({
+        via: payload.via,
+        relatedWorkIds: payload.relatedWorkIds,
+      }),
+      answerSummaries: payload.answerSummaries,
+    });
+  }
+
+  return pickQuestions([...pool.values()], 20)
+    .filter((question) => question.answerSummaries.length === 0)
+    .map(({ questionId, url }) => ({ questionId, url }));
+}
+
 function mergeCandidates(input: {
   app: AppContext;
   drafts: IncomingCandidate[];
@@ -299,6 +385,7 @@ function mergeCandidates(input: {
   now: string;
   eligibleQuestions: FoundQuestion[];
   questionAccountId?: string;
+  questionSummaries: ReadonlyMap<string, string[]>;
   probesToWrite: string[];
 }): { pool: IdeaCandidate[]; addedBySource: Map<string, number> } {
   const { app } = input;
@@ -422,6 +509,23 @@ function mergeCandidates(input: {
         entered.set(candidate.key, sources);
     }
 
+    for (const [questionId, answerSummaries] of input.questionSummaries) {
+      const candidate = byKey.get(questionKey(questionId));
+      if (
+        candidate?.state !== "new" ||
+        candidate.payload.kind !== "question" ||
+        candidate.payload.answerSummaries.length > 0
+      )
+        continue;
+      const updated = {
+        ...candidate,
+        payload: { ...candidate.payload, answerSummaries },
+        updatedAt: input.at,
+      };
+      app.store.candidates.update(updated);
+      byKey.set(updated.key, updated);
+    }
+
     const { overflow } = trimPool(
       [...byKey.values()].filter((candidate) => candidate.state === "new"),
     );
@@ -529,7 +633,6 @@ export function createIdeasGatherUseCases(
             topics,
             blogs: blogWorks,
             skipQuestionIds,
-            summaryLimit: 20,
             secret: (key) => app.credentials.get(questionAccount.id, key),
             fetch: app.fetch,
             sleep: (ms) => app.sleep(ms),
@@ -551,6 +654,7 @@ export function createIdeasGatherUseCases(
 
       const reports: GatherSourceReport[] = [];
       let foundQuestions: FoundQuestion[] = [];
+      const questionSummaries = new Map<string, string[]>();
       let probesToWrite: string[] = [];
       if (questionFailure !== undefined) {
         reports.push({
@@ -566,17 +670,14 @@ export function createIdeasGatherUseCases(
         const reason = questionAccount
           ? redactText(app, questionAccount.id, questionOutcome.reason)
           : questionOutcome.reason;
-        if (questionOutcome.expiredKey && questionAccount) {
-          app.store.transaction(() => {
-            if (app.store.accounts.get(questionAccount.id))
-              app.store.settings.markExpired(
-                questionAccount.id,
-                questionOutcome.expiredKey!,
-                reason,
-                at,
-              );
-          });
-        }
+        if (questionOutcome.expiredKey && questionAccount)
+          markExpiredQuestionSecret(
+            app,
+            questionAccount,
+            questionOutcome.expiredKey,
+            reason,
+            at,
+          );
         reports.push({
           name: "知乎问题",
           found: 0,
@@ -588,6 +689,88 @@ export function createIdeasGatherUseCases(
           ...stageReport(questionOutcome, topics, questionAccount.id, app),
         );
         foundQuestions = questionOutcome.questions;
+        const summaryTargets = questionSummaryTargets({
+          snapshot,
+          foundQuestions,
+          questionAccountId: questionAccount.id,
+          now,
+        });
+        let summaryWarning: string | undefined;
+        if (summaryTargets.length > 0) {
+          safeProgress(input?.onProgress, "知乎：补回答摘要");
+          const quotaWasExhausted = questionOutcome.stages.some((stage) =>
+            stage.warning?.includes("今天问题发现的额度用完了"),
+          );
+          if (quotaWasExhausted) {
+            summaryWarning = "今天问题发现的额度用完了，只补了 0 个";
+          } else if (finder) {
+            let summaryOutcome: QuestionSummaryOutcome | undefined;
+            try {
+              summaryOutcome = await finder.summarize(
+                {
+                  account: questionAccount,
+                  secret: (key) => app.credentials.get(questionAccount.id, key),
+                  fetch: app.fetch,
+                  sleep: (ms) => app.sleep(ms),
+                  ...(input?.onProgress === undefined
+                    ? {}
+                    : {
+                        progress: (message: string) =>
+                          safeProgress(input.onProgress, message),
+                      }),
+                },
+                summaryTargets,
+              );
+            } catch (error) {
+              summaryWarning = redactText(
+                app,
+                questionAccount.id,
+                errorText(error),
+              );
+            }
+            if (summaryOutcome?.ok === false) {
+              const reason = redactText(
+                app,
+                questionAccount.id,
+                summaryOutcome.reason,
+              );
+              if (summaryOutcome.expiredKey)
+                markExpiredQuestionSecret(
+                  app,
+                  questionAccount,
+                  summaryOutcome.expiredKey,
+                  reason,
+                  at,
+                );
+              summaryWarning = reason;
+            } else if (summaryOutcome?.ok === true) {
+              const requestedIds = new Set(
+                summaryTargets.map((question) => question.questionId),
+              );
+              for (const [questionId, values] of summaryOutcome.summaries)
+                if (requestedIds.has(questionId) && values.length > 0)
+                  questionSummaries.set(questionId, values);
+              if (summaryOutcome.warning)
+                summaryWarning = redactText(
+                  app,
+                  questionAccount.id,
+                  summaryOutcome.warning,
+                );
+            }
+          }
+        }
+        foundQuestions = foundQuestions.map((question) => {
+          const answerSummaries = questionSummaries.get(question.questionId);
+          return answerSummaries === undefined
+            ? question
+            : { ...question, answerSummaries };
+        });
+        reports.push({
+          name: "补回答摘要",
+          found: questionSummaries.size,
+          added: 0,
+          ...(summaryWarning === undefined ? {} : { warning: summaryWarning }),
+        });
         const blogStage = questionOutcome.stages.find(
           (stage) => stage.stage === "blog",
         );
@@ -660,6 +843,7 @@ export function createIdeasGatherUseCases(
         now,
         eligibleQuestions: foundQuestions,
         ...(questionAccount ? { questionAccountId: questionAccount.id } : {}),
+        questionSummaries,
         probesToWrite,
       });
       addCounts(reports, merged.addedBySource);

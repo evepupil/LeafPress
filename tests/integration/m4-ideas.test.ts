@@ -209,7 +209,7 @@ describe("M4 灵感端到端", () => {
       { name: "知乎主题推荐", found: 4, added: 4 },
       { name: "博客反找问题", found: 2, added: 2 },
       { name: "知乎热榜", found: 2, added: 2 },
-      { name: "补回答摘要", found: 7, added: 0 },
+      { name: "补回答摘要", found: 6, added: 0 },
       { name: "已发作品", found: 3, added: 3 },
       { name: "开发记录", found: 1, added: 1 },
     ]);
