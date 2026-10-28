@@ -1,0 +1,404 @@
+{
+  "lane": "04",
+  "checkedAt": "2026-10-28",
+  "scope": "llama.cpp（ggml-org）AMD 路线：Vulkan 与 HIP/ROCm 后端、官方预编译产物、驱动/HIP 最低条件、RX 5000/6000/7000/9000 与 Vega/Polaris 的证据边界；不含 Ollama/vLLM/ComfyUI，无硬件实测",
+  "sources": [
+    {
+      "id": "L04-S01",
+      "url": "https://raw.githubusercontent.com/ggml-org/llama.cpp/604cc430239c76ff636c443e3400bf552b750421/docs/build.md",
+      "title": "Build llama.cpp locally (docs/build.md)",
+      "publisher": "ggml-org/llama.cpp",
+      "publishedAt": null,
+      "version": "固定提交 604cc430239c76ff636c443e3400bf552b750421（master，2026-10-28）",
+      "accessedAt": "2026-10-28",
+      "kind": "official-repo",
+      "excerpt": "## HIP ... This provides GPU acceleration on HIP-supported AMD GPUs. Make sure to have ROCm installed. ... If your GPU is not officially supported you can use the environment variable HSA_OVERRIDE_GFX_VERSION set to a similar GPU, for example 10.3.0 on RDNA2 (e.g. gfx1030, gfx1031, or gfx1035) or 11.0.0 on RDNA3. Note that HSA_OVERRIDE_GFX_VERSION is not supported on Windows ... ## Vulkan ... cmake -B build -DGGML_VULKAN=ON"
+    },
+    {
+      "id": "L04-S02",
+      "url": "https://raw.githubusercontent.com/ggml-org/llama.cpp/604cc430239c76ff636c443e3400bf552b750421/README.md",
+      "title": "llama.cpp README",
+      "publisher": "ggml-org/llama.cpp",
+      "publishedAt": null,
+      "version": "固定提交 604cc430239c76ff636c443e3400bf552b750421",
+      "accessedAt": "2026-10-28",
+      "kind": "official-repo",
+      "excerpt": "| [HIP](docs/build.md#hip) | AMD GPU | ... | [Vulkan](docs/build.md#vulkan) | GPU | — 支持后端表；1.5-bit 到 8-bit 整数量化；Custom CUDA kernels for running LLMs on NVIDIA GPUs (support for AMD GPUs via HIP ...)"
+    },
+    {
+      "id": "L04-S03",
+      "url": "https://github.com/ggml-org/llama.cpp/releases/tag/b11962",
+      "title": "llama.cpp nightly release b11962",
+      "publisher": "ggml-org/llama.cpp",
+      "publishedAt": "2026-10-28T13:42:20Z",
+      "version": "b11962（prerelease，target commit f5222f25c18da062ab2b8a2dbbfbf4feae398566）",
+      "accessedAt": "2026-10-28",
+      "kind": "release-note",
+      "excerpt": "下载项含 [Ubuntu x64 (Vulkan)]、[Ubuntu arm64 (Vulkan)]、[Ubuntu x64 (ROCm 10.0)]、[Windows x64 (Vulkan)]、[Windows arm64 (Vulkan)]、[Windows x64 (ROCm 10.0)] 等资产（经 GitHub Releases API 资产清单核实，win-rocm-10.0-x64.zip 约 264.9MB）"
+    },
+    {
+      "id": "L04-S04",
+      "url": "https://raw.githubusercontent.com/ggml-org/llama.cpp/604cc430239c76ff636c443e3400bf552b750421/.github/workflows/release.yml",
+      "title": ".github/workflows/release.yml（官方发布构建矩阵）",
+      "publisher": "ggml-org/llama.cpp",
+      "publishedAt": null,
+      "version": "固定提交 604cc430239c76ff636c443e3400bf552b750421",
+      "accessedAt": "2026-10-28",
+      "kind": "official-repo",
+      "excerpt": "windows-rocm: ROCM_VERSION: \"10.0.0\", gpu_targets: \"gfx1010;gfx1011;gfx1012;gfx1030;...;gfx1036;gfx1100;...;gfx1103;gfx1150;...;gfx1153;gfx1200;gfx1201\"；ubuntu-24-rocm 另含 \"gfx908;gfx90a;gfx942;gfx950\"；Windows ROCm 经 pip 安装 rocm[libraries,devel]==10.0.0（TheRock wheels）"
+    },
+    {
+      "id": "L04-S05",
+      "url": "https://raw.githubusercontent.com/ggml-org/llama.cpp/604cc430239c76ff636c443e3400bf552b750421/ggml/src/ggml-vulkan/ggml-vulkan.cpp",
+      "title": "ggml-vulkan.cpp（Vulkan 后端源码）",
+      "publisher": "ggml-org/llama.cpp",
+      "publishedAt": null,
+      "version": "固定提交 604cc430239c76ff636c443e3400bf552b750421",
+      "accessedAt": "2026-10-28",
+      "kind": "official-repo",
+      "excerpt": "if (api_version < VK_API_VERSION_1_2) { GGML_LOG_ERROR(\"ggml_vulkan: Error: Vulkan 1.2 required.\"); } ... if (!vk11_features.storageBuffer16BitAccess) { ... \"does not support 16-bit storage.\" throw std::runtime_error(\"Unsupported device\"); } ... case VK_VENDOR_ID_AMD: if (driver == eAmdProprietary || eAmdOpenSource) { return arch == AMD_RDNA3 || arch == AMD_RDNA4; } return true;（KHR_coopmat 白名单）"
+    },
+    {
+      "id": "L04-S06",
+      "url": "https://raw.githubusercontent.com/ggml-org/llama.cpp/604cc430239c76ff636c443e3400bf552b750421/ggml/src/ggml-hip/CMakeLists.txt",
+      "title": "ggml-hip/CMakeLists.txt",
+      "publisher": "ggml-org/llama.cpp",
+      "publishedAt": null,
+      "version": "固定提交 604cc430239c76ff636c443e3400bf552b750421",
+      "accessedAt": "2026-10-28",
+      "kind": "official-repo",
+      "excerpt": "find_package(hip REQUIRED) find_package(hipblas REQUIRED) find_package(rocblas REQUIRED) ... if (${hip_VERSION} VERSION_LESS 6.1) message(FATAL_ERROR \"At least ROCM/HIP V6.1 is required\") endif()"
+    },
+    {
+      "id": "L04-S07",
+      "url": "https://raw.githubusercontent.com/ggml-org/llama.cpp/604cc430239c76ff636c443e3400bf552b750421/docs/release.md",
+      "title": "docs/release.md（发布流程）",
+      "publisher": "ggml-org/llama.cpp",
+      "publishedAt": null,
+      "version": "固定提交 604cc430239c76ff636c443e3400bf552b750421",
+      "accessedAt": "2026-10-28",
+      "kind": "official-repo",
+      "excerpt": "Currently releases are not published to github releases, only nightly/development builds are available there. The way users can access releases are using the following channels: llama-install.sh ... Package managers ... Build from source. （语义化版本，tag 如 v0.1.0 即发行物）"
+    },
+    {
+      "id": "L04-S08",
+      "url": "https://raw.githubusercontent.com/ggml-org/llama.cpp/604cc430239c76ff636c443e3400bf552b750421/docs/install.md",
+      "title": "docs/install.md（预编译安装渠道）",
+      "publisher": "ggml-org/llama.cpp",
+      "publishedAt": null,
+      "version": "固定提交 604cc430239c76ff636c443e3400bf552b750421",
+      "accessedAt": "2026-10-28",
+      "kind": "official-repo",
+      "excerpt": "conda-forge provides builds for: CUDA (Windows and Linux), Vulkan (Windows and Linux), Apple Metal (macOS) ... winget install llama.cpp（Windows）；brew install llama.cpp（Mac/Linux）"
+    },
+    {
+      "id": "L04-S09",
+      "url": "https://github.com/ggml-org/llama.cpp/issues/26702",
+      "title": "Misc. bug: ROCm gfx1031 build report (why ROCM is better than vulkan)",
+      "publisher": "社区用户 obby-bor @ ggml-org/llama.cpp",
+      "publishedAt": "2026-08-07T07:36:17Z",
+      "version": "llama-server version 10108 (0a50d9909)，Clang 21.1.8 / Linux x86_64",
+      "accessedAt": "2026-10-28",
+      "kind": "community",
+      "excerpt": "On RDNA2 (gfx1031 / RX 6700 XT), the ROCm/HIP backend currently requires two workarounds ... a runtime GFX-version override (masquerading as gfx1030) ... HSA_OVERRIDE_GFX_VERSION=10.3.0 ... Once running, ROCm delivers a ~85% prefill speedup over Vulkan at 8K context"
+    },
+    {
+      "id": "L04-S10",
+      "url": "https://github.com/ggml-org/llama.cpp/issues/20699",
+      "title": "Eval bug: Vulkan Qwen3.5 issue on dual RX 580",
+      "publisher": "社区用户 + 维护者 0cc4m（CONTRIBUTOR）@ ggml-org/llama.cpp",
+      "publishedAt": "2026-03-17T20:32:58Z",
+      "version": "llama.cpp b8398→b8522；AMD 开源/AMDVLK→RADV 驱动",
+      "accessedAt": "2026-10-28",
+      "kind": "community",
+      "excerpt": "ggml_vulkan: 0 = AMD Radeon RX 580 2048SP (AMD open-source driver) | fp16: 0 | int dot: 0 | matrix cores: none（Polaris 卡被 Vulkan 后端识别）… 维护者 0cc4m：you're using amdvlk, which is deprecated (and hasn't supported your GPUs for even longer), best also try RADV, which still fully supports your GPUs. … 用户 2026-03-25：I replaced amdvlk to RADV and it worked fine."
+    },
+    {
+      "id": "L04-S11",
+      "url": "https://github.com/ggml-org/llama.cpp/issues/26929",
+      "title": "Misc. bug: Pre-built Windows ROCm binary does not detect GPU",
+      "publisher": "社区用户 TrickyWidget 等 @ ggml-org/llama.cpp",
+      "publishedAt": "2026-08-11T21:26:16Z",
+      "version": "llama.cpp version 10361；AMD Adrenaline 26.7.1；RX 7900 XTX / Windows 11 25H2；另一例 gfx1151 Strix Halo",
+      "accessedAt": "2026-10-28",
+      "kind": "community",
+      "excerpt": "No devices are detected by pre-built ROCm binary. Vulkan pre-built binary works fine. ... 维护者结论引用（用户转述）：turns out to use ROCm on Windows, you have to go through AMD's ... secondary software install. ROCm isn't actually built into the Windows Adrenaline driver. ... gfx1151（Strix Halo）the VRAM capacity is incorrectly reported as 0 MiB"
+    },
+    {
+      "id": "L04-S12",
+      "url": "https://github.com/ggml-org/llama.cpp/issues/30039",
+      "title": "Vulkan: ~45% prompt processing regression on RDNA1 (gfx1010) between b10455 and b11429 (v0.6.0)",
+      "publisher": "社区用户 @ ggml-org/llama.cpp",
+      "publishedAt": "2026-10-06T04:38:57Z",
+      "version": "官方 Vulkan 发行二进制 b10455-37a215c9e（2026-08-17）与 b11429-d81235049（v0.6.0，2026-10-05）",
+      "accessedAt": "2026-10-28",
+      "kind": "community",
+      "excerpt": "GPU: AMD RX 5700 XT 8GB (gfx1010, RDNA1) — no coopmat, no v_dot4_i32_i8 ... OS: Windows 10 19045, Vulkan backend ... PP regressed ~45%, TG unchanged.（issue 状态 open）"
+    },
+    {
+      "id": "L04-S13",
+      "url": "https://github.com/ggml-org/llama.cpp/discussions/24846",
+      "title": "--override-tensor exps=CPU causes a performance regression on Vulkan (AMD)",
+      "publisher": "社区用户 @ ggml-org/llama.cpp",
+      "publishedAt": "2026-06-20T22:44:50Z",
+      "version": "RX 580 8GB (Polaris/gfx803)，Vulkan 后端，Windows 与 Linux(Mesa RADV) 均测",
+      "accessedAt": "2026-10-28",
+      "kind": "community",
+      "excerpt": "Testing MoE models (Qwen3.5-35B-A3B, Q4_K_M/Q6_K) on an RX 580 8GB (Polaris/gfx803) via the Vulkan backend, Windows and Linux (Mesa RADV) both tested. ... llama.cpp built with -DGGML_VULKAN=ON, no ROCm/HIP anywhere in the stack."
+    },
+    {
+      "id": "L04-S14",
+      "url": "https://github.com/ggml-org/llama.cpp/issues/26663",
+      "title": "[Vulkan] Pathological token-generation slowdown on RX 9070 XT (gfx1201)",
+      "publisher": "社区用户 @ ggml-org/llama.cpp",
+      "publishedAt": "2026-08-06T04:52:47Z",
+      "version": "b10290 官方 Vulkan 与 win-hip 包；AMD 专有驱动 25.20.42.14；Windows 11 26200",
+      "accessedAt": "2026-10-28",
+      "kind": "community",
+      "excerpt": "GPU: AMD Radeon RX 9070 XT 16 GB (gfx1201, RDNA4) ... ggml_vulkan: 0 = AMD Radeon RX 9070 XT (AMD proprietary driver) | fp16: 1 | bf16: 1 | int dot: 1 | matrix cores: KHR_coopmat ... both llama-b10290-bin-win-vulkan-x64.zip and llama-b10290-bin-win-hip-radeon-x64.zip"
+    },
+    {
+      "id": "L04-S15",
+      "url": "https://raw.githubusercontent.com/ggml-org/llama.cpp/604cc430239c76ff636c443e3400bf552b750421/.github/actions/windows-setup-rocm/action.yml",
+      "title": "windows-setup-rocm action.yml（Windows ROCm 构建依赖）",
+      "publisher": "ggml-org/llama.cpp",
+      "publishedAt": null,
+      "version": "固定提交 604cc430239c76ff636c443e3400bf552b750421",
+      "accessedAt": "2026-10-28",
+      "kind": "official-repo",
+      "excerpt": "python -m pip install --index-url https://stable.repo.amd.com/rocm/whl-next/ \"rocm[libraries,devel]==${{ inputs.version }}\" ... rocm-sdk init（Windows 构建机经 pip wheel 安装 ROCm/TheRock）"
+    },
+    {
+      "id": "L04-S16",
+      "url": "https://github.com/ggml-org/llama.cpp/releases/tag/v0.8.0",
+      "title": "llama.cpp v0.8.0 release tag",
+      "publisher": "ggml-org/llama.cpp",
+      "publishedAt": "2026-10-28T12:47:51Z",
+      "version": "v0.8.0（非 prerelease）",
+      "accessedAt": "2026-10-28",
+      "kind": "release-note",
+      "excerpt": "资产列表仅含 nightly-tag.txt（7 字节），无任何二进制；正文为版本变更概述（LiquidAI LFM3、DeepSeek V4.1 Flash 等新架构）"
+    },
+    {
+      "id": "L04-S17",
+      "url": "https://raw.githubusercontent.com/ggml-org/llama.cpp/604cc430239c76ff636c443e3400bf552b750421/.devops/rocm.Dockerfile",
+      "title": ".devops/rocm.Dockerfile",
+      "publisher": "ggml-org/llama.cpp",
+      "publishedAt": null,
+      "version": "固定提交 604cc430239c76ff636c443e3400bf552b750421（ARG ROCm 7.2.1）",
+      "accessedAt": "2026-10-28",
+      "kind": "official-repo",
+      "excerpt": "ARG ROCM_DOCKER_ARCH='gfx908;gfx90a;gfx942;gfx1030;gfx1100;gfx1101;gfx1102;gfx1151;gfx1150;gfx1200;gfx1201' ... This is mostly tied to rocBLAS supported archs.（Docker ROCm 镜像默认目标集与 release.yml 不同）"
+    },
+    {
+      "id": "L04-S18",
+      "url": "https://github.com/ggml-org/llama.cpp/discussions/11572",
+      "title": "Building HIP on Ubuntu with RX 7800XT",
+      "publisher": "社区用户 @ ggml-org/llama.cpp",
+      "publishedAt": "2025-02-01T10:28:58Z",
+      "version": "Ubuntu + RX 7800 XT（gfx1101，ROCm 未官方支持）",
+      "accessedAt": "2026-10-28",
+      "kind": "community",
+      "excerpt": "I'm on Ubuntu with AMD RX 7800XT. It's not officially supported by ROCm ... rocminfo | grep gfx ... returns gfx1101 ... 尝试 -DAMDGPU_TARGETS=gfx1100 构建 HIP 时遇 CMake HIP 编译器错误（讨论楼内未在本次摘录中看到最终解决结论）"
+    }
+  ],
+  "claims": [
+    {
+      "id": "L04-C01",
+      "claim": "llama.cpp 为 AMD GPU 提供两条后端：HIP（目标设备 AMD GPU）与 Vulkan（目标设备 GPU），均列在官方 README 后端表中",
+      "status": "official-supported",
+      "hardware": ["AMD GPU（后端层面，未逐型号验证）"],
+      "os": ["Windows", "Linux"],
+      "software": "llama.cpp @ 提交 604cc430（2026-10-28）",
+      "sourceIds": ["L04-S02"],
+      "limits": "仅证明后端存在与官方文档收录，不证明任何具体显卡型号可用或性能达标"
+    },
+    {
+      "id": "L04-C02",
+      "claim": "Vulkan 路线完全不需要 ROCm：源码构建仅需 Vulkan SDK（或 Linux 上的 libvulkan-dev/glslc/spirv-headers），运行时依赖 Vulkan 驱动",
+      "status": "official-supported",
+      "hardware": ["任何有合格 Vulkan 驱动的 GPU"],
+      "os": ["Windows", "Linux"],
+      "software": "llama.cpp @ 604cc430，Vulkan SDK（文档示例 1.3.283.0）",
+      "sourceIds": ["L04-S01"],
+      "limits": "文档未列最低 AMD 驱动版本；是否达标以运行时探测（Vulkan 1.2 + 16-bit storage）为准"
+    },
+    {
+      "id": "L04-C03",
+      "claim": "Vulkan 后端最低要求为实例版本 ≥ Vulkan 1.2，且设备必须支持 16-bit storage（storageBuffer16BitAccess），否则抛错拒绝设备；fp16 另需 16bit_storage + shader_float16_int8 + shaderFloat16",
+      "status": "official-supported",
+      "hardware": ["AMD GPU（含旧架构）"],
+      "os": ["Windows", "Linux"],
+      "software": "ggml-vulkan.cpp @ 604cc430（源码级探测逻辑）",
+      "sourceIds": ["L04-S05"],
+      "limits": "这是源码级的硬性条件，不是逐卡白名单；满足条件仍可能因驱动 bug 出错（见 L04-C13）"
+    },
+    {
+      "id": "L04-C04",
+      "claim": "HIP 后端构建要求已安装 ROCm，且 CMake 强制 ROCm/HIP ≥ 6.1 并链接 hipblas/rocblas；RCCL 多卡支持默认关闭，需 -DGGML_HIP_RCCL=ON",
+      "status": "official-supported",
+      "hardware": ["HIP 支持的 AMD GPU"],
+      "os": ["Linux", "Windows"],
+      "software": "llama.cpp @ 604cc430 + ROCm/HIP ≥ 6.1",
+      "sourceIds": ["L04-S01", "L04-S06"],
+      "limits": "满足版本下限不等于目标 gfx 架构被 rocBLAS 预编译内核覆盖"
+    },
+    {
+      "id": "L04-C05",
+      "claim": "文档明示 GFX 目标需按卡指定：Windows 构建示例 gfx1100 对应 RX 7900XTX/XT/GRE，gfx1035 等可用 rocminfo 查询后映射到相近目标；Linux 未列名卡可用 HSA_OVERRIDE_GFX_VERSION（RDNA2→10.3.0、RDNA3→11.0.0），且该变量在 Windows 不被支持",
+      "status": "official-supported",
+      "hardware": ["RX 7900 XTX/XT/GRE（示例）", "RDNA2/RDNA3 未列名卡"],
+      "os": ["Windows（不支持 HSA_OVERRIDE）", "Linux（支持 HSA_OVERRIDE）"],
+      "software": "llama.cpp @ 604cc430 + ROCm",
+      "sourceIds": ["L04-S01"],
+      "limits": "属于构建指引，非逐卡验证；override 后的数值正确性由用户自担"
+    },
+    {
+      "id": "L04-C06",
+      "claim": "官方 nightly 预编译产物同时覆盖 AMD 两条路线：Windows/Linux 的 Vulkan 包（win/ubuntu × x64/arm64）与 ROCm 10.0 包（win-x64、ubuntu-x64）",
+      "status": "official-supported",
+      "hardware": ["AMD GPU（按编译目标）"],
+      "os": ["Windows x64/arm64", "Ubuntu x64/arm64"],
+      "software": "llama.cpp b11962（2026-10-28T13:42Z）+ ROCm 10.0 运行时（ROCm 包）",
+      "sourceIds": ["L04-S03"],
+      "limits": "nightly 为 prerelease 性质；产物存在不等于在用户卡上免配置可用（见 L04-C11）"
+    },
+    {
+      "id": "L04-C07",
+      "claim": "Windows ROCm 官方包的编译目标为 gfx1010–gfx1012、gfx1030–gfx1036、gfx1100–gfx1103、gfx1150–gfx1153、gfx1200–gfx1201（RDNA1/2/3/3.5/4，无 gfx9 消费卡）；Ubuntu ROCm 包额外包含 gfx908/gfx90a/gfx942/gfx950（CDNA）",
+      "status": "official-supported",
+      "hardware": [
+        "RX 5000/6000/7000/9000 系列对应 gfx 目标",
+        "RDNA3.5 APU（gfx1150-1153）"
+      ],
+      "os": ["Windows x64", "Ubuntu 24.04 x64"],
+      "software": "llama.cpp release.yml @ 604cc430，ROCm 10.0.0（TheRock pip wheel 构建）",
+      "sourceIds": ["L04-S04", "L04-S15"],
+      "limits": "这是 CI 编译目标清单，即'代码为这些架构编译'，不是'每张卡都已验证'"
+    },
+    {
+      "id": "L04-C08",
+      "claim": "Vega 消费卡（gfx900/gfx906）未列入官方 HIP 预编译目标（目标中的 gfx908/90a/942/950 为 CDNA），属'未列入该版本官方支持名单'；Vulkan 入口对其仍开放但本轮未找到带版本的个案",
+      "status": "not-established",
+      "hardware": ["Vega 消费卡（gfx900/gfx906）"],
+      "os": ["Windows", "Linux"],
+      "software": "llama.cpp b11962 预编译包 / @ 604cc430",
+      "sourceIds": ["L04-S04"],
+      "limits": "未列入 ≠ 不可用：源码自行编译 HIP 或走 Vulkan 仍是文档允许的路径，本轮未取得 Vega 实证"
+    },
+    {
+      "id": "L04-C09",
+      "claim": "Polaris（gfx803 等 gfx8xx）未列入任何官方 HIP 编译目标；HIP 构建链（ROCm ≥ 6.1）在官方目标集中已无 gfx8xx",
+      "status": "version-limited",
+      "hardware": ["Polaris（RX 400/500，gfx803 等）"],
+      "os": ["Windows", "Linux"],
+      "software": "llama.cpp @ 604cc430 / ROCm 10.0 预编译包",
+      "sourceIds": ["L04-S04", "L04-S06"],
+      "limits": "仅针对官方产物与当前构建脚本；不代表社区自编译不可行"
+    },
+    {
+      "id": "L04-C10",
+      "claim": "Polaris 卡（所见案例为 RX 580 2048SP，gfx803）在 Linux 上可被 Vulkan 后端识别并运行 GGUF；该案例探测日志显示 fp16:0、int dot:0、matrix cores:none，即以无 fp16/整数点积/矩阵核的方式运行",
+      "status": "community-reported",
+      "hardware": ["RX 580 2048SP ×2（Polaris）"],
+      "os": ["Linux"],
+      "software": "llama.cpp b8398→b8522（2026-03），AMD 开源驱动→RADV",
+      "sourceIds": ["L04-S10"],
+      "limits": "单一卡型/驱动版本的案例日志，不能外推为所有 Polaris 卡在所有驱动下均缺少这些功能；该案在 AMDVLK 上出现输出异常，换 RADV 后恢复——驱动选择是关键变量"
+    },
+    {
+      "id": "L04-C11",
+      "claim": "Windows 上使用预编译 ROCm 包需要额外安装 AMD 的 ROCm/TheRock SDK：Adrenalin 驱动不含 ROCm 运行时，否则 --list-devices 可能检测不到 GPU；win-rocm zip 仅内置 ggml-hip.dll 与 amdhip64_7.dll/rocm_kpack.dll/amd_comgr.dll",
+      "status": "community-reported",
+      "hardware": ["RX 7900 XTX 24GB（主案）"],
+      "os": ["Windows 11 25H2"],
+      "software": "llama.cpp version 10361 + AMD Adrenaline 26.7.1 + AMD ROCm/TheRock SDK",
+      "sourceIds": ["L04-S11", "L04-S04"],
+      "limits": "社区结论与 CI 打包注释互相印证；安装 TheRock 后另有 gfx1151 显存识别为 0 的报告，Windows ROCm 路线仍有摩擦"
+    },
+    {
+      "id": "L04-C12",
+      "claim": "Linux 上 RX 6700 XT（gfx1031）跑 HIP 需 HSA_OVERRIDE_GFX_VERSION=10.3.0 伪装 gfx1030 并另打补丁；跑通后 prefill 较 Vulkan 明显加速、decode 略慢",
+      "status": "community-reported",
+      "hardware": ["RX 6700 XT（gfx1031，RDNA2）"],
+      "os": ["Linux"],
+      "software": "llama.cpp version 10108 (0a50d9909)，Clang 21.1.8（2026-08-07 报告）",
+      "sourceIds": ["L04-S09"],
+      "limits": "单一社区报告且为 bug 报告体裁；gfx1031 虽在官方编译目标内，运行时仍需 override 属版本相关现象"
+    },
+    {
+      "id": "L04-C13",
+      "claim": "Vulkan 后端在旧卡上随版本变化存在回归/驱动差异：RX 5700 XT（RDNA1）在 b10455→b11429 间 PP 下降约 45%（TG 不变，2026-10-06 仍 open）；RX 580 在 AMDVLK 下输出异常、换 RADV 恢复（维护者称 amdvlk 已 deprecated 且更早不支持这些 GPU）",
+      "status": "community-reported",
+      "hardware": ["RX 5700 XT（gfx1010）", "RX 580 2048SP（gfx803）"],
+      "os": ["Windows 10 19045", "Linux"],
+      "software": "官方 Vulkan 发行包 b10455/b11429；b8398→b8522；AMDVLK vs Mesa RADV",
+      "sourceIds": ["L04-S12", "L04-S10"],
+      "limits": "均为特定构建号/驱动组合下的个案，不能外推到当前版本或其他 RDNA1/Polaris 卡"
+    },
+    {
+      "id": "L04-C14",
+      "claim": "RDNA4（RX 9070 XT，gfx1201）两条后端均可运行（官方 Vulkan 包与 win-hip 包同机测试），Vulkan 探测显示 fp16/bf16/int dot 开启且 matrix cores 为 KHR_coopmat；此前 RDNA4 分支缺失导致性能异常的探测问题已有讨论修正",
+      "status": "community-reported",
+      "hardware": ["RX 9070 XT 16GB（gfx1201）"],
+      "os": ["Windows 11 26200"],
+      "software": "llama.cpp b10290 官方二进制（win-vulkan 与 win-hip-radeon 包）+ AMD 专有驱动 25.20.42.14（2026-08 报告）",
+      "sourceIds": ["L04-S14"],
+      "limits": "该 issue 报告的是 Vulkan 相对 HIP 的病态慢速问题；后续评论显示问题在部分 SKU/驱动上不复现，且与临时性能降级状态有关，未完全归因"
+    },
+    {
+      "id": "L04-C15",
+      "claim": "KHR_cooperative_matrix（矩阵核加速）在 AMD 专有/AMD 开源驱动上被 llama.cpp 白名单限制为 RDNA3/RDNA4（源码注释称规避'专有驱动在所有 GPU 上都报告支持'），其他驱动（如 RADV）一律放行；设备多驱动并存时按 RADV > AMD 开源 > AMD 专有优先选择",
+      "status": "official-supported",
+      "hardware": [
+        "AMD RDNA3/RDNA4（专有/开源驱动下启用 coopmat）",
+        "其他 AMD 架构（该路径被禁用）"
+      ],
+      "os": ["Windows（AMD 专有）", "Linux（RADV/AMDVLK/专有）"],
+      "software": "ggml-vulkan.cpp @ 604cc430",
+      "sourceIds": ["L04-S05"],
+      "limits": "只影响 coopmat 加速路径的启用，不代表后端不可用；无 coopmat 的卡走 scalar/MMQ 路径"
+    },
+    {
+      "id": "L04-C16",
+      "claim": "Polaris RX 580 在 Windows 与 Linux(Mesa RADV) 均以纯 Vulkan 栈（无 ROCm/HIP）运行 MoE 模型可行，但 CUDA 文档中的 --override-tensor exps=CPU 优化在 Vulkan 上反而回退",
+      "status": "community-reported",
+      "hardware": ["RX 580 8GB（Polaris/gfx803）"],
+      "os": ["Windows", "Linux（Mesa RADV）"],
+      "software": "自建 llama.cpp -DGGML_VULKAN=ON（2026-06-20 讨论，模型 Qwen3.5-35B-A3B Q4_K_M/Q6_K）",
+      "sourceIds": ["L04-S13"],
+      "limits": "个案；性能数字未复核，仅证明纯 Vulkan 栈可跑"
+    },
+    {
+      "id": "L04-C17",
+      "claim": "Docker 官方 ROCm 镜像（rocm.Dockerfile，ARG ROCm 7.2.1）默认架构集为 gfx908;gfx90a;gfx942;gfx1030;gfx1100-1102;gfx1150;gfx1151;gfx1200;gfx1201，与 release.yml 的目标集不同，且注释称该集合'主要受 rocBLAS 支持的架构约束'",
+      "status": "official-supported",
+      "hardware": [
+        "gfx908/90a/942、gfx1030、gfx1100-1102、gfx1150/1151、gfx1200/1201"
+      ],
+      "os": ["Linux（docker linux/amd64）"],
+      "software": "llama.cpp @ 604cc430 + ROCm 7.2.1 dev 容器",
+      "sourceIds": ["L04-S17"],
+      "limits": "Docker 镜像被官方注明'未经 CI 测试'（docs/docker.md）；不同入口的架构覆盖不一致，引用时须指明入口"
+    },
+    {
+      "id": "L04-C18",
+      "claim": "正式版本 tag（如 v0.8.0，2026-10-28）不在 GitHub Releases 提供二进制（v0.8.0 资产仅 nightly-tag.txt），用户获取正式版走 llama-install.sh、包管理器（winget/brew/conda-forge 等）或源码编译；Releases 页面的二进制全部是 nightly/开发构建",
+      "status": "official-supported",
+      "hardware": [],
+      "os": ["Windows", "Linux", "macOS"],
+      "software": "llama.cpp v0.8.0 及 docs/release.md @ 604cc430",
+      "sourceIds": ["L04-S07", "L04-S16"],
+      "limits": "llama-install.sh 一键脚本会递归删除并重建 ~/.llama-app 安装目录，已有目录内的自定义文件会被清除，本轮未执行、不作为无损升级或无条件安装建议推荐；nightly 二进制同样可直接从 Releases 下载页获取。包管理器渠道的构建选项（是否含 Vulkan/HIP）由各发行方决定，本路未逐一核实"
+    }
+  ],
+  "gaps": [
+    "Vega 消费卡（gfx900/gfx906，如 RX Vega 56/64）在 llama.cpp Vulkan 或 HIP 下的带版本个案未找到，本轮结论仅限'未列入官方编译目标'",
+    "Windows 下 Polaris/RX 580 跑 Vulkan 的具体个案（带构建号与驱动版本）未单独核实；现有 Windows 证据来自 discussion #24846 的自建构建",
+    "llama.cpp 文档未给出任何最低 AMD 驱动版本号；Vulkan 侧的达标判据只有源码级探测（Vulkan 1.2 + 16-bit storage），未核实各代 AMD 驱动的具体版本对应关系",
+    "Ubuntu ROCm 10.0 预编译包中 gfx908/90a/942/950 目标（CDNA）对消费卡的适用性未核实",
+    "discussion #11572（RX 7800 XT gfx1101 Ubuntu HIP 构建）楼内最终是否解决未逐楼核实，仅收录初始报错",
+    "issue #26663 中提到的 llama-b10290-bin-win-hip-radeon-x64.zip 包名与现行 win-rocm 命名的差异（是否并存两种 Windows HIP 产物）未核实",
+    "b11962 之后的构建是否调整 gfx 目标集未追踪（本路全部固定在 604cc430/b11962）"
+  ]
+}

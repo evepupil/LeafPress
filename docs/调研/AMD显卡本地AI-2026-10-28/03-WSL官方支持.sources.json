@@ -1,0 +1,312 @@
+{
+  "lane": "03",
+  "checkedAt": "2026-10-28",
+  "scope": "AMD 官方在 Windows WSL 2 路线上支持的桌面显卡、软件版本组合及相对 Linux 的限制（ROCDXG / roc4wsl；不含原生 Windows Python 安装，不含社区方案）",
+  "sources": [
+    {
+      "id": "L03-S01",
+      "url": "https://rocm.docs.amd.com/projects/radeon/en/latest/docs/compatibility.html",
+      "title": "Use ROCm on Radeon and Ryzen（总览/起点页）",
+      "publisher": "AMD",
+      "publishedAt": null,
+      "version": "latest，覆盖到 ROCm 7.2.1（域名现 302 至 radeon-ryzen）",
+      "accessedAt": "2026-10-28",
+      "kind": "official-doc",
+      "excerpt": "WSL ROCDXG: This release marks the first time AMD is supporting Ryzen Strix and Strix Halo SKUs versus the legacy WSL solution. AMD is introducing production support for the open-source ROCDXG (librocdxg) WSL solution with Adrenalin 26.2.2 + ROCm 7.2.1. / AMD Software: Adrenalin Edition™ 26.2.2 for WSL2"
+    },
+    {
+      "id": "L03-S02",
+      "url": "https://rocm.docs.amd.com/projects/radeon-ryzen/en/latest/docs/install/installrad/wsl/howto_wsl.html",
+      "title": "WSL How to guide - Use ROCm on Radeon",
+      "publisher": "AMD",
+      "publishedAt": null,
+      "version": "latest（文档横幅：covers releases through 7.2.1）",
+      "accessedAt": "2026-10-28",
+      "kind": "official-doc",
+      "excerpt": "Install WSL with ROCDXG# Install Adrenalin driver... AMD Software: Adrenalin Edition™ 26.2.2 for WSL2. Install WSL... Ubuntu 24.04 and 22.04 are the supported distros on WSL. Open the librocdxg github link and follow the Quickstart installation... The ROCm-supported version of JAX is not currently enabled or validated under WSL... MIGraphX and mGPU configuration are not currently supported by WSL"
+    },
+    {
+      "id": "L03-S03",
+      "url": "https://rocm.docs.amd.com/projects/radeon-ryzen/en/docs-7.2/docs/compatibility/compatibilityrad/wsl/wsl_compatibility.html",
+      "title": "WSL support matrices by ROCm version（ROCm 7.2）",
+      "publisher": "AMD",
+      "publishedAt": null,
+      "version": "docs-7.2 固定版本",
+      "accessedAt": "2026-10-28",
+      "kind": "official-doc",
+      "excerpt": "GPU support matrix# ROCm Version 7.2 | Radeon™ Software for Linux® Version 22.04 24.04 25.10.1 for WSL | Radeon™ Software for Windows Version AMD Software: Adrenalin Edition™ 26.1.1 for WSL2 | AMD Radeon RX 9070, RX 9070 XT, RX 9070 GRE, AI PRO R9700, RX 9060, RX 9060 XT, RX 7900 XTX, RX 7900 XT, RX 7900 GRE, PRO W7900, PRO W7900 Dual Slot, PRO W7800, PRO W7800 48GB, RX 7800 XT, PRO W7700, RX 7700, RX 7700 XT, AI PRO R9600D"
+    },
+    {
+      "id": "L03-S04",
+      "url": "https://rocm.docs.amd.com/projects/radeon-ryzen/en/latest/docs/compatibility/compatibilityrad/windows/windows_compatibility.html",
+      "title": "Windows support matrices by ROCm version（对照用）",
+      "publisher": "AMD",
+      "publishedAt": null,
+      "version": "latest，ROCm 7.2.1",
+      "accessedAt": "2026-10-28",
+      "kind": "official-doc",
+      "excerpt": "GPU support matrix# ROCm Version 7.2.1* | gfx1201 gfx1200 gfx1100 gfx1101 | AMD Radeon RX 9070, RX 9070 XT, AI PRO R9700, RX 9060 XT, RX 7900 XTX, PRO W7900, PRO W7900 Dual Slot, RX 7700 ... PyTorch Version 2.9 | ROCm 7.2.1* | Python 3.12 ... Pytorch on Windows includes ROCm 7.2.1 components; however, the entire ROCm stack is not yet supported on Windows."
+    },
+    {
+      "id": "L03-S05",
+      "url": "https://github.com/ROCm/librocdxg",
+      "title": "AMD ROCDXG Library（ROCm/librocdxg README，WSL Compatibility Matrix）",
+      "publisher": "AMD（ROCm GitHub 组织）",
+      "publishedAt": null,
+      "version": "develop 分支，固定提交 a2baffea281f3adb4c16674876426fb6bec3674f（2026-08-29，README: mark repository as deprecated）",
+      "accessedAt": "2026-10-28",
+      "kind": "official-repo",
+      "excerpt": "AMD Rocdxg Lib Version 1.2.0 | AMD ROCm Version 7.2.x | AMD Windows x86 drivers can be directly downloaded from AMD Driver | Radeon: RX 9070, RX 9070 XT, RX 9070 GRE, AI PRO R9700, RX 9060, RX 9060 XT, RX 7900 XTX, RX 7900 XT, RX 7900 GRE, PRO W7900, PRO W7900 Dual Slot, PRO W7800, PRO W7800 48GB, RX 7800 XT, PRO W7700; Ryzen: AI Max+ 395, AI Max 390, AI Max 385 ... AMD-SMI provides limited features on WSL2; ROCm-profiler, Debugger are not supported."
+    },
+    {
+      "id": "L03-S06",
+      "url": "https://rocm.docs.amd.com/projects/radeon-ryzen/en/docs-7.2/docs/limitations/limitationsrad.html",
+      "title": "Radeon Limitations and recommended settings（7.2 release，WSL 节）",
+      "publisher": "AMD",
+      "publishedAt": null,
+      "version": "docs-7.2 固定版本",
+      "accessedAt": "2026-10-28",
+      "kind": "official-doc",
+      "excerpt": "ROCm support in WSL environments# AMD-smi support: Due to WSL architectural limitations for native Linux User Kernel Interface (UKI), amd-smi is not supported. UKI does not currently support amd-smi | No current support for: Active compute processes, GPU utilization, Modifiable state features. ROCm-profiler support: Not currently supported. Debugger: Not currently supported. ... Important! ROCm is not officially supported on any mobile SKUs."
+    },
+    {
+      "id": "L03-S07",
+      "url": "https://www.amd.com/en/resources/support-articles/release-notes/RN-RAD-WIN-26-2-2.html",
+      "title": "AMD Software: Adrenalin Edition 26.2.2 Release Notes",
+      "publisher": "AMD",
+      "publishedAt": "2026-02-26",
+      "version": "Adrenalin 26.2.2",
+      "accessedAt": "2026-10-28",
+      "kind": "release-note",
+      "excerpt": "New Features: Support for WSL with ROCm 7.2.1 now uses the open-source ROCDGXG library, with added support for select AMD Ryzen processors. ... Radeon Product Compatibility: RX 9070 / 9060 Series, AI PRO R9700/R9700S/R9600D, RX 7900/7800/7700/7650/7600, RX 6900/6800/6700/6600/6500/6400, RX 5700/5600/5500/5300 Series ... Windows 11 version 21H2 and later; Windows 10 64-bit version 21H2 and later."
+    },
+    {
+      "id": "L03-S08",
+      "url": "https://rocm.docs.amd.com/projects/radeon-ryzen/en/docs-7.2/docs/install/installrad/wsl/install-radeon.html",
+      "title": "Install Radeon software for WSL with ROCm（docs-7.2，旧 roc4wsl 路线）",
+      "publisher": "AMD",
+      "publishedAt": null,
+      "version": "docs-7.2 固定版本（amdgpu-install 7.2.70200-1）",
+      "accessedAt": "2026-10-28",
+      "kind": "official-doc",
+      "excerpt": "WSL requires installation of the following Windows driver. To install the compatible driver, refer to AMD Software: Adrenalin Edition™ 26.1.1 for WSL2. ... Ubuntu 24.04: wget https://repo.radeon.com/amdgpu-install/7.2/ubuntu/noble/amdgpu-install_7.2.70200-1_all.deb ... Ubuntu 22.04: .../jammy/... ... amdgpu-install -y --usecase=wsl,rocm --no-dkms"
+    }
+  ],
+  "claims": [
+    {
+      "id": "L03-C01",
+      "claim": "AMD 自 Adrenalin 26.2.2 + ROCm 7.2.1 起，对 WSL 采用开源 ROCDXG（librocdxg）方案并给出 production support，取代旧 roc4wsl 打包模型",
+      "status": "official-supported",
+      "hardware": ["由官方兼容矩阵界定的 Radeon 桌面/工作站卡与部分 Ryzen SKU"],
+      "os": ["Windows + WSL2"],
+      "software": "Adrenalin 26.2.2 for WSL2 + ROCm 7.2.1 + librocdxg",
+      "sourceIds": ["L03-S01", "L03-S02"],
+      "limits": "production support 是对 ROCDXG 库这一集成方案的表述；不等于所有 ROCm 组件、所有框架在 WSL 可用（见 JAX/MIGraphX/mGPU 限制）"
+    },
+    {
+      "id": "L03-C02",
+      "claim": "现行 ROCDXG 路线官方支持的 WSL 发行版为 Ubuntu 24.04 与 22.04；Windows 侧需安装 AMD Software: Adrenalin Edition 26.2.2 for WSL2 驱动",
+      "status": "official-supported",
+      "hardware": [],
+      "os": ["Windows（WSL2）", "Ubuntu 24.04", "Ubuntu 22.04"],
+      "software": "Adrenalin 26.2.2 for WSL2",
+      "sourceIds": ["L03-S02"],
+      "limits": "latest 文档原文；librocdxg 仓库另列 Ubuntu 26.04 LTS，两者口径不一，以各自页面为准"
+    },
+    {
+      "id": "L03-C03",
+      "claim": "ROCm 7.2 旧 WSL 矩阵（roc4wsl）逐卡列出 18 款以上桌面/工作站 Radeon GPU，包括 RX 9070/9070 XT/9070 GRE、AI PRO R9700、RX 9060/9060 XT、RX 7900 XTX/XT/GRE、PRO W7900/W7900 DS、PRO W7800/W7800 48GB、RX 7800 XT、PRO W7700、RX 7700/7700 XT、AI PRO R9600D",
+      "status": "official-supported",
+      "hardware": [
+        "AMD Radeon RX 9070",
+        "AMD Radeon RX 9070 XT",
+        "AMD Radeon RX 9070 GRE",
+        "AMD Radeon AI PRO R9700",
+        "AMD Radeon RX 9060",
+        "AMD Radeon RX 9060 XT",
+        "AMD Radeon RX 7900 XTX",
+        "AMD Radeon RX 7900 XT",
+        "AMD Radeon RX 7900 GRE",
+        "AMD Radeon PRO W7900",
+        "AMD Radeon PRO W7900 Dual Slot",
+        "AMD Radeon PRO W7800",
+        "AMD Radeon PRO W7800 48GB",
+        "AMD Radeon RX 7800 XT",
+        "AMD Radeon PRO W7700",
+        "AMD Radeon RX 7700",
+        "AMD Radeon RX 7700 XT",
+        "AMD Radeon AI PRO R9600D"
+      ],
+      "os": [
+        "Ubuntu 24.04.2 (WSL2-Linux-Kernel 5.15)",
+        "Ubuntu 22.04 (WSL2-Linux-Kernel 5.15)"
+      ],
+      "software": "ROCm 7.2 + Radeon Software for Linux 22.04/24.04/25.10.1 for WSL + Adrenalin 26.1.1 for WSL2",
+      "sourceIds": ["L03-S03"],
+      "limits": "这是 docs-7.2 固定版本矩阵，配套旧驱动 26.1.1；ROCDXG（26.2.2）路线的逐卡名单以 librocdxg 仓库矩阵为准，两表不完全一致"
+    },
+    {
+      "id": "L03-C04",
+      "claim": "RX 6000 系列（RDNA2）未出现在本次核对的任何官方 WSL 支持名单（docs-7.2 WSL 矩阵、librocdxg 7.2.x/7.13/7.14 行）中",
+      "status": "not-established",
+      "hardware": [
+        "AMD Radeon RX 6000 系列（RX 6900/6800/6700/6600/6500/6400）"
+      ],
+      "os": ["Windows WSL2"],
+      "software": "ROCm 7.2 / 7.2.1 / librocdxg 1.2.x",
+      "sourceIds": ["L03-S03", "L03-S05"],
+      "limits": "只能表述为\"未列入本次核对的官方 WSL 支持名单\"，不等价于官方声明永久不支持；更早 ROCm 6.x 版本的 WSL 矩阵本轮未核"
+    },
+    {
+      "id": "L03-C05",
+      "claim": "Adrenalin 26.2.2 显示驱动本身兼容 RX 6900/6800/6700/6600/6500/6400 乃至 RX 5700/5600/5500/5300 系列，但这是图形驱动兼容列表，不是 ROCm WSL 计算支持名单",
+      "status": "official-supported",
+      "hardware": [
+        "AMD Radeon RX 9070/9060 系",
+        "AI PRO R9700/R9700S/R9600D",
+        "RX 7900/7800/7700/7650/7600 系",
+        "RX 6900/6800/6700/6600/6500/6400 系",
+        "RX 5700/5600/5500/5300 系"
+      ],
+      "os": ["Windows 11 21H2+", "Windows 10 64-bit 21H2+"],
+      "software": "AMD Software: Adrenalin Edition 26.2.2",
+      "sourceIds": ["L03-S07"],
+      "limits": "驱动兼容≠ROCm/WSL 计算支持；ROCm 支持以 WSL 专用矩阵为准"
+    },
+    {
+      "id": "L03-C06",
+      "claim": "WSL（docs-7.2 矩阵）下 PyTorch 2.9.1 + ROCm 7.2、ONNX Runtime 1.23.1、TensorFlow 2.20、Triton 3.5.1 均为 Official production support；PyTorch 2.7/Stable 明确 \"Not supported for Radeon 7000 series\"",
+      "status": "official-supported",
+      "hardware": ["L03-C03 所列 Radeon 卡"],
+      "os": ["WSL2 Ubuntu 22.04/24.04.2"],
+      "software": "PyTorch 2.9.1 / ONNX Runtime 1.23.1 / TensorFlow 2.20 / Triton 3.5.1 + ROCm 7.2",
+      "sourceIds": ["L03-S03"],
+      "limits": "框架生产支持≠所有模型、算子、插件可用；PyTorch 2.9/Nightly 未被 AMD 广泛测试。该条目属于 docs-7.2 旧 roc4wsl 路线（配套 Adrenalin 26.1.1），不能直接套用到现行 ROCDXG（26.2.2 + 7.2.1）路线，后者的框架版本组合本轮未核实"
+    },
+    {
+      "id": "L03-C07",
+      "claim": "官方明确：MIGraphX 与 mGPU（多 GPU）配置在 WSL 不受支持；JAX 的 ROCm 支持版本未在 WSL 启用或验证，可能安装/初始化/执行失败",
+      "status": "official-unsupported",
+      "hardware": [],
+      "os": ["Windows WSL2"],
+      "software": "ROCm 7.2 / 7.2.1",
+      "sourceIds": ["L03-S02"],
+      "limits": "librocdxg 仓库侧另写 \"JAX is supported from version 0.9.1 onwards\"，与 latest 指南表述存在口径差，两处原文并存"
+    },
+    {
+      "id": "L03-C08",
+      "claim": "监控能力按 WSL 路线分述：旧 ROCm 7.2 限制页写 amd-smi is not supported（因 WSL 对原生 Linux UKI 的架构限制），并逐项列出 UKI 不支持的功能：Active compute processes、GPU utilization、Modifiable state features；ROCm-profiler 与 Debugger 亦 not currently supported",
+      "status": "official-unsupported",
+      "hardware": [],
+      "os": ["Windows WSL2"],
+      "software": "旧路线：ROCm 7.2（docs-7.2 limitations 页）；新路线：librocdxg/ROCDXG（仓库 README）",
+      "sourceIds": ["L03-S06", "L03-S05"],
+      "limits": "上述条目出自 docs-7.2 固定版本限制页，适用旧 roc4wsl 路线。librocdxg 仓库（develop@a2baffea）对 ROCDXG 路线另写 \"AMD-SMI currently provides a limited set of features on WSL2\"，即新路线下 amd-smi 提供有限功能，但显存等具体计数器本轮未核实。两处口径不同，不能合并为\"所有 WSL 路线都不能监控显存\"；旧页未列显存读数一项，不应由无利用率/无进程列表推断无显存读数，也不排除其他监控工具可用"
+    },
+    {
+      "id": "L03-C09",
+      "claim": "WSL2 下推理性能可能低于原生 Linux（官方定性 known issue），WSL 开销被视为 GPU 利用率瓶颈，官方建议通过增大 batch size 优化",
+      "status": "version-limited",
+      "hardware": [],
+      "os": ["Windows WSL2"],
+      "software": "ROCm 7.2",
+      "sourceIds": ["L03-S06"],
+      "limits": "仅为官方定性表述，本路无实测，不做任何速度量化结论"
+    },
+    {
+      "id": "L03-C10",
+      "claim": "旧 roc4wsl 安装路线：WSL 内 Ubuntu 22.04/24.04 安装 amdgpu-install 7.2.70200-1 deb 后执行 amdgpu-install -y --usecase=wsl,rocm --no-dkms，Windows 侧配套驱动为 Adrenalin 26.1.1 for WSL2",
+      "status": "official-supported",
+      "hardware": ["L03-C03 所列 Radeon 卡"],
+      "os": ["WSL2 Ubuntu 24.04", "WSL2 Ubuntu 22.04"],
+      "software": "ROCm 7.2 + amdgpu-install 7.2.70200-1 + Adrenalin 26.1.1 for WSL2",
+      "sourceIds": ["L03-S08"],
+      "limits": "仅记录原文，未执行；latest 文档称继续用旧实现必须停留在 ROCm 7.2"
+    },
+    {
+      "id": "L03-C11",
+      "claim": "librocdxg 仓库 WSL 兼容矩阵：Windows 11 + Ubuntu 26.04/24.04/22.04 LTS；1.2.0+ROCm 7.2.x 行列出的 Radeon 名单不含 RX 7700/7700 XT 与 AI PRO R9600D，但额外含 Ryzen AI Max+ 395 / AI Max 390 / 385 / AI 9 HX 375 / 370 / 365 等 APU",
+      "status": "official-supported",
+      "hardware": [
+        "AMD Radeon RX 9070",
+        "RX 9070 XT",
+        "RX 9070 GRE",
+        "AI PRO R9700",
+        "RX 9060",
+        "RX 9060 XT",
+        "RX 7900 XTX",
+        "RX 7900 XT",
+        "RX 7900 GRE",
+        "PRO W7900",
+        "PRO W7900 Dual Slot",
+        "PRO W7800",
+        "PRO W7800 48GB",
+        "RX 7800 XT",
+        "PRO W7700",
+        "AMD Ryzen AI Max+ 395",
+        "Ryzen AI Max 390",
+        "Ryzen AI Max 385",
+        "Ryzen AI 9 HX 375",
+        "Ryzen AI 9 HX 370",
+        "Ryzen AI 9 365"
+      ],
+      "os": [
+        "Windows 11",
+        "Ubuntu 26.04 LTS (WSL)",
+        "Ubuntu 24.04 LTS (WSL)",
+        "Ubuntu 22.04 LTS (WSL)"
+      ],
+      "software": "librocdxg 1.2.0 + ROCm 7.2.x；1.2.0 + ROCm 7.13；1.2.1 + ROCm 7.14",
+      "sourceIds": ["L03-S05"],
+      "limits": "仓库已标 deprecated（源码迁往 ROCm/rocm-systems）；其 GPU 名单与 docs-7.2 矩阵存在差异，引用需注明出处页"
+    },
+    {
+      "id": "L03-C12",
+      "claim": "Adrenalin 26.2.2 发布说明确认：WSL with ROCm 7.2.1 现使用开源 ROCDXG 库，并新增对部分 Ryzen 处理器的支持；该驱动最后更新于 2026-02-26",
+      "status": "official-supported",
+      "hardware": ["select AMD Ryzen 处理器", "Radeon 系（见其兼容列表）"],
+      "os": ["Windows 11 21H2+", "Windows 10 64-bit 21H2+"],
+      "software": "Adrenalin 26.2.2 + ROCm 7.2.1 + ROCDXG",
+      "sourceIds": ["L03-S07"],
+      "limits": "发布说明为驱动视角，未给逐卡 WSL 计算名单"
+    },
+    {
+      "id": "L03-C13",
+      "claim": "WSL 与原生 Windows 的官方支持面不同：原生 Windows（7.2.1）仅 PyTorch（Python 3.12）且整个 ROCm 栈未支持；WSL（docs-7.2 矩阵，旧 roc4wsl 路线）给出 PyTorch/ONNX/TensorFlow/Triton 多框架生产支持条目",
+      "status": "official-supported",
+      "hardware": [],
+      "os": ["Windows 11", "WSL2 Ubuntu 22.04/24.04"],
+      "software": "PyTorch 2.9(Windows)/2.9.1(WSL) + ROCm 7.2.1/7.2",
+      "sourceIds": ["L03-S04", "L03-S03"],
+      "limits": "两套矩阵版本口径不同（7.2.1 vs 7.2），逐条结论需按各自版本引用；WSL 多框架条目属 7.2 旧路线，ROCDXG 现行路线的框架组合未核；不代表 WSL 性能或功能等同原生 Linux"
+    },
+    {
+      "id": "L03-C14",
+      "claim": "ROCDXG 不需要安装 Radeon Software for Linux（RSL）包、不要求用户匹配特定 RSL+ROCm 版本对；通过 Microsoft DXCore (/dev/dxg) 与 Windows 驱动通信",
+      "status": "official-supported",
+      "hardware": [],
+      "os": ["Windows WSL2"],
+      "software": "librocdxg + ROCm 7.1+（利用 ROCm 7.1 引入的 runtime 特性）",
+      "sourceIds": ["L03-S02", "L03-S05"],
+      "limits": "legacy ROCm 版本仍需设置 HSA_ENABLE_DXG_DETECTION=1（仓库注明 7.13 起移除）；容器场景需额外挂载 /dev/dxg 与相关 .so"
+    },
+    {
+      "id": "L03-C15",
+      "claim": "vLLM 在 WSL2 使用 V2 model runner 时可能因 pinned memory 默认禁用而初始化失败（RuntimeError: UVA is not available），官方指向 vLLM PR #41496 修复",
+      "status": "version-limited",
+      "hardware": [],
+      "os": ["Windows WSL2"],
+      "software": "vLLM + ROCm/librocdxg（仓库 develop 分支 README）",
+      "sourceIds": ["L03-S05"],
+      "limits": "仓库已知问题条目，非支持声明；具体受影响 vLLM 版本范围页面未写"
+    }
+  ],
+  "gaps": [
+    "ROCDXG（26.2.2）现行路线在 radeon-ryzen 文档内没有独立的逐卡 GPU 矩阵，只链接 librocdxg 仓库矩阵；仓库矩阵与 docs-7.2 矩阵各自独立成表且名单有出入（RX 7700/7700 XT、AI PRO R9600D 只在 docs-7.2；Ryzen AI Max 系只在仓库表），两表是不同出处的名单，不能合并成交集或并集后引用，也无法判定哪个是 26.2.2 时代的最终口径。",
+    "现行 ROCDXG（Adrenalin 26.2.2 + ROCm 7.2.1 + librocdxg）路线下 PyTorch/ONNX/TensorFlow/Triton 的具体版本组合未核实：latest 指南只写 Non-WSL framework guides can be used to install the frameworks 并指向 Radeon 框架 How-To，未给 WSL 框架版本矩阵；docs-7.2 的 PyTorch 2.9.1 等条目不能直接套用到该路线。",
+    "RX 6000 系（RDNA2）在更早 ROCm 6.x 版本的 WSL 支持情况未核（需逐版本点 Version List 回滚），本路只能写\"未列入本次核对的 WSL 名单\"。",
+    "WSL 下 PyTorch 具体安装命令与轮子来源（Radeon 框架 How-To 子页）本轮未逐页打开。",
+    "librocdxg README 列 Ubuntu 26.04 LTS，与 latest 安装指南只写 24.04/22.04 存在矛盾，未判定权威口径。",
+    "ROCm 官方 Docker 镜像在 WSL 的支持矩阵（Docker Image Support Matrix）未展开核实。"
+  ]
+}

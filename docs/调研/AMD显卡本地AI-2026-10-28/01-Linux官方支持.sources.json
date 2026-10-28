@@ -1,0 +1,287 @@
+{
+  "lane": "01",
+  "checkedAt": "2026-10-28",
+  "scope": "AMD 官方 ROCm / Radeon Linux 路线对消费级桌面独显的列名支持，及对应 Linux 发行版、驱动、PyTorch 版本；不含核显（另路）、不含 Windows/WSL 安装细节（另路）、不含 Instinct 数据中心卡（仅边界说明）。",
+  "sources": [
+    {
+      "id": "L01-S01",
+      "url": "https://rocm.docs.amd.com/en/latest/compatibility/compatibility-matrix.html",
+      "title": "ROCm 10.1.0 compatibility matrix",
+      "publisher": "AMD",
+      "publishedAt": "2026-08-26",
+      "version": "页面标注 2026-08-26；标题显示 ROCm Core SDK 10.1.0",
+      "accessedAt": "2026-10-28",
+      "kind": "official-doc",
+      "excerpt": "AMD Radeon RX 9070 XT (gfx1201) ... AMD Radeon RX 7600 (gfx1102) ... Supported Ubuntu versions: Ubuntu 26.04.1 (kernel: GA 7.0), Ubuntu 24.04.5 (HWE 7.0), Ubuntu 22.04.5 (HWE 6.8). Supported AMD GPU Driver (amdgpu) versions: 31.60.0, 31.50.0."
+    },
+    {
+      "id": "L01-S02",
+      "url": "https://rocm.docs.amd.com/projects/radeon-ryzen/en/latest/docs/compatibility/compatibilityrad/native_linux/native_linux_compatibility.html",
+      "title": "Linux support matrices by ROCm version (ROCm 7.2.1, Use ROCm on Radeon and Ryzen)",
+      "publisher": "AMD",
+      "publishedAt": null,
+      "version": "ROCm 7.2.1（页面自述 covers releases through 7.2.1）",
+      "accessedAt": "2026-10-28",
+      "kind": "official-doc",
+      "excerpt": "GPU support matrix: ROCm Version 7.2.1 | Radeon Software for Linux Version 22.04 24.04 25.10 | AMD Radeon RX 9060, RX 9060 XT, RX 9070, RX 9070 XT, RX 9070 GRE, RX 7900 XTX, RX 7900 XT, RX 7900 GRE, PRO W7900, PRO W7800, PRO W7700, RX 7700, RX 7700 XT, RX 7800 XT, AI PRO R9600/R9700. OS: Ubuntu 24.04.4 Desktop HWE (kernel 6.17), RHEL 10.1 (6.12). PyTorch 2.9.1 official production support; 2.7/Stable Not supported for Radeon 7000 series."
+    },
+    {
+      "id": "L01-S03",
+      "url": "https://rocm.docs.amd.com/projects/radeon-ryzen/en/latest/docs/prerequisites/prerequisitesrad.html",
+      "title": "Prerequisites to use ROCm on Radeon desktop GPUs for machine learning development",
+      "publisher": "AMD",
+      "publishedAt": null,
+      "version": "随 Radeon/Ryzen 文档 latest（对应 ROCm 7.2.1）",
+      "accessedAt": "2026-10-28",
+      "kind": "official-doc",
+      "excerpt": "To successfully install ROCm for machine learning development, ensure that your system is operating on a Radeon Desktop GPU listed in the Compatibility matrices section. Note: If your GPU is not listed, it might be community-enabled through TheRock nightly builds. Recommended memory: 64GB Main Memory, 24GB GPU Video Memory. Minimum: 16GB Main Memory, 8GB GPU Video Memory."
+    },
+    {
+      "id": "L01-S04",
+      "url": "https://rocm.docs.amd.com/projects/radeon-ryzen/en/latest/docs/install/installrad/native_linux/install-radeon.html",
+      "title": "Install Radeon software for Linux with ROCm",
+      "publisher": "AMD",
+      "publishedAt": null,
+      "version": "随 Radeon/Ryzen 文档 latest（对应 ROCm 7.2.1）",
+      "accessedAt": "2026-10-28",
+      "kind": "official-doc",
+      "excerpt": "wget https://repo.radeon.com/amdgpu-install/7.2.1/ubuntu/noble/amdgpu-install_7.2.1.70201-1_all.deb ... RHEL 10.1: amdgpu-install-7.2.1.70201-1.el10.noarch.rpm ... amdgpu-install -y --usecase=graphics,rocm ... sudo usermod -a -G render,video $LOGNAME ... rocminfo Expected result: Name: gfx1100"
+    },
+    {
+      "id": "L01-S05",
+      "url": "https://rocm.docs.amd.com/projects/radeon-ryzen/en/latest/docs/install/installrad/native_linux/install-pytorch.html",
+      "title": "Install PyTorch for Radeon GPUs (Linux)",
+      "publisher": "AMD",
+      "publishedAt": null,
+      "version": "随 Radeon/Ryzen 文档 latest（对应 ROCm 7.2.1）",
+      "accessedAt": "2026-10-28",
+      "kind": "official-doc",
+      "excerpt": "AMD recommends the PIP install method ... Ubuntu 24.04: torch-2.9.1+rocm7.2.1.lw.gitff65f5bc-cp312 ... torchvision-0.24.0+rocm7.2.1 ... triton-3.5.1+rocm7.2.1 ... torchaudio-2.9.0+rocm7.2.1 (cp310 for Ubuntu 22.04) ... Docker: rocm/pytorch:rocm7.2.1_ubuntu24.04_py3.12_pytorch_release_2.9.1 ... numpy v2.0 is incompatible with the torch wheels for this version, downgrade: pip3 install numpy==1.26.4"
+    },
+    {
+      "id": "L01-S06",
+      "url": "https://rocm.docs.amd.com/projects/radeon-ryzen/en/latest/docs/limitations/limitationsrad.html",
+      "title": "Radeon Limitations and recommended settings",
+      "publisher": "AMD",
+      "publishedAt": null,
+      "version": "随 Radeon/Ryzen 文档 latest（对应 ROCm 7.2.1）",
+      "accessedAt": "2026-10-28",
+      "kind": "official-doc",
+      "excerpt": "AO Triton with PyTorch 2.9 is disabled by default for AMD Radeon RX 7000 series graphics products, and must be enabled manually. ... Windows note: Only Pytorch is currently available on Windows - the rest of the ROCm stack is only supported on Linux. ... No ML training support. Only Python 3.12 is supported. ... only LLM batch sizes of 1 are officially supported."
+    },
+    {
+      "id": "L01-S07",
+      "url": "https://raw.githubusercontent.com/ROCm/rocm-docs/f47eb2f8ba97/docs/data/gpus.yaml",
+      "title": "ROCm/rocm-docs: docs/data/gpus.yaml（兼容矩阵数据源）",
+      "publisher": "AMD (GitHub 官方仓库 ROCm/rocm-docs)",
+      "publishedAt": null,
+      "version": "固定提交 f47eb2f8ba97（2026-10-05），与 10.1.0 矩阵内容一致（已比对）",
+      "accessedAt": "2026-10-28",
+      "kind": "official-repo",
+      "excerpt": "AMD Radeon: ... RX 9070 XT: gfx: gfx1201, series: Radeon RX 9000 Series, arch: RDNA 4 ... RX 9060 XT: gfx1200 ... RX 9050 (4GB): gfx1200 ... RX 7900 XTX: gfx1100, arch: RDNA 3 ... RX 7800 XT / RX 7700 XT / RX 7700: gfx1101 ... RX 7600: gfx1102 ... PRO W6800: gfx1030, arch: RDNA 2"
+    },
+    {
+      "id": "L01-S08",
+      "url": "https://rocm.docs.amd.com/en/latest/compatibility/compatibility-matrix.html#ai-ecosystem-compatibility",
+      "title": "ROCm 10.1.0 AI ecosystem: conditional PyTorch cells",
+      "publisher": "AMD",
+      "publishedAt": null,
+      "version": "ROCm 10.1.0，主会话解析 HTML 筛选条件",
+      "accessedAt": "2026-10-28",
+      "kind": "official-doc",
+      "excerpt": "<td data-show-cond='{\"gfx\": [\"gfx950\", \"gfx942\", \"gfx90a\", \"gfx908\"]}'>2.14.0, 2.13.0, 2.12.0</td><td data-show-cond='{\"fam\": [\"radeon\", \"ryzen\"]}'>2.14.0</td>"
+    }
+  ],
+  "claims": [
+    {
+      "id": "L01-C01",
+      "claim": "ROCm 10.1.0 统一兼容矩阵（页面日期 2026-08-26）的 Radeon 栏逐型号列入：RX 9070 XT/9070 GRE/9070（gfx1201）、RX 9060 XT LP/9060 XT/9060/9050/9050 4GB（gfx1200）、RX 7900 XTX/XT/GRE（gfx1100）、RX 7800 XT/7700 XT/7700（gfx1101）、RX 7600（gfx1102），另列 PRO W7900/W7800/W7700/W6800/V710/V620 与 AI PRO R9xxx",
+      "status": "official-supported",
+      "hardware": [
+        "AMD Radeon RX 9070 XT",
+        "AMD Radeon RX 9070 GRE",
+        "AMD Radeon RX 9070",
+        "AMD Radeon RX 9060 XT LP",
+        "AMD Radeon RX 9060 XT",
+        "AMD Radeon RX 9060",
+        "AMD Radeon RX 9050",
+        "AMD Radeon RX 9050 (4GB)",
+        "AMD Radeon RX 7900 XTX",
+        "AMD Radeon RX 7900 XT",
+        "AMD Radeon RX 7900 GRE",
+        "AMD Radeon RX 7800 XT",
+        "AMD Radeon RX 7700 XT",
+        "AMD Radeon RX 7700",
+        "AMD Radeon RX 7600"
+      ],
+      "os": [
+        "Linux（Ubuntu/RHEL 等发行版选择器）",
+        "Windows 11 25H2（同一页面另列）"
+      ],
+      "software": "ROCm Core SDK 10.1.0 兼容矩阵",
+      "sourceIds": ["L01-S01", "L01-S07"],
+      "limits": "兼容矩阵只说明系统需求层面的支持，不证明任何具体模型、算子或 ComfyUI 插件可用"
+    },
+    {
+      "id": "L01-C02",
+      "claim": "Radeon 专项文档 ROCm 7.2.1 的 Linux GPU 支持矩阵列入 20 款卡：RX 9060、9060 XT、9070、9070 XT、9070 GRE、7900 XTX、7900 XT、7900 GRE、7800 XT、7700 XT、7700，加 PRO W7900/W7900 Dual Slot/W7800/W7800 48GB/W7700 与 AI PRO R9600/R9600D/R9700/R9700S；未列 RX 9060 XT LP、RX 9050、RX 7600、PRO W6800",
+      "status": "official-supported",
+      "hardware": [
+        "AMD Radeon RX 9070 XT",
+        "AMD Radeon RX 9070 GRE",
+        "AMD Radeon RX 9070",
+        "AMD Radeon RX 9060 XT",
+        "AMD Radeon RX 9060",
+        "AMD Radeon RX 7900 XTX",
+        "AMD Radeon RX 7900 XT",
+        "AMD Radeon RX 7900 GRE",
+        "AMD Radeon RX 7800 XT",
+        "AMD Radeon RX 7700 XT",
+        "AMD Radeon RX 7700"
+      ],
+      "os": [
+        "Ubuntu 24.04.4 Desktop + HWE",
+        "Ubuntu 22.04.5 Desktop + HWE",
+        "RHEL 10.1"
+      ],
+      "software": "ROCm 7.2.1 + Radeon Software for Linux 22.04 / 24.04 / 25.10",
+      "sourceIds": ["L01-S02"],
+      "limits": "名单与 10.1.0 矩阵不一致，引用必须注明版本；未列入 7.2.1 名单仅表示该版本未列名"
+    },
+    {
+      "id": "L01-C03",
+      "claim": "RX 6000 系列消费卡（含 6600/6700/6800/6900 各型）未出现在 ROCm 10.1.0 矩阵、ROCm 7.2.1 Radeon Linux 矩阵及官方 gpus.yaml 数据源中；现行名单中 RDNA2 仅剩 PRO W6800 与 PRO V620（均 gfx1030）",
+      "status": "not-established",
+      "hardware": [
+        "AMD Radeon RX 6900 XTX/XT",
+        "AMD Radeon RX 6800 XT/6800",
+        "AMD Radeon RX 6750/6700 XT/6700",
+        "AMD Radeon RX 6650/6600 XT/6600",
+        "AMD Radeon RX 6500 XT/6400"
+      ],
+      "os": ["Linux"],
+      "software": "当前统一 ROCm 10.1.0 与旧 Radeon 专项 7.2.1 文档",
+      "sourceIds": ["L01-S01", "L01-S02", "L01-S07"],
+      "limits": "仅证明未列入本轮核对的当前统一名单与旧专项名单；更早 ROCm 版本是否曾列名未核实，不能据此写“官方明确不支持”"
+    },
+    {
+      "id": "L01-C04",
+      "claim": "ROCm 10.1.0 矩阵为 Radeon 栏列出的 Linux 系统要求：Ubuntu 26.04.1(kernel GA 7.0)、24.04.5(HWE 7.0)、22.04.5(HWE 6.8)；RHEL 10.2(6.12.0-211)、9.8(5.14.0-687)；amdgpu 驱动 31.60.0、31.50.0",
+      "status": "official-supported",
+      "hardware": [
+        "AMD Radeon RX 9000 Series",
+        "AMD Radeon RX 7000 Series（列名型号）",
+        "AMD Radeon PRO W7000/W6000/V Series",
+        "AMD Radeon AI PRO R9000 Series"
+      ],
+      "os": [
+        "Ubuntu 26.04.1",
+        "Ubuntu 24.04.5",
+        "Ubuntu 22.04.5",
+        "RHEL 10.2",
+        "RHEL 9.8"
+      ],
+      "software": "ROCm 10.1.0；amdgpu 31.60.0 / 31.50.0",
+      "sourceIds": ["L01-S01"],
+      "limits": "系统行按列名卡分组渲染，个别卡（如 PRO V710）在数据中无 Windows/WSL2 条目，逐卡细节需用页面选择器核对"
+    },
+    {
+      "id": "L01-C05",
+      "claim": "ROCm 7.2.1 Radeon Linux 文档的 OS 支持矩阵为：Ubuntu 24.04.4 Desktop+HWE（Ubuntu kernel 6.17）、Ubuntu 22.04.5 Desktop+HWE（kernel 6.8）、RHEL 10.1（kernel 6.12），并注明对 Ubuntu 24.04.3 提供的是“使用 24.04.2 安装器的初步支持”",
+      "status": "version-limited",
+      "hardware": ["AMD Radeon RX 7000/9000 Series（7.2.1 列名型号）"],
+      "os": [
+        "Ubuntu 24.04.4 + HWE",
+        "Ubuntu 22.04.5 + HWE",
+        "RHEL 10.1",
+        "Ubuntu 24.04.3（初步支持）"
+      ],
+      "software": "ROCm 7.2.1 + Radeon Software for Linux 22.04/24.04/25.10",
+      "sourceIds": ["L01-S02"],
+      "limits": "与 10.1.0 矩阵的 Ubuntu 版本清单（26.04.1/24.04.5/22.04.5）不一致，属两套文档各自口径"
+    },
+    {
+      "id": "L01-C06",
+      "claim": "Radeon 7.2.1 Linux 文档中 PyTorch 2.9.1 + ROCm 7.2.1 为“官方生产支持”；2.9/Nightly 来自 PyTorch.org“AMD 未充分测试”；2.7/Stable 明确标注“Not supported for Radeon 7000 series”",
+      "status": "version-limited",
+      "hardware": [
+        "AMD Radeon RX 7000 Series（7.2.1 列名型号）",
+        "AMD Radeon RX 9000 Series"
+      ],
+      "os": ["Linux"],
+      "software": "PyTorch 2.9.1 + ROCm 7.2.1（Python 3.12 / 3.10 wheel，Triton 3.5.1）",
+      "sourceIds": ["L01-S02", "L01-S05"],
+      "limits": "2.7/Stable 的“不支持 Radeon 7000 系列”是官方对该组合的明确否定表述，仅限该版本组合"
+    },
+    {
+      "id": "L01-C07",
+      "claim": "ROCm 10.1.0 的 Linux PyTorch 行按显卡家族过滤：Radeon/Ryzen 单元格只列 2.14.0，Python 行列 3.14/3.13/3.12/3.11/3.10；2.13.0、2.12.0 只在 gfx950/gfx942/gfx90a/gfx908 的 Instinct 条件单元格出现",
+      "status": "official-supported",
+      "hardware": ["矩阵中列名的 Radeon/Ryzen；Instinct 仅用于区分表格条件"],
+      "os": ["Linux（ubuntu/debian/rhel/oracle-linux/rocky-linux/sles）"],
+      "software": "ROCm 10.1.0；Radeon/Ryzen Linux PyTorch 2.14.0",
+      "sourceIds": ["L01-S08"],
+      "limits": "系统、显卡家族和框架单元格必须一起读取；其他框架各自的显卡条件本路未逐项核对，不能给全部消费卡套用整张 AI 生态表，也不能把 10.1.0 条目当作旧 7.2.1 安装组合"
+    },
+    {
+      "id": "L01-C08",
+      "claim": "官方前置条件页：未列入名单的 GPU “might be community-enabled through TheRock nightly builds”，即官方把未列名卡的出路指向 TheRock 社区路线，而非官方支持",
+      "status": "not-established",
+      "hardware": ["未列入官方名单的 AMD Radeon 桌面卡（含 RX 6000 消费卡）"],
+      "os": ["Linux"],
+      "software": "TheRock nightly builds（社区路线）",
+      "sourceIds": ["L01-S03"],
+      "limits": "“可能社区可用”不是官方支持；TheRock 实际支持列表本轮未打开核实"
+    },
+    {
+      "id": "L01-C09",
+      "claim": "Radeon 7.2.1 Linux 安装路径：amdgpu-install 7.2.1.70201-1（Ubuntu noble/jammy deb、RHEL 10.1 rpm），`amdgpu-install -y --usecase=graphics,rocm`，加入 render,video 组，`rocminfo` 示例输出 gfx1100",
+      "status": "official-supported",
+      "hardware": ["7.2.1 名单内的 Radeon 桌面卡"],
+      "os": ["Ubuntu 24.04", "Ubuntu 22.04", "RHEL 10.1"],
+      "software": "Radeon Software for Linux / ROCm 7.2.1 (amdgpu-install 7.2.1.70201-1)",
+      "sourceIds": ["L01-S04"],
+      "limits": "仅记录原文，本路未执行任何安装；RHEL 需先加 EPEL 与 CRB 仓库"
+    },
+    {
+      "id": "L01-C10",
+      "claim": "Radeon 7.2.1 的 PyTorch Linux 安装：AMD 推荐 repo.radeon.com 的 wheel（torch-2.9.1+rocm7.2.1，cp312 对应 Ubuntu 24.04/RHEL 10.1、cp310 对应 Ubuntu 22.04，配套 torchvision 0.24.0/torchaudio 2.9.0/triton 3.5.1）或 Docker 镜像 rocm/pytorch:rocm7.2.1_ubuntu24.04_py3.12_pytorch_release_2.9.1；文档注明 PyTorch.org 的 wheel“未由 AMD 充分测试”，且 numpy 2.0 与该 torch wheel 不兼容需降到 1.26.4",
+      "status": "official-supported",
+      "hardware": ["7.2.1 名单内的 Radeon 桌面卡"],
+      "os": ["Ubuntu 24.04", "Ubuntu 22.04", "RHEL 10.1"],
+      "software": "PyTorch 2.9.1 + ROCm 7.2.1（Python 3.12/3.10）",
+      "sourceIds": ["L01-S05", "L01-S02"],
+      "limits": "未实测下载链接是否有效；wheel 文件名含具体 git 短哈希，属 7.2.1 时点快照"
+    },
+    {
+      "id": "L01-C11",
+      "claim": "7.2.1 已知限制（Linux）：AO Triton 在 PyTorch 2.9 下对 AMD Radeon RX 7000 系列默认禁用、需手动开启；ONNX Runtime + MIGraphX EP 在部分产品（如 AI PRO R9700）可能失败。Windows 侧则“只有 PyTorch，其余 ROCm 栈仅 Linux 支持”、无训练支持、仅 Python 3.12、LLM batch size 1",
+      "status": "version-limited",
+      "hardware": [
+        "AMD Radeon RX 7000 Series",
+        "AMD Radeon AI PRO R9700（示例）"
+      ],
+      "os": ["Linux", "Windows（仅作边界说明，细节另路）"],
+      "software": "ROCm 7.2.1 + PyTorch 2.9 / ONNX Runtime + MIGraphX",
+      "sourceIds": ["L01-S06"],
+      "limits": "仅限 7.2.1 版本口径；Windows 部分属另一路范围，此处只作边界"
+    },
+    {
+      "id": "L01-C12",
+      "claim": "任务书起点 URL projects/radeon/en/latest/docs/compatibility.html 及其下各子页当前 302 跳转到 radeon-ryzen 项目；Radeon 文档自述“covers releases through 7.2.1，Starting with ROCm Core SDK 7.13.0 documentation is unified”，即 7.2.1 之后统一到主 ROCm 文档（当前 latest 显示 10.1.0）",
+      "status": "version-limited",
+      "hardware": ["所有 AMD Radeon 桌面卡"],
+      "os": ["Linux"],
+      "software": "ROCm 文档版本体系（7.2.1 专项 → Core SDK 7.13.0 起统一 → latest 为 10.1.0）",
+      "sourceIds": ["L01-S02", "L01-S01"],
+      "limits": "重定向行为与“7.13.0 起统一”均以 2026-10-28 访问为准；未核实 7.13.0/TheRock 预览文档的具体名单"
+    }
+  ],
+  "gaps": [
+    "ROCm 6.x 及更早版本（docs-6.3、6.4.x、7.0.x 等）对 RX 6000 消费卡是否曾列名：旧版 URL 全部 302 跳转到 latest，Wayback CDX 返回 429 限流，本轮未取得旧版名单原文",
+    "ROCm Core SDK 7.13.0 统一文档 / TheRock 技术预览（Radeon 首页提及“Experiment with TheRock: ROCm 7.13.0 Technology Preview”）的具体支持名单未打开核实",
+    "面向 Radeon 消费卡的 PyTorch 2.14.0 wheel 在当前安装仓库中的实际获取和运行情况未核实；本轮只读到旧 7.2.1 文档的 2.9.1 wheel 链接，不能据此构造新版安装组合",
+    "ROCm 10.1.0 AI 生态表同时按系统、显卡家族或 gfx 条件筛选；已核 PyTorch 的 Radeon/Ryzen Linux 条目为 2.14.0，但其他框架的具体 GPU 条件与逐卡运行情况本路未逐项核对",
+    "当前统一 10.1.0 与旧专项 7.2.1 名单在 RX 7600、RX 9050、RX 9060 XT LP、PRO W6800 上的变化时间线未核实"
+  ]
+}

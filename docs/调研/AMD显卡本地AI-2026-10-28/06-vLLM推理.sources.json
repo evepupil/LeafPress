@@ -1,0 +1,292 @@
+{
+  "lane": "06",
+  "checkedAt": "2026-10-28",
+  "scope": "vLLM 官方 AMD/ROCm 支持路线：消费级 Radeon 是否支持、gfx 架构与 wheel/容器版本、与入门桌面推理的边界；不含 SGLang，无硬件实测",
+  "sources": [
+    {
+      "id": "L06-S01",
+      "url": "https://docs.vllm.ai/en/latest/getting_started/installation/gpu/",
+      "title": "GPU Installation — vLLM (latest)",
+      "publisher": "vLLM",
+      "publishedAt": "2026-10-08",
+      "version": "latest 开发者预览文档，页面标注 October 8, 2026",
+      "accessedAt": "2026-10-28",
+      "kind": "official-doc",
+      "excerpt": "vLLM supports AMD GPUs with ROCm 6.3 or above. Pre-built wheels are available for ROCm 10.0 (the default) and ROCm 7.2. ... GPU: MI200s (gfx90a), MI300 (gfx942), MI350 (gfx950), Radeon RX 7900 series (gfx1100/1101), Radeon RX 9000 series (gfx1200/1201), Ryzen AI MAX / AI 300 Series (gfx1151/1150) ... MI350 requires ROCm 7.0 or above ... OS: Linux ... vLLM does not support Windows natively."
+    },
+    {
+      "id": "L06-S02",
+      "url": "https://github.com/vllm-project/vllm/blob/6cfb375fd6a2c7aee76b086c19911646711834a5/docs/getting_started/installation/gpu.rocm.inc.md",
+      "title": "vLLM docs: gpu.rocm.inc.md (AMD ROCm 安装分页)",
+      "publisher": "vLLM",
+      "publishedAt": null,
+      "version": "main @ 6cfb375 (2026-10-28)，该文件最近改动 b2456c6 2026-10-18 '[ROCm][CI] Make ROCm 10.0 the default image'",
+      "accessedAt": "2026-10-28",
+      "kind": "official-repo",
+      "excerpt": "| rocm700 | 3.12 | 7.0 | >= 2.35 | 0.14.0 to 0.18.0 | | rocm721 | 3.12 | 7.2.1 | >= 2.35 | Nightly releases after commit 171775f... | | rocm72 | 3.12 | 7.2 | >= 2.39 | Nightly releases on the legacy ROCm 7.2 stack | | rocm100 | 3.12 | 10.0 | >= 2.35 | Nightly releases (default) | ... ROCm pre-built wheels are only available for Python 3.12 ... will silently fall back to the CUDA wheel from PyPI"
+    },
+    {
+      "id": "L06-S03",
+      "url": "https://rocm.docs.amd.com/en/latest/compatibility/compatibility-matrix.html",
+      "title": "ROCm 10.1.0 compatibility matrix",
+      "publisher": "AMD",
+      "publishedAt": "2026-08-26",
+      "version": "ROCm 10.1.0，页面日期 2026-08-26",
+      "accessedAt": "2026-10-28",
+      "kind": "official-doc",
+      "excerpt": "Radeon GPU: AMD Radeon RX 9070 XT (gfx1201) ... RX 9060 XT (gfx1200) ... RX 7900 XTX (gfx1100) ... RX 7800 XT (gfx1101) ... RX 7700 (gfx1101) AMD Radeon RX 7600 (gfx1102) ... Radeon PRO W6800 (gfx1030) ... Supported Windows version Windows 11 25H2 ... vLLM 0.29.0 | 3.14 (requires PyTorch 2.13.0)"
+    },
+    {
+      "id": "L06-S04",
+      "url": "https://wheels.vllm.ai/rocm/",
+      "title": "vLLM ROCm wheel index（各版本/nightly 子索引实测）",
+      "publisher": "vLLM",
+      "publishedAt": null,
+      "version": "2026-10-28 实测：顶层 vllm 索引仅 rocm723；0.18.0→rocm700；0.19.0/0.20.0→rocm721；0.30.0/0.31.0/0.32.0→rocm723；nightly/rocm100→vllm-0.33.0rc1.dev157 (cp312)",
+      "accessedAt": "2026-10-28",
+      "kind": "official-doc",
+      "excerpt": "vllm-0.32.0%2Brocm723-cp312-cp312-manylinux_2_39_x86_64.whl（顶层与 0.32.0 目录）；vllm-0.18.0+rocm700-cp312-cp312-manylinux_2_35_x86_64.whl；nightly/rocm100: vllm-0.33.0rc1.dev157+gedad8b03c.rocm100-cp312-cp312-manylinux_2_34_x86_64.whl"
+    },
+    {
+      "id": "L06-S05",
+      "url": "https://hub.docker.com/v2/repositories/vllm/vllm-openai-rocm/tags/",
+      "title": "Docker Hub: vllm/vllm-openai-rocm tags（API 实测）",
+      "publisher": "vLLM",
+      "publishedAt": null,
+      "version": "latest / v0.32.0 推送于 2026-10-18；nightly-rocm100 与 nightly-rocm72 每日构建（2026-10-28 有构建）；历史稳定 tag 中仅 v0.15.1-rocm (2026-02-04) 带显式 -rocm 后缀",
+      "accessedAt": "2026-10-28",
+      "kind": "official-doc",
+      "excerpt": "nightly-rocm100 2026-10-28T05:29 / nightly-rocm72 2026-10-28T05:31 / latest 2026-10-18T10:33 / v0.32.0 2026-10-18T10:33 / v0.15.1-rocm 2026-02-04T23:15"
+    },
+    {
+      "id": "L06-S06",
+      "url": "https://github.com/vllm-project/vllm/blob/eaf1627c01f553ea9a26b3d77f3cff8495dbf404/vllm/platforms/rocm.py",
+      "title": "vllm/platforms/rocm.py（ROCm 平台层源码）",
+      "publisher": "vLLM",
+      "publishedAt": null,
+      "version": "main @ eaf1627 (2026-10-27)",
+      "accessedAt": "2026-10-28",
+      "kind": "official-repo",
+      "excerpt": "_ROCM_DEVICE_ID_NAME_MAP = {\"0x744c\": \"AMD_Radeon_RX7900XTX\", \"0x150e\": \"AMD_Radeon_890M\", \"0x1586\": \"AMD_Radeon_8060S\", \"0x7550\": \"AMD_Radeon_RX9070XT\", \"0x7551\": \"AMD_Radeon_R9700\"} ... supported_quantization: [awq, gptq, fp8, compressed-tensors, fbgemm_fp8, inc, quark, mxfp4, mxfp8, torchao, modelopt, ...]"
+    },
+    {
+      "id": "L06-S07",
+      "url": "https://docs.vllm.ai/en/latest/features/quantization/",
+      "title": "Quantization — vLLM (hardware compatibility 表)",
+      "publisher": "vLLM",
+      "publishedAt": null,
+      "version": "latest 开发者预览文档",
+      "accessedAt": "2026-10-28",
+      "kind": "official-doc",
+      "excerpt": "Implementation | Volta ... AMD GPU | Intel GPU ... AWQ: AMD ❌; GPTQ: AMD ❌; Marlin (GPTQ/AWQ/FP8/FP4): AMD ❌; llm-compressor INT8 (W8A8): AMD ✅; llm-compressor FP8 (W8A8): AMD ✅; bitsandbytes: AMD ❌; DeepSpeedFP: AMD ❌; GGUF: AMD ✅ ... This compatibility chart is subject to change as vLLM continues to evolve"
+    },
+    {
+      "id": "L06-S08",
+      "url": "https://docs.vllm.ai/en/latest/design/rocm_octave/",
+      "title": "Octave KV: a 3-bit KV cache for ROCm — vLLM",
+      "publisher": "vLLM",
+      "publishedAt": null,
+      "version": "latest 开发者预览文档",
+      "accessedAt": "2026-10-28",
+      "kind": "official-doc",
+      "excerpt": "Octave is enabled only on RDNA3 and CDNA3, validated on gfx1100 and gfx942 (MI300). The backend rejects any other family at selection ... the kernel dispatch reports any other RDNA3 chip as not validated. ... Models with full RoPE (Llama, Qwen3, Mistral, ...) or other head sizes are rejected at startup with an explicit error. ... All measurements on 4× RX 7900 XTX (gfx1100), Qwen3.8-27B W4A16"
+    },
+    {
+      "id": "L06-S09",
+      "url": "https://github.com/vllm-project/vllm/blob/21d97584593de08f7a1a44dad8aca32aa4a01c51/docker/Dockerfile.rocm_base",
+      "title": "vLLM docker/Dockerfile.rocm_base（官方 ROCm 构建配方）",
+      "publisher": "vLLM",
+      "publishedAt": null,
+      "version": "@ 21d9758 (2026-10-08)",
+      "accessedAt": "2026-10-28",
+      "kind": "official-repo",
+      "excerpt": "ARG BASE_IMAGE=rocm/dev-ubuntu-22.04:7.2.3-complete ... ARG PYTORCH_ROCM_ARCH=gfx90a;gfx942;gfx950;gfx1100;gfx1101;gfx1200;gfx1201;gfx1150;gfx1151 ... ENV AITER_ROCM_ARCH=gfx942;gfx950"
+    }
+  ],
+  "claims": [
+    {
+      "id": "L06-C01",
+      "claim": "vLLM 官方对 AMD GPU 的路线是 ROCm，最低 ROCm 6.3，操作系统为 Linux（不原生支持 Windows，Windows 需 WSL 或社区 fork）",
+      "status": "official-supported",
+      "hardware": ["AMD GPU（经 ROCm）"],
+      "os": ["Linux"],
+      "software": "vLLM latest（文档页 2026-10-08）；通用 Requirements Python 3.11–3.14",
+      "sourceIds": ["L06-S01"],
+      "limits": "ROCm 自身对 Radeon 声明 Windows 11 25H2 支持（S03），但那是驱动/ROCm 层，不能推出 vLLM 在 Windows 原生可用"
+    },
+    {
+      "id": "L06-C02",
+      "claim": "vLLM 官方 Requirements 点名的 GPU 共六组：MI200s (gfx90a)、MI300 (gfx942)、MI350 (gfx950)、Radeon RX 7900 系列 (gfx1100/1101)、Radeon RX 9000 系列 (gfx1200/1201)、Ryzen AI MAX / AI 300 (gfx1151/1150)；MI350 要求 ROCm 7.0+，Ryzen AI MAX / AI 300 要求 ROCm 7.0.2+",
+      "status": "official-supported",
+      "hardware": [
+        "Instinct MI200/MI300/MI350",
+        "Radeon RX 7900 系列",
+        "Radeon RX 9000 系列",
+        "Ryzen AI MAX / AI 300 (gfx1151/1150)"
+      ],
+      "os": ["Linux"],
+      "software": "vLLM latest + ROCm 6.3+（MI350 需 7.0+，Ryzen AI 需 7.0.2+）",
+      "sourceIds": ["L06-S01", "L06-S02"],
+      "limits": "这是点名名单而非封闭名单：未列出的卡只能写\"未列入该版本官方支持名单\"，不能写官方不支持"
+    },
+    {
+      "id": "L06-C03",
+      "claim": "消费级 Radeon 中 vLLM 官方仅点名 RX 7900 一代与 RX 9000 一代；RX 7600 (gfx1102)、RX 6000/5000 系列等未出现在 vLLM 官方支持名单中",
+      "status": "not-established",
+      "hardware": ["Radeon RX 7600", "Radeon RX 6000/5000 系列"],
+      "os": ["Linux"],
+      "software": "vLLM latest（截至 2026-10-28）",
+      "sourceIds": ["L06-S01", "L06-S03"],
+      "limits": "ROCm 10.1.0 矩阵把 RX 7600 (gfx1102)、PRO W6800 (gfx1030) 列为支持，但 ROCm 层支持不能外推到 vLLM 层；本轮未见 vLLM 官方对这些卡的声明，也未核实社区可跑案例"
+    },
+    {
+      "id": "L06-C04",
+      "claim": "gfx1101 的型号归属在两份官方文本中措辞不一致：vLLM 写 \"Radeon RX 7900 series (gfx1100/1101)\"，AMD ROCm 矩阵中 gfx1100=RX 7900 XTX/XT/GRE、gfx1101=RX 7800 XT/7700 XT/7700",
+      "status": "version-limited",
+      "hardware": ["gfx1100", "gfx1101"],
+      "os": ["Linux"],
+      "software": "vLLM latest 文档 vs ROCm 10.1.0 矩阵",
+      "sourceIds": ["L06-S02", "L06-S03"],
+      "limits": "保留双方出处不裁决；源码构建目标同时包含 gfx1100 与 gfx1101（S09），说明两者都在编译覆盖内"
+    },
+    {
+      "id": "L06-C05",
+      "claim": "vLLM 官方 ROCm 构建的架构目标为 gfx90a;gfx942;gfx950;gfx1100;gfx1101;gfx1200;gfx1201;gfx1150;gfx1151；AITER 附加层仅 gfx942;gfx950",
+      "status": "official-supported",
+      "hardware": [
+        "gfx90a",
+        "gfx942",
+        "gfx950",
+        "gfx1100",
+        "gfx1101",
+        "gfx1200",
+        "gfx1201",
+        "gfx1150",
+        "gfx1151"
+      ],
+      "os": ["Linux"],
+      "software": "vLLM docker/Dockerfile.rocm_base @ 21d9758 (2026-10-08)",
+      "sourceIds": ["L06-S09"],
+      "limits": "编译目标覆盖不等于每张卡都被验证或全部功能可用；AITER 仅覆盖 Instinct 两种架构"
+    },
+    {
+      "id": "L06-C06",
+      "claim": "ROCm 预编译 wheel 仅发布 Python 3.12 版本；用其他 Python 版本安装会静默回落到 PyPI 的 CUDA wheel，在 AMD GPU 上报 libcudart.so 之类错误",
+      "status": "official-supported",
+      "hardware": ["AMD GPU（经 ROCm）"],
+      "os": ["Linux"],
+      "software": "vLLM ROCm wheel（rocm700/rocm721/rocm72/rocm100，均 Python 3.12）",
+      "sourceIds": ["L06-S01", "L06-S02"],
+      "limits": "与 vLLM 通用 Requirements 的 Python 3.11–3.14 不同口径，ROCm 路径以 3.12 为准"
+    },
+    {
+      "id": "L06-C07",
+      "claim": "官方文档表格列出的 wheel 变体为 rocm700（稳定 0.14.0–0.18.0）、rocm721（nightly）、rocm72（旧栈 nightly）、rocm100（nightly 默认）；glibc 要求 2.35/2.39 起",
+      "status": "official-supported",
+      "hardware": ["AMD GPU（经 ROCm）"],
+      "os": ["Linux（glibc ≥2.35 或 ≥2.39）"],
+      "software": "vLLM 0.14.0 起的 ROCm wheel，Python 3.12",
+      "sourceIds": ["L06-S01", "L06-S02"],
+      "limits": "文档表格未列 rocm723，但实际索引存在（见 C08）；使用前以 wheels.vllm.ai 实际目录为准"
+    },
+    {
+      "id": "L06-C08",
+      "claim": "实测 wheels.vllm.ai：顶层 vllm 索引与 0.30.0/0.31.0/0.32.0 版本目录当前只有 rocm723（如 vllm-0.32.0+rocm723, cp312）；0.18.0→rocm700；0.19.0/0.20.0→rocm721；nightly/rocm100 有 0.33.0rc1.dev wheel",
+      "status": "version-limited",
+      "hardware": ["AMD GPU（经 ROCm）"],
+      "os": ["Linux"],
+      "software": "wheels.vllm.ai/rocm/（2026-10-28 实测）",
+      "sourceIds": ["L06-S04"],
+      "limits": "索引快照，可能与文档表格（S02）不同步；rocm723 变体未出现在官方文档表格中，其适用 ROCm 版本以 7.2.3 计，本轮未在文档中找到明确说明"
+    },
+    {
+      "id": "L06-C09",
+      "claim": "vLLM 官方 ROCm Docker 镜像为 vllm/vllm-openai-rocm：latest（ROCm 10.0，兼 latest-rocm100）、nightly（nightly-rocm100）、latest-rocm72/nightly-rocm72（过渡期保留）；AMD 旧镜像 rocm/vllm 与 rocm/vllm-dev 已被官方标记弃用",
+      "status": "official-supported",
+      "hardware": ["AMD GPU（经 ROCm）"],
+      "os": ["Linux 宿主（容器需 /dev/kfd 与 /dev/dri）"],
+      "software": "vllm/vllm-openai-rocm（latest=v0.32.0，2026-10-18 推送；nightly 每日构建）",
+      "sourceIds": ["L06-S01", "L06-S02", "L06-S05"],
+      "limits": "历史稳定 tag 中仅 v0.15.1-rocm 带显式 -rocm 后缀；官方镜像自 2026-01-20 起提供，此前 AMD Infinity hub 面向 MI300X"
+    },
+    {
+      "id": "L06-C10",
+      "claim": "vLLM ROCm wheel 捆绑 PyTorch 与依赖，因编译大量 ROCm 内核，二进制可能与其他 ROCm/PyTorch 构建不兼容；换 ROCm 版本或复用现有 PyTorch 需源码编译；ROCm 10.0 线经 pip（TheRock）安装 ROCm SDK，旧栈 7.2 用系统 ROCm（Dockerfile.rocm_72_base），更老分支支持 ROCm 5.7–7.0",
+      "status": "official-supported",
+      "hardware": ["AMD GPU（经 ROCm）"],
+      "os": ["Linux"],
+      "software": "vLLM 源码 + ROCm 10.0（torch 2.12.0+rocm10.0.0）或 ROCm 7.x；组件版本钉在 Dockerfile.rocm_base",
+      "sourceIds": ["L06-S01", "L06-S02", "L06-S09"],
+      "limits": "\"源码可编译\"与\"官方发布支持\"是两回事；本轮未验证任何编译路径"
+    },
+    {
+      "id": "L06-C11",
+      "claim": "vLLM 量化文档的硬件兼容表中，AMD GPU 列仅 GGUF 与 llm-compressor INT8/FP8 (W8A8) 标支持，AWQ、GPTQ、Marlin、bitsandbytes、DeepSpeedFP 标不支持；而平台源码 supported_quantization 列表又含 awq/gptq/fp8/quark/mxfp4 等",
+      "status": "version-limited",
+      "hardware": ["AMD GPU"],
+      "os": ["Linux"],
+      "software": "vLLM latest 文档 / vllm/platforms/rocm.py @ eaf1627",
+      "sourceIds": ["L06-S07", "L06-S06"],
+      "limits": "两处口径冲突并存记录；源码列表表示平台声明可注册的量化方案，不代表每个方案在每个 AMD 卡上都有可用内核；文档自述该表会随版本变化"
+    },
+    {
+      "id": "L06-C12",
+      "claim": "ROCm 有独立的一组注意力后端（ROCM_ATTN、ROCM_AITER_FA、ROCM_AITER_UNIFIED_ATTN、ROCM_OCTAVE、ROCM_SEGMENTED_ATTN 及 ROCM_AITER_MLA 系列），其选择逻辑与 CUDA 平台不同",
+      "status": "official-supported",
+      "hardware": ["AMD GPU（经 ROCm）"],
+      "os": ["Linux"],
+      "software": "vLLM latest（attention backends 文档）",
+      "sourceIds": ["L06-S08", "L06-S01"],
+      "limits": "文档未给出各后端与具体消费卡的绑定关系；不同模型可能落到不同后端"
+    },
+    {
+      "id": "L06-C13",
+      "claim": "Octave 3-bit KV cache 仅在 RDNA3 与 CDNA3 启用，官方只验证过 gfx1100 (RX 7900 XTX) 与 gfx942 (MI300)；同族其他 RDNA3 芯片报 not validated；该后端绑定注意力形状（部分 RoPE 的 Qwen3-Next/Qwen3.5/3.6/3.8 家族），全 RoPE 的 Llama/Qwen3/Mistral 在启动时被拒绝",
+      "status": "version-limited",
+      "hardware": ["Radeon RX 7900 XTX (gfx1100)", "Instinct MI300 (gfx942)"],
+      "os": ["Linux"],
+      "software": "vLLM latest 的 ROCM_OCTAVE 后端",
+      "sourceIds": ["L06-S08"],
+      "limits": "即便 gfx1100 被验证，也只是该后端在该卡上的验证，不代表所有功能或所有 RX 7900 型号（XT/GRE 等）都同等验证"
+    },
+    {
+      "id": "L06-C14",
+      "claim": "AMD ROCm 10.1.0 兼容矩阵的 AI 生态表列 vLLM 0.29.0，Python 3.14，要求 PyTorch 2.13.0；该矩阵 Radeon 分组列出 RX 9050–9070 XT、RX 7600–7900 XTX、PRO W6800 等，支持 Ubuntu 26.04.1/24.04.5/22.04.5、RHEL 10.2/9.8、Windows 11 25H2",
+      "status": "official-supported",
+      "hardware": [
+        "Radeon RX 9000/7000 系列、PRO W7000/W6000/V 系列（ROCm 层）"
+      ],
+      "os": [
+        "Ubuntu 26.04.1/24.04.5/22.04.5",
+        "RHEL 10.2/9.8",
+        "Windows 11 25H2（仅 ROCm 层）"
+      ],
+      "software": "ROCm 10.1.0；vLLM 0.29.0（Python 3.14 + PyTorch 2.13.0）",
+      "sourceIds": ["L06-S03"],
+      "limits": "ROCm 矩阵的支持范围（含 RX 7600、gfx1030）明显大于 vLLM 自己的支持名单；且其 vLLM 0.29.0/Python 3.14 组合与 vLLM 官方 wheel 的 Python 3.12 要求不一致，两份官方文本口径不同"
+    },
+    {
+      "id": "L06-C15",
+      "claim": "vLLM 平台源码识别的 AMD 消费级设备 ID 仅有 RX 7900 XTX (0x744c)、Radeon 890M (gfx1150)、Radeon 8060S (gfx1151)、RX 9070 XT (0x7550)、R9700 (0x7551)，其余消费卡不在该映射表中",
+      "status": "not-established",
+      "hardware": [
+        "Radeon RX 7900 XTX",
+        "Radeon 890M/8060S",
+        "Radeon RX 9070 XT / R9700"
+      ],
+      "os": ["Linux"],
+      "software": "vllm/platforms/rocm.py @ eaf1627 (2026-10-27)",
+      "sourceIds": ["L06-S06"],
+      "limits": "该映射用于设备名显示等用途，不等于支持判定表；不在映射中不代表不能运行，只说明源码层面未为该型号做点名处理"
+    }
+  ],
+  "gaps": [
+    "rocm723 稳定 wheel（0.30.0–0.32.0 及顶层索引）未出现在官方文档的 Prebuilt Wheels 表格中，其与 rocm721/rocm72 的关系及适用系统 ROCm 版本未见官方文字说明",
+    "gfx1101 的型号归属：vLLM 文档措辞（RX 7900 series 含 gfx1100/1101）与 AMD ROCm 矩阵（gfx1101=RX 7800 XT/7700 XT/7700）不一致，未找到第三份官方文本裁决",
+    "量化文档硬件表（AMD 仅 GGUF 与 llm-compressor INT8/FP8 标支持）与平台源码 supported_quantization 列表的口径冲突未在官方处找到解释；AWQ/GPTQ 在 RDNA3 消费卡上的实际可用性未验证",
+    "社区补丁 / fork 路径（如 SystemPanic/vllm-windows、ROCm 之外让老卡跑 vLLM 的第三方项目）本轮未打开核实，未收录",
+    "vLLM 官方对 RX 7600 (gfx1102)、gfx1030 等卡的立场只能写\"未列入名单\"；是否存在官方 issue/PR 明确表态未查",
+    "AMD ROCm 矩阵中 vLLM 0.29.0 + Python 3.14 的组合与 vLLM 官方 wheel 仅 Python 3.12 的要求矛盾，未找到说明（可能对应不同发行渠道）",
+    "本路无硬件实测，所有 wheel/容器均未实际拉取运行，Docker Hub 与 wheels.vllm.ai 数据为 API/目录快照"
+  ]
+}

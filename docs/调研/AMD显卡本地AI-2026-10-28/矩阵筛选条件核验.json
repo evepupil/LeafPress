@@ -1,0 +1,45 @@
+{
+  "checkedAt": "2026-10-28",
+  "method": "主会话联网获取官方 HTML，以 BeautifulSoup 解析 AI ecosystem 表格，保留按系统和显卡家族筛选的单元格条件；没有硬件实测。",
+  "snapshots": [
+    {
+      "url": "https://rocm.docs.amd.com/en/latest/compatibility/compatibility-matrix.html",
+      "observedVersion": "ROCm 10.1.0",
+      "framework": "PyTorch",
+      "linux": [
+        {
+          "condition": { "gfx": ["gfx950", "gfx942", "gfx90a", "gfx908"] },
+          "versions": ["2.14.0", "2.13.0", "2.12.0"]
+        },
+        {
+          "condition": { "fam": ["radeon", "ryzen"] },
+          "versions": ["2.14.0"]
+        }
+      ],
+      "windowsAndWsl": {
+        "versions": ["2.14.0"],
+        "python": ["3.14", "3.13", "3.12", "3.11"]
+      }
+    },
+    {
+      "url": "https://rocm.docs.amd.com/en/docs-7.14.1/compatibility/compatibility-matrix.html",
+      "observedVersion": "ROCm 7.14.1",
+      "framework": "PyTorch",
+      "linux": [
+        {
+          "condition": { "gfx": ["gfx950", "gfx942", "gfx90a", "gfx908"] },
+          "versions": ["2.12.0", "2.11.0", "2.10.0"]
+        },
+        {
+          "condition": { "fam": ["radeon", "ryzen"] },
+          "versions": ["2.12.0", "2.11.0"]
+        }
+      ],
+      "windowsAndWsl": {
+        "versions": ["2.12.0"],
+        "python": ["3.14", "3.13", "3.12", "3.11"]
+      }
+    }
+  ],
+  "limits": "仅核验这两个版本矩阵的 PyTorch 筛选条件，不证明具体硬件、模型、量化方式、插件、安装包或工作流已经实际运行。latest 为浮动入口。"
+}

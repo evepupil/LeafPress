@@ -1,0 +1,279 @@
+{
+  "lane": "09",
+  "checkedAt": "2026-10-28",
+  "scope": "Ryzen AI Max、Ryzen AI 300/400 与常见 Radeon 780M/880M/890M 核显的 AMD ROCm 官方列名、OS/框架路径及统一内存限制",
+  "sources": [
+    {
+      "id": "L09-S01",
+      "url": "https://rocm.docs.amd.com/en/docs-7.14.1/compatibility/compatibility-matrix.html",
+      "title": "ROCm 7.14.1 compatibility matrix",
+      "publisher": "AMD ROCm",
+      "publishedAt": null,
+      "version": "ROCm 7.14.1",
+      "accessedAt": "2026-10-28",
+      "kind": "official-doc",
+      "excerpt": "Supported Ubuntu versions | 26.04 (GA kernel: 7.0) 24.04.4 (OEM kernel: 6.17) … Supported Windows version | Windows 11 25H2 … AMD Ryzen AI Max+ 395 (Radeon 8060S) (gfx1151) … AMD Ryzen AI 9 HX 370 (Radeon 890M) (gfx1150) … AMD Ryzen 7 250 (Radeon 780M) (gfx1103)"
+    },
+    {
+      "id": "L09-S02",
+      "url": "https://rocm.docs.amd.com/projects/radeon-ryzen/en/docs-7.2/",
+      "title": "Use ROCm on Radeon and Ryzen",
+      "publisher": "AMD ROCm",
+      "publishedAt": null,
+      "version": "ROCm on Radeon and Ryzen 7.2",
+      "accessedAt": "2026-10-28",
+      "kind": "official-doc",
+      "excerpt": "Ryzen APUs (AI Max 300 Series, select AI 400 Series & select AI 300 Series) | Linux®, Windows® | PyTorch … WSL 2: Support for ROCm 7.2; Support for Radeon RX 7700; Recommended Windows driver: AMD Software: Adrenalin Edition 26.1.1"
+    },
+    {
+      "id": "L09-S03",
+      "url": "https://rocm.docs.amd.com/projects/radeon-ryzen/en/docs-7.1.1/docs/install/installryz/native_linux/install-ryzen.html",
+      "title": "Install Ryzen Software for Linux with ROCm",
+      "publisher": "AMD ROCm",
+      "publishedAt": null,
+      "version": "ROCm 7.1.1",
+      "accessedAt": "2026-10-28",
+      "kind": "official-doc",
+      "excerpt": "For ROCm on Ryzen, it is required to operate on the 6.14 OEM kernel. … Ubuntu 24.04 … sudo apt install ./amdgpu-install_7.1.1.70101-1_all.deb … amdgpu-install -y --usecase=rocm --no-dkms"
+    },
+    {
+      "id": "L09-S04",
+      "url": "https://rocm.docs.amd.com/projects/radeon-ryzen/en/docs-7.1.1/docs/limitations/limitationsryz.html",
+      "title": "Ryzen Limitations and recommended settings",
+      "publisher": "AMD ROCm",
+      "publishedAt": null,
+      "version": "ROCm 7.1.1",
+      "accessedAt": "2026-10-28",
+      "kind": "official-doc",
+      "excerpt": "Only Pytorch is currently available on Windows - the rest of the ROCm stack is only supported on Linux. … No ML training support. Only Python 3.12 is supported. Only Pytorch is supported, not the entire ROCm stack."
+    },
+    {
+      "id": "L09-S05",
+      "url": "https://www.amd.com/en/developer/resources/technical-articles/2026/ai-model-deployment-using-windows-ml-on-amd-npu.html",
+      "title": "AI model deployment using Windows ML on AMD NPU",
+      "publisher": "AMD Developer",
+      "publishedAt": null,
+      "version": "页面未标明",
+      "accessedAt": "2026-10-28",
+      "kind": "official-doc",
+      "excerpt": "VitisAIExecutionProvider for AMD Ryzen AI processors; MIGraphXExecutionProvider for AMD GPU acceleration using ROCm software; CPUExecutionProvider for running on default CPU."
+    },
+    {
+      "id": "L09-S06",
+      "url": "https://www.amd.com/en/developer/resources/technical-articles/2026/how-to-run-a-one-trillion-parameter-llm-locally-an-amd.html",
+      "title": "Trillion-Parameter LLM on an AMD Ryzen AI Max+ Cluster",
+      "publisher": "AMD Developer",
+      "publishedAt": null,
+      "version": "页面未标明 ROCm 版本",
+      "accessedAt": "2026-10-28",
+      "kind": "official-doc",
+      "excerpt": "4x Framework Desktop - AMD Ryzen AI Max+ 395 - 128GB … Ubuntu 24.04.3 LTS … Llama.cpp RPC … Kimi-K2.5 (UD_Q2_K_XL) (375GB). … maximum … dedicated VRAM … 96GB … TTM … 120GB per node."
+    },
+    {
+      "id": "L09-S07",
+      "url": "https://rocm.docs.amd.com/projects/radeon-ryzen/en/latest/docs/install/installrad/wsl/howto_wsl.html",
+      "title": "WSL How to guide - Use ROCm on Radeon",
+      "publisher": "AMD ROCm",
+      "publishedAt": null,
+      "version": "latest; Adrenalin 26.2.2 + ROCm 7.2.1 section",
+      "accessedAt": "2026-10-28",
+      "kind": "official-doc",
+      "excerpt": "AMD is introducing production support for the open-source ROCDXG (librocdxg) WSL solution with Adrenalin 26.2.2 + ROCm 7.2.1. ... This release also marks the first time AMD is supporting Ryzen Strix and Strix Halo SKUs versus the legacy WSL solution."
+    },
+    {
+      "id": "L09-S08",
+      "url": "https://raw.githubusercontent.com/ROCm/librocdxg/a2baffea281f3adb4c16674876426fb6bec3674f/README.md",
+      "title": "librocdxg README - WSL Compatibility Matrix",
+      "publisher": "AMD ROCm GitHub",
+      "publishedAt": null,
+      "version": "Fixed commit a2baffea281f3adb4c16674876426fb6bec3674f",
+      "accessedAt": "2026-10-28",
+      "kind": "official-repo",
+      "excerpt": "WSL Compatibility Matrix\n- Windows 11\n- Ubuntu 26.04 LTS / Ubuntu 24.04 LTS / Ubuntu 22.04 LTS\n...\n| 1.2.0                  | 7.2.x            | ... | ***Ryzen***<br><br>AMD Ryzen AI Max+ 395<br>AMD Ryzen AI Max 390<br>AMD Ryzen AI Max 385<br>AMD Ryzen AI 9 HX 375<br>AMD Ryzen AI 9 HX 370<br>AMD Ryzen AI 9 365 |"
+    },
+    {
+      "id": "L09-S09",
+      "url": "https://rocm.docs.amd.com/en/docs-7.14.1/compatibility/compatibility-matrix.html",
+      "title": "ROCm 7.14.1 AI ecosystem compatibility table",
+      "publisher": "AMD ROCm",
+      "publishedAt": null,
+      "version": "ROCm 7.14.1",
+      "accessedAt": "2026-10-28",
+      "kind": "official-doc",
+      "excerpt": "<tr data-show-cond='{\"os\": [\"ubuntu\", \"debian\", \"rhel\", \"oracle-linux\", \"rocky-linux\", \"sles\"]}'><td>PyTorch</td><td data-show-cond='{\"gfx\": [\"gfx950\", \"gfx942\", \"gfx90a\", \"gfx908\"]}'>2.12.0, 2.11.0, 2.10.0</td><td data-show-cond='{\"fam\": [\"radeon\", \"ryzen\"]}'>2.12.0, 2.11.0</td><td>3.14, 3.13, 3.12, 3.11</td></tr> ... <tr data-show-cond='{\"os\": [\"windows\", \"wsl\"]}'><td>PyTorch</td><td data-show-cond='{\"os\": [\"windows\", \"wsl\"]}'>2.12.0</td><td>3.14, 3.13, 3.12, 3.11</td></tr>"
+    }
+  ],
+  "claims": [
+    {
+      "id": "L09-C01",
+      "claim": "ROCm 7.14.1 矩阵逐型号列出 AI Max：AI Max+ PRO 495 对应 Radeon 8065S；AI Max PRO 490/485、AI Max PRO 390/385、AI Max 390/385 对应 8050S；AI Max+ PRO 395、AI Max+ 395/392/388 对应 8060S；AI Max PRO 380 对应 8040S。",
+      "status": "official-supported",
+      "hardware": [
+        "Ryzen AI Max PRO 400 Series",
+        "Ryzen AI Max PRO 300 Series",
+        "Ryzen AI Max 300 Series"
+      ],
+      "os": [],
+      "software": "ROCm 7.14.1 compatibility matrix",
+      "sourceIds": ["L09-S01"],
+      "limits": "只覆盖矩阵明确列出的完整 APU 型号与核显映射，不外推其他 Max 型号。"
+    },
+    {
+      "id": "L09-C02",
+      "claim": "ROCm 7.14.1 矩阵按完整型号列出 AI 300/400 核显：890M 对应 AI 9 HX 370/375、AI 9 HX PRO 370/375、AI 9 HX 470/475、AI 9 HX PRO 470/475；880M 对应 AI 9 365、AI 9 465、AI 9 PRO 465。",
+      "status": "official-supported",
+      "hardware": [
+        "Ryzen AI 300 Series",
+        "Ryzen AI PRO 300 Series",
+        "Ryzen AI 400 Series",
+        "Ryzen AI PRO 400 Series"
+      ],
+      "os": [],
+      "software": "ROCm 7.14.1 compatibility matrix",
+      "sourceIds": ["L09-S01"],
+      "limits": "映射不代表同一核显名称的其他 CPU/APU 型号自动受支持。"
+    },
+    {
+      "id": "L09-C03",
+      "claim": "矩阵还列出 860M：AI 7 350/450 与 PRO 350/450；840M：AI 7 345/445、AI 5 340/430/435、AI 5 PRO 340/440/435；820M：AI 5 330。",
+      "status": "official-supported",
+      "hardware": [
+        "Ryzen AI 300 Series",
+        "Ryzen AI PRO 300 Series",
+        "Ryzen AI 400 Series",
+        "Ryzen AI PRO 400 Series"
+      ],
+      "os": [],
+      "software": "ROCm 7.14.1 compatibility matrix",
+      "sourceIds": ["L09-S01"],
+      "limits": "gfx target需按矩阵具体型号区分；该映射不是对同系列未列型号的支持声明。"
+    },
+    {
+      "id": "L09-C04",
+      "claim": "该矩阵的 780M 列名包括 Ryzen 9 270、Ryzen 7 260/250、Ryzen 7 PRO 250；未列 Ryzen 7 7840HS 或 Ryzen 7 8845HS。",
+      "status": "not-established",
+      "hardware": [
+        "Ryzen 9 270",
+        "Ryzen 7 260",
+        "Ryzen 7 250",
+        "Ryzen 7 PRO 250",
+        "Ryzen 7 7840HS",
+        "Ryzen 7 8845HS"
+      ],
+      "os": [],
+      "software": "ROCm 7.14.1 compatibility matrix",
+      "sourceIds": ["L09-S01"],
+      "limits": "7840HS/8845HS仅能表述为未列入此版本名单，不等于官方明确不支持，也不能凭gfx1103推断。"
+    },
+    {
+      "id": "L09-C05",
+      "claim": "ROCm 7.14.1 矩阵列 Ubuntu 26.04（GA kernel 7.0）、Ubuntu 24.04.4（OEM kernel 6.17）和 Windows 11 25H2；其 Ryzen Linux PyTorch 单元格列 2.12.0、2.11.0，Windows/WSL 对应行列 2.12.0，Python 行列 3.14、3.13、3.12、3.11。",
+      "status": "official-supported",
+      "hardware": ["矩阵列出的 Ryzen APU/iGPU 型号"],
+      "os": ["Ubuntu 26.04", "Ubuntu 24.04.4", "Windows 11 25H2", "WSL"],
+      "software": "ROCm 7.14.1; Ryzen Linux PyTorch 2.12.0/2.11.0; Windows/WSL PyTorch 2.12.0; Python 3.14/3.13/3.12/3.11",
+      "sourceIds": ["L09-S01", "L09-S09"],
+      "limits": "Ryzen Linux版本取自 fam=[radeon,ryzen] 单元格；2.10.0 属于 gfx=[gfx950,gfx942,gfx90a,gfx908] 单元格，不能计入 Ryzen。该固定版本的表格不是对每个核显型号、每个应用组合的额外认证。"
+    },
+    {
+      "id": "L09-C06",
+      "claim": "ROCm Ryzen 7.1.1 Linux安装页针对 Ubuntu 24.04 要求使用 6.14 OEM kernel，示例安装 amdgpu-install 7.1.1 并运行 --usecase=rocm --no-dkms。",
+      "status": "version-limited",
+      "hardware": ["ROCm on Ryzen 支持的 APU"],
+      "os": ["Ubuntu 24.04", "Linux 6.14 OEM kernel"],
+      "software": "amdgpu-install 7.1.1; ROCm 7.1.1",
+      "sourceIds": ["L09-S03"],
+      "limits": "这是 7.1.1 页面中的安装步骤，不应当作 ROCm 7.14.1 安装说明。"
+    },
+    {
+      "id": "L09-C07",
+      "claim": "7.1.1 Ryzen Windows限制页写明当时 Windows 仅有 PyTorch、仅支持 Python 3.12、无 ML training，且不是完整 ROCm stack。",
+      "status": "version-limited",
+      "hardware": ["该版本 Ryzen Windows 支持范围"],
+      "os": ["Windows"],
+      "software": "ROCm 7.1.1; PyTorch; Python 3.12",
+      "sourceIds": ["L09-S04"],
+      "limits": "这些限制属于 ROCm 7.1.1 页面版本，不推断为后续版本仍完全相同。"
+    },
+    {
+      "id": "L09-C08",
+      "claim": "ROCm 7.2 总览页的 WSL 条目列出 ROCm 7.2 与 Radeon RX 7700、未列 Ryzen APU；这只记录该入口页当时所列范围，不能据此否定专用 ROCDXG WSL 文档中的部分 Ryzen 支持。",
+      "status": "not-established",
+      "hardware": ["Ryzen APU/iGPU 未在该 WSL 条目列出"],
+      "os": ["Windows Subsystem for Linux 2"],
+      "software": "ROCm on Radeon and Ryzen 7.2 overview",
+      "sourceIds": ["L09-S02"],
+      "limits": "仅说明该总览页的 WSL bullet 未列 Ryzen，不等于该页或 AMD 对所有 WSL Ryzen 型号作出不支持声明；后续专用 ROCDXG 路线见 L09-S07、L09-S08。"
+    },
+    {
+      "id": "L09-C09",
+      "claim": "AMD Windows ML页面分别将 VitisAIExecutionProvider用于 Ryzen AI NPU，将使用 ROCm 的 MIGraphXExecutionProvider用于 AMD GPU。",
+      "status": "official-supported",
+      "hardware": ["AMD Ryzen AI NPU", "AMD GPU"],
+      "os": ["Windows"],
+      "software": "Windows ML; Vitis AI EP; ROCm MIGraphX EP",
+      "sourceIds": ["L09-S05"],
+      "limits": "两种执行路线的模型支持条件不能互相代用；NPU模型支持不能算作iGPU ROCm支持。"
+    },
+    {
+      "id": "L09-C10",
+      "claim": "AMD针对 Framework Desktop Ryzen AI Max+ 395 128GB的文章写明该配置 BIOS dedicated VRAM上限96GB，Linux调整TTM后可到120GB/节点；这些是具体配置下的显式值。",
+      "status": "version-limited",
+      "hardware": ["Framework Desktop Ryzen AI Max+ 395 128GB"],
+      "os": ["Ubuntu/Linux"],
+      "software": "BIOS iGPU Memory Size; Linux TTM/amdgpu kernel parameters",
+      "sourceIds": ["L09-S06"],
+      "limits": "不是全部 UMA 默认分配，也不能推广为其他整机的可分配量或有效推理性能。"
+    },
+    {
+      "id": "L09-C11",
+      "claim": "AMD文章报告四台各128GB的 Ryzen AI Max+ 395通过 Ubuntu 24.04.3 与 llama.cpp RPC运行 Kimi K2.5 UD_Q2_K_XL（页面标375GB）；这是多机案例。",
+      "status": "not-established",
+      "hardware": ["4x Framework Desktop Ryzen AI Max+ 395 128GB"],
+      "os": ["Ubuntu 24.04.3 LTS"],
+      "software": "llama.cpp RPC; Kimi K2.5 UD_Q2_K_XL",
+      "sourceIds": ["L09-S06"],
+      "limits": "不证明同模型能在单台机器运行，不提供其他量化、模型、插件或系统的兼容保证，也不构成本轮性能实测。"
+    },
+    {
+      "id": "L09-C12",
+      "claim": "AMD 专用 WSL 指南称 ROCDXG 以 Adrenalin 26.2.2 + ROCm 7.2.1 提供 production support，并称这是首次支持 Ryzen Strix 与 Strix Halo SKU 的 WSL 路线。",
+      "status": "official-supported",
+      "hardware": [
+        "Ryzen Strix SKU（指南未逐个列型号）",
+        "Ryzen Strix Halo SKU（指南未逐个列型号）"
+      ],
+      "os": ["Windows WSL2", "Ubuntu 24.04", "Ubuntu 22.04"],
+      "software": "ROCDXG; Adrenalin 26.2.2 for WSL2; ROCm 7.2.1",
+      "sourceIds": ["L09-S07"],
+      "limits": "指南的 Ubuntu 24.04/22.04 安装条件和版本表述仅按该页记录；个别 CPU 型号见固定仓库矩阵。不得将其与仓库 1.2.0 + ROCm 7.2.x 行拼成相同驱动组合。"
+    },
+    {
+      "id": "L09-C13",
+      "claim": "固定提交的 librocdxg WSL Compatibility Matrix 在 librocdxg 1.2.0 + ROCm 7.2.x 行明确列出 Ryzen AI Max+ 395、Ryzen AI Max 390/385、Ryzen AI 9 HX 375/370、Ryzen AI 9 365。",
+      "status": "official-supported",
+      "hardware": [
+        "Ryzen AI Max+ 395",
+        "Ryzen AI Max 390",
+        "Ryzen AI Max 385",
+        "Ryzen AI 9 HX 375",
+        "Ryzen AI 9 HX 370",
+        "Ryzen AI 9 365"
+      ],
+      "os": [
+        "Windows 11 WSL2",
+        "Ubuntu 26.04 LTS",
+        "Ubuntu 24.04 LTS",
+        "Ubuntu 22.04 LTS"
+      ],
+      "software": "librocdxg 1.2.0 + ROCm 7.2.x (fixed README commit a2baffea281f3adb4c16674876426fb6bec3674f)",
+      "sourceIds": ["L09-S08"],
+      "limits": "仅适用于该固定仓库兼容表明确的型号和版本行；README未把该行绑定到指南中的 Adrenalin 26.2.2，不能推成同一套已验证安装组合，也不外推其他 Ryzen APU。"
+    }
+  ],
+  "gaps": [
+    "ROCm矩阵没有列出 Ryzen 7 7840HS、8845HS；它们的官方支持状态仍未建立，不能从同 gfx target外推。",
+    "ROCm 7.2 总览页的 WSL 条目仅列 Radeon RX 7700；后续专用 ROCDXG 文档与固定 README 矩阵确认了部分 Ryzen Strix/Strix Halo 型号，但不能推及所有 Ryzen APU。",
+    "没有硬件实测；具体OEM BIOS、驱动、PyTorch/应用版本、模型、算子和插件组合需分别验证。社区工具对未列APU的兼容性未核验。"
+  ]
+}

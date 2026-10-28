@@ -1,0 +1,294 @@
+{
+  "lane": "07",
+  "checkedAt": "2026-10-28",
+  "scope": "ComfyUI 官方对 AMD 的 Windows/Linux 安装路线与支持边界（桌面版、便携包、手动安装）；社区 DirectML/ZLUDA 只判断官方是否提供入口",
+  "sources": [
+    {
+      "id": "L07-S01",
+      "url": "https://github.com/comfyanonymous/ComfyUI/blob/master/README.md",
+      "title": "ComfyUI README（Manual Install 段，含 AMD GPUs (Linux) / AMD GPUs (Windows, ROCm 10.0)）",
+      "publisher": "ComfyUI (comfyanonymous/Comfy-Org)",
+      "publishedAt": null,
+      "version": "master @ 4845e7a3ffc48a6961f15824239e9042cc7d4ad1（2026-10-28T14:31:29Z）",
+      "accessedAt": "2026-10-28",
+      "kind": "official-repo",
+      "excerpt": "Manual Install ... Supports all operating systems and GPU types (NVIDIA, AMD, Intel, Apple Silicon, Ascend). ### AMD GPUs (Linux) ... pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/rocm7.2 ### AMD GPUs (Windows, ROCm 10.0) Use AMD's multi-architecture PyTorch packages. ... a separate HIP SDK installation is not needed. Use Windows 11, a current AMD graphics driver, and 64-bit Python 3.13. ... supported architectures include RDNA 2, RDNA 3, RDNA 3.5, and ..."
+    },
+    {
+      "id": "L07-S02",
+      "url": "https://docs.comfy.org/installation/system_requirements",
+      "title": "System Requirements - ComfyUI",
+      "publisher": "Comfy-Org",
+      "publishedAt": null,
+      "version": "未标明（在线文档当日版）",
+      "accessedAt": "2026-10-28",
+      "kind": "official-doc",
+      "excerpt": "AMD GPU (Linux) - ROCm 7.2 stable or nightly. AMD GPU (Windows) - ROCm 10.0 via AMD multi-architecture PyTorch packages. Supports RDNA 2, RDNA 3, RDNA 3.5, and RDNA 4; no separate HIP SDK installation needed. ... Windows 10 or later. NVIDIA or AMD GPU recommended. ... Comfy Desktop supports standalone installation on Windows, macOS (Apple Silicon), and Linux (AppImage and .deb). ... These images are not officially maintained by Comfy-Org and are not supported by the ComfyUI team."
+    },
+    {
+      "id": "L07-S03",
+      "url": "https://docs.comfy.org/installation/manual_install",
+      "title": "Install ComfyUI Manually (Windows, macOS, Linux)",
+      "publisher": "Comfy-Org",
+      "publishedAt": null,
+      "version": "未标明（在线文档当日版）",
+      "accessedAt": "2026-10-28",
+      "kind": "official-doc",
+      "excerpt": "For Linux, install the ROCm 7.2 version of PyTorch: pip3 install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/rocm7.2 ... For Windows, use AMD’s multi-architecture PyTorch packages with ROCm 10.0. ... a separate HIP SDK installation is not needed. Use Windows 11, a current AMD graphics driver, and 64-bit Python 3.13. GPU 表：RX 9070/XT & Radeon AI PRO R9700=gfx1201；RX 9060/XT=gfx1200；RX 7900 XT/XTX=gfx1100；RX 7700/7800 XT=gfx1101；RX 7600/XT=gfx1102；Ryzen AI Max (Str..."
+    },
+    {
+      "id": "L07-S04",
+      "url": "https://docs.comfy.org/installation/comfyui_portable_windows",
+      "title": "ComfyUI Portable for Windows",
+      "publisher": "Comfy-Org",
+      "publishedAt": null,
+      "version": "未标明（在线文档当日版）",
+      "accessedAt": "2026-10-28",
+      "kind": "official-doc",
+      "excerpt": "Portable for AMD GPUs - Download for AMD GPUs (ROCm)（链接 ComfyUI_windows_portable_amd.7z）... run_amd_gpu.bat // Double click to start ComfyUI (AMD GPU) ... 系统要求页：Portable version ... currently only supports Windows system."
+    },
+    {
+      "id": "L07-S05",
+      "url": "https://github.com/Comfy-Org/ComfyUI/releases/tag/v0.43.0",
+      "title": "Comfy-Org/ComfyUI release v0.43.0 资产列表（GitHub API）",
+      "publisher": "Comfy-Org",
+      "publishedAt": "2026-10-27T02:40:46Z",
+      "version": "v0.43.0（最新 release，2026-10-27 发布）",
+      "accessedAt": "2026-10-28",
+      "kind": "release-note",
+      "excerpt": "资产含 ComfyUI_windows_portable_amd.7z（1,656,949,572 字节，下载 3831 次）、ComfyUI_windows_portable_intel.7z、ComfyUI_windows_portable_nvidia.7z、ComfyUI_windows_portable_nvidia_arm64.7z、ComfyUI_windows_portable_nvidia_cu126.7z。"
+    },
+    {
+      "id": "L07-S06",
+      "url": "https://github.com/comfyanonymous/ComfyUI/blob/master/.ci/windows_amd_base_files/",
+      "title": "ComfyUI .ci/windows_amd_base_files（run_amd_gpu.bat、README_VERY_IMPORTANT.txt、run_amd_gpu_enable_dynamic_vram.bat）",
+      "publisher": "ComfyUI",
+      "publishedAt": null,
+      "version": "master @ 4845e7a3ffc48a6961f15824239e9042cc7d4ad1",
+      "accessedAt": "2026-10-28",
+      "kind": "official-repo",
+      "excerpt": "run_amd_gpu.bat: .\\python_embeded\\python.exe -s ComfyUI\\main.py --windows-standalone-build；run_amd_gpu_enable_dynamic_vram.bat: ... --enable-dynamic-vram；README_VERY_IMPORTANT.txt: As of the time of writing this you need a recent driver. Updating to the latest driver is recommended. If you have memory issues you can try enabling the new dynamic memory management ..."
+    },
+    {
+      "id": "L07-S07",
+      "url": "https://github.com/comfyanonymous/ComfyUI/blob/master/.github/workflows/release-stable-all.yml",
+      "title": "ComfyUI release-stable-all.yml（便携包构建矩阵）",
+      "publisher": "ComfyUI",
+      "publishedAt": null,
+      "version": "master @ 4845e7a3ffc48a6961f15824239e9042cc7d4ad1",
+      "accessedAt": "2026-10-28",
+      "kind": "official-repo",
+      "excerpt": "release_amd_rocm: name: \"Release AMD ROCm 7.2\" ... cache_tag: \"rocm72\", python_minor: \"12\", python_patch: \"10\", rel_name: \"amd\", test_release: false；对比 nvidia_default(cu130)/nvidia_arm64/nvidia_cu126/xpu 均为 test_release: true"
+    },
+    {
+      "id": "L07-S08",
+      "url": "https://github.com/Comfy-Org/ComfyUI-Standalone-Environments/blob/main/requirements-amd-win.txt",
+      "title": "ComfyUI-Standalone-Environments requirements-amd-win.txt（桌面版 2.0 环境定义）",
+      "publisher": "Comfy-Org",
+      "publishedAt": null,
+      "version": "main（当日抓取，未记提交号）",
+      "accessedAt": "2026-10-28",
+      "kind": "official-repo",
+      "excerpt": "# AMD GPU requirements (ROCm 7.14, Windows) ... ROCm 7.14 ships via AMD's TheRock multi-arch wheel index, which serves both Windows and Linux from the same URL - the old repo.radeon.com universal package (last: rocm-rel-7.2.1, Python 3.12 only) is no longer used. Wheels cover Python 3.10-3.14 ... torch[device-all]==2.12.0+rocm7.14.0。同仓库 torch-index-stacks.json：rocm7.1 标 official PyTorch builds, Linux only；rocm7.14.0 标 TheRock multi-arch builds for Windows and Linux（platforms: win32, linux）"
+    },
+    {
+      "id": "L07-S09",
+      "url": "https://rocm.docs.amd.com/projects/ai-ecosystem/en/latest/frameworks/pytorch/install.html",
+      "title": "Install PyTorch for ROCm（AMD AI ecosystem 文档）",
+      "publisher": "AMD",
+      "publishedAt": null,
+      "version": "页面 ROCm 版本切换含 10.1.0 / 10.0.0 / 7.14.1 / 7.14.0；未标明发布日期",
+      "accessedAt": "2026-10-28",
+      "kind": "official-doc",
+      "excerpt": "Radeon GPU: AMD Radeon RX 9070 XT (gfx1201) ... RX 9060 XT (gfx1200) ... RX 9050 (gfx1200) ... RX 7900 XTX (gfx1100) ... RX 7800 XT (gfx1101) ... RX 7700 (gfx1101) ... RX 7600 (gfx1102) ... Radeon PRO W6800 (gfx1030) ... Radeon AI PRO R9700 (gfx1201)；Ryzen APU: AMD Ryzen AI Max+ PRO 395 (gfx1151) ... Ryzen AI 9 HX 370 (gfx1150) ... Operating system: Linux / Windows；Ensure your system has a supported Python version installed and accessible: 3.10, 3.11, 3.12, 3.13, or 3.14."
+    },
+    {
+      "id": "L07-S10",
+      "url": "https://rocmdocs.amd.com/projects/radeon-ryzen/en/latest/docs/advanced/advancedryz/windows/comfyui/installcomfyui.html",
+      "title": "Install ComfyUI — Use ROCm on Radeon and Ryzen（AMD radeon-ryzen 文档，与官方现行命令冲突的旧页）",
+      "publisher": "AMD",
+      "publishedAt": null,
+      "version": "页面声明覆盖 ROCm releases through 7.2.1；未标明发布日期",
+      "accessedAt": "2026-10-28",
+      "kind": "official-doc",
+      "excerpt": "Prerequisites: Ensure Python 3.12 is installed. Ensure 26.2.2 graphics driver is installed. ... git clone https://github.com/comfyanonymous/ComfyUI.git ... python main.py ... ensure that the Pytorch version seen in the terminal is the ROCm 7.2.1 specific one. ... try adding the --lowvram and --disable-pinned-memory parameters to the run command."
+    },
+    {
+      "id": "L07-S11",
+      "url": "https://comfyui.org/en/official-amd-rocm-support-arrives",
+      "title": "Official AMD ROCm™ Support Arrives on Windows for ComfyUI Desktop",
+      "publisher": "comfyui.org（站点官方身份未核）",
+      "publishedAt": "2026-01-07T02:06:01",
+      "version": "历史文章（记录当时版本，非当前版本；站点身份未核）",
+      "accessedAt": "2026-10-28",
+      "kind": "community",
+      "excerpt": "AMD ROCm™ compatibility has been officially added to the Windows ComfyUI Desktop application, commencing with version v0.7.0. ... The current iteration of the ComfyUI Desktop and Portable applications utilizes ROCm 7.1.1. ... the AMD ROCm™ 7.1.1 Preview driver is advised, which accommodates the --use-pytorch-cross-attention option."
+    }
+  ],
+  "claims": [
+    {
+      "id": "L07-C01",
+      "claim": "ComfyUI 官方手动安装路线明确支持 AMD（Linux 与 Windows 分列），总表述为“支持所有操作系统和 GPU 类型（NVIDIA、AMD、Intel、Apple Silicon、Ascend）”",
+      "status": "official-supported",
+      "hardware": ["AMD GPU（架构级，未逐型号列举）"],
+      "os": ["Windows", "Linux"],
+      "software": "ComfyUI git 版（master @ 4845e7a）",
+      "sourceIds": ["L07-S01", "L07-S02"],
+      "limits": "仅承诺安装路线可用；不承诺任何具体模型、工作流、自定义节点在 AMD 上可运行。"
+    },
+    {
+      "id": "L07-C02",
+      "claim": "Linux 手动安装的官方命令是装 pytorch.org 的 ROCm 7.2 轮子（stable 或 nightly），不走 AMD 自有源",
+      "status": "official-supported",
+      "hardware": ["AMD GPU（pytorch.org ROCm 支持的卡）"],
+      "os": ["Linux"],
+      "software": "PyTorch --index-url https://download.pytorch.org/whl/rocm7.2（stable）；nightly/rocm7.2",
+      "sourceIds": ["L07-S01", "L07-S03", "L07-S02"],
+      "limits": "pytorch.org 的 ROCm 轮子有其自身显卡支持名单，页面未在 ComfyUI 侧展开；未核实 nightly 与具体卡的组合。"
+    },
+    {
+      "id": "L07-C03",
+      "claim": "Windows 手动安装的官方命令是 AMD 多架构 PyTorch 包 + ROCm 10.0：pip --index-url https://stable.repo.amd.com/rocm/whl-next/ \"torch[device-all]==2.13.0+rocm10.0.0\" \"torchvision[device-all]==0.28.0+rocm10.0.0\" \"torchaudio==2.11.0.2+rocm10.0.0\"，并要求 Windows 11、64 位 Python 3.13、最新 AMD 显卡驱动，且声明无需单独装 HIP SDK",
+      "status": "official-supported",
+      "hardware": ["RDNA 2 / RDNA 3 / RDNA 3.5 / RDNA 4 架构（官方表述）"],
+      "os": ["Windows 11"],
+      "software": "PyTorch 2.13.0+rocm10.0.0（torchvision 0.28.0、torchaudio 2.11.0.2）+ Python 3.13",
+      "sourceIds": ["L07-S01", "L07-S03"],
+      "limits": "device extra 表只列示例；未列出的卡只算“未列入示例表”，不是官方不支持；AMD 文档站同一索引已出现 10.1.0 版本页，版本随日期漂移。"
+    },
+    {
+      "id": "L07-C04",
+      "claim": "官方给出的 AMD device extra 示例仅覆盖 RDNA 3/4 消费卡与 Strix Halo：RX 9070 系列/AI PRO R9700=gfx1201、RX 9060=gfx1200、RX 7900 XT/XTX=gfx1100、RX 7700/7800 XT=gfx1101、RX 7600=gfx1102、Ryzen AI Max=gfx1151；RDNA 2 未出现在该示例表",
+      "status": "official-supported",
+      "hardware": [
+        "Radeon RX 9070/9060/7900/7800/7700/7600 系列",
+        "Radeon AI PRO R9700",
+        "Ryzen AI Max / Max+ (Strix Halo)"
+      ],
+      "os": ["Windows"],
+      "software": "ROCm 10.0 multi-arch device extras",
+      "sourceIds": ["L07-S01", "L07-S03"],
+      "limits": "原文明示“表只列示例，未列出的 GPU 仍可能受支持；支持架构包括 RDNA 2/3/3.5/4”。RDNA 2 属架构级支持但无列名 device extra 行。"
+    },
+    {
+      "id": "L07-C05",
+      "claim": "官方文档对未获 ROCm 官方支持的 AMD 卡只给 Linux 环境变量变通：RDNA2 及更旧（如 6700/6600）用 HSA_OVERRIDE_GFX_VERSION=10.3.0，RDNA3（如 7600）用 HSA_OVERRIDE_GFX_VERSION=11.0.0；并给 PYTORCH_TUNABLEOP_ENABLED=1 提示",
+      "status": "version-limited",
+      "hardware": ["Radeon 6700/6600（RDNA2 及更旧）", "Radeon 7600（RDNA3）"],
+      "os": ["Linux"],
+      "software": "python main.py + 环境变量",
+      "sourceIds": ["L07-S01"],
+      "limits": "README 自述“maybe other RDNA2 or older”“maybe other RDNA3 cards”，属非承诺变通；Windows 等价命令未见。"
+    },
+    {
+      "id": "L07-C06",
+      "claim": "Windows 便携包提供 AMD 专用变体 ComfyUI_windows_portable_amd.7z，解压后双击 run_amd_gpu.bat 启动（标注 ROCm），最新 v0.43.0（2026-10-27 发布）资产含此文件约 1.66 GB",
+      "status": "official-supported",
+      "hardware": ["AMD GPU（ROCm 便携包覆盖范围，页面未列型号）"],
+      "os": ["Windows"],
+      "software": "ComfyUI v0.43.0 便携包（内嵌 python_embeded）",
+      "sourceIds": ["L07-S04", "L07-S05", "L07-S01"],
+      "limits": "便携包页未标注覆盖哪些型号，也未标注随包 ROCm/PyTorch 具体版本；README 另称“便携包不推荐普通用户，普通用户应用桌面版”。"
+    },
+    {
+      "id": "L07-C07",
+      "claim": "AMD 便携包的构建 job（Release AMD ROCm 7.2，rocm72 缓存，Python 3.12.10）在 release-stable-all.yml 中 test_release 为 false，即发布流程不做 --quick-test-for-ci 自检；而 nvidia/arm64/cu126/xpu 均为 true",
+      "status": "official-supported",
+      "hardware": ["AMD GPU"],
+      "os": ["Windows"],
+      "software": "CI workflow（master @ 4845e7a）",
+      "sourceIds": ["L07-S07"],
+      "limits": "这只是发布流程差异，不能据此推断 AMD 便携包不可用或质量差；CI 内 Python 3.12.10 与 README 手动安装推荐的 3.13 不一致属两条产线各自钉版。"
+    },
+    {
+      "id": "L07-C08",
+      "claim": "ComfyUI 桌面版 2.0 的 standalone 环境定义把 Windows AMD 钉在 ROCm 7.14 TheRock 多架构轮子（torch[device-all]==2.12.0+rocm7.14.0，索引 https://repo.amd.com/rocm/whl-multi-arch/，Python 3.10–3.14），Linux 侧另有 rocm7.1“官方 PyTorch 构建，仅 Linux”一档",
+      "status": "official-supported",
+      "hardware": ["AMD GPU（TheRock device-all 覆盖的架构）"],
+      "os": ["Windows", "Linux"],
+      "software": "torch 2.12.0+rocm7.14.0（桌面环境定义）；torch 2.10–2.13+rocm7.1（Linux index 栈）",
+      "sourceIds": ["L07-S08"],
+      "limits": "该文件是桌面版环境定义，不等于手动安装文档命令；同日抓取未记提交号。"
+    },
+    {
+      "id": "L07-C09",
+      "claim": "桌面版系统要求为“Windows 10 or later，推荐 NVIDIA 或 AMD GPU”；桌面版 Windows 页写“独显（NVIDIA / AMD）推荐用于良好性能，但非必需”；桌面版覆盖 Windows / macOS(Apple Silicon) / Linux(AppImage、.deb)",
+      "status": "official-supported",
+      "hardware": ["NVIDIA GPU", "AMD GPU（推荐，非必需）"],
+      "os": [
+        "Windows 10 及以后",
+        "macOS (Apple Silicon)",
+        "Linux (AppImage/.deb)"
+      ],
+      "software": "Comfy Desktop",
+      "sourceIds": ["L07-S02"],
+      "limits": "“推荐 AMD”未列型号名单；桌面版 Windows 安装页正文未见 AMD 专属安装章节（本轮未找到 AMD 专用桌面安装页）。"
+    },
+    {
+      "id": "L07-C10",
+      "claim": "官方入口中不存在 DirectML 或 ZLUDA 路线：README 与 docs.comfy.org 系统要求/手动安装/便携包页全文只有 ROCm 表述，无 DirectML、ZLUDA、Vulkan 字样",
+      "status": "not-established",
+      "hardware": ["AMD GPU"],
+      "os": ["Windows", "Linux"],
+      "software": "ComfyUI 官方安装文档",
+      "sourceIds": ["L07-S01", "L07-S02", "L07-S03", "L07-S04"],
+      "limits": "只能证明“官方未提供入口”，不能证明第三方社区路线不可用（社区路线由另路调研）。"
+    },
+    {
+      "id": "L07-C11",
+      "claim": "官方明确 Docker 镜像不受支持：Docker Hub 上的 ComfyUI 镜像“不由 Comfy-Org 官方维护，ComfyUI 团队不支持，使用自担风险”",
+      "status": "official-unsupported",
+      "hardware": ["任意"],
+      "os": ["任意容器环境"],
+      "software": "社区 Docker 镜像",
+      "sourceIds": ["L07-S02"],
+      "limits": "针对容器镜像的官方支持边界，不涉及本地安装路线。"
+    },
+    {
+      "id": "L07-C12",
+      "claim": "AMD 官方 PyTorch 文档给出比 ComfyUI 示例表更长的 gfx 名单（消费卡 9070 XT/GRE/9070、9060 XT/9060/9050、7900 XTX/XT/GRE、7800/7700 XT、7700、7600；PRO W6800 为 gfx1030；AI PRO R9700/R9600 为 gfx1201；Ryzen AI Max+ 395 等 gfx1151、Ryzen AI 300 系 gfx1150/1152/1153、Ryzen 7x0M 核显 gfx1103），OS 仅 Linux 与 Windows，Python 3.10–3.14",
+      "status": "official-supported",
+      "hardware": [
+        "Radeon RX 9000/7000 系列（列名者）",
+        "Radeon PRO W6800",
+        "Radeon AI PRO R9700/R9600",
+        "Ryzen AI Max/Max+ (Strix Halo)",
+        "Ryzen AI 300 系列核显",
+        "Ryzen 7x0M 核显"
+      ],
+      "os": ["Linux", "Windows"],
+      "software": "ROCm PyTorch（页面含 10.1.0/10.0.0/7.14.x 版本切换）",
+      "sourceIds": ["L07-S09"],
+      "limits": "这是 AMD PyTorch 层名单；上一层支持不证明 ComfyUI 层某模型/插件可用。RX 6000 系（RDNA2 消费卡）未见于该名单正文（仅 PRO W6800 为 gfx1030）。"
+    },
+    {
+      "id": "L07-C13",
+      "claim": "存在官方文档间版本冲突：AMD radeon-ryzen 文档的 ComfyUI 页要求 Python 3.12 + 驱动 26.2.2 + ROCm 7.2.1 轮子 + clone comfyanonymous/ComfyUI；ComfyUI 官方当前文档要求 Python 3.13 + ROCm 10.0 多架构包 + clone Comfy-Org/ComfyUI",
+      "status": "version-limited",
+      "hardware": ["AMD GPU"],
+      "os": ["Windows"],
+      "software": "AMD radeon-ryzen 文档（覆盖至 ROCm 7.2.1）vs ComfyUI 官方文档（ROCm 10.0）",
+      "sourceIds": ["L07-S10", "L07-S01", "L07-S03"],
+      "limits": "AMD 旧页自成版本线且声明只覆盖到 ROCm 7.2.1；以 ComfyUI 官方文档为当前准绳；两页冲突保留双方出处。"
+    },
+    {
+      "id": "L07-C14",
+      "claim": "comfyui.org 网站历史文章（2026-01-07）记载 AMD ROCm 支持自 ComfyUI Desktop v0.7.0 起进入 Windows，当时 Desktop 与 Portable 用 ROCm 7.1.1，并建议 AMD ROCm 7.1.1 Preview 驱动以启用 --use-pytorch-cross-attention。该站点官方身份未核，仅作历史记录参考",
+      "status": "community-reported",
+      "hardware": ["AMD Radeon 显卡", "Ryzen AI CPU"],
+      "os": ["Windows"],
+      "software": "ComfyUI Desktop v0.7.0 + ROCm 7.1.1",
+      "sourceIds": ["L07-S11"],
+      "limits": "comfyui.org 站点官方身份未核，标题含 Official 不能自行证明站点身份；本条不作为官方发布依据，不能用于证明官方何时开始支持。仅记录 2026-01 时点版本，不代表当前版本。"
+    }
+  ],
+  "gaps": [
+    "桌面版（Comfy Desktop）实际随包的 ROCm/PyTorch 版本未逐字节核验——Standalone-Environments 仓库给出的是环境定义（ROCm 7.14 / torch 2.12.0），未在桌面版发布说明中确认该定义即当前随包版本。",
+    "ComfyUI_windows_portable_amd.7z 未下载解包，随包 torch/ROCm 精确版本、python_embeded Python 小版本未直接核验（仅从 CI job 参数推断 Python 3.12.10、cache_tag rocm72）。",
+    "docs.comfy.org 上未找到“桌面版 AMD 专用安装页”（Linux ROCm 桌面页、macOS ROCm 页两个猜测 URL 抓取失败）；桌面版 AMD 用户实际引导路径未核实。",
+    "CUDA 专用自定义节点、xformers、FlashAttention 在 AMD/ROCm 下的兼容性：本轮未打开任何具体节点项目文档，不作任何断言（任务书要求只引用实际项目文档，本轮没有）。",
+    "RDNA 2（RX 6000 系）在 ComfyUI 官方 Windows 路线的可用性：官方表述为“支持架构包括 RDNA 2”但 device 示例表无对应行，AMD PyTorch 名单正文亦未见 RX 6000 消费卡，属“架构级提及、型号级未列名”，未能进一步证实。",
+    "docs.comfy.org 页面无发布日期与版本号（站点未标注），无法确认页面与仓库 master 的同步时点，只能记为“在线文档当日版”。",
+    "无任何硬件实测：无法验证任何一条安装命令在真实 AMD 卡上的结果，也无法验证“能启动”之后哪些模型/工作流可用。"
+  ]
+}

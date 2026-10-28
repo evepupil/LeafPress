@@ -1,0 +1,317 @@
+{
+  "lane": "02",
+  "checkedAt": "2026-10-28",
+  "scope": "旧 Radeon/Ryzen 专项 ROCm 7.2.1 与 HIP SDK 7.2.0 在原生 Windows 下的支持名单和限制；不代表截止日新版统一发行包或当前 ComfyUI 等全部入口，不含 WSL 和社区 ZLUDA/DirectML。",
+  "sources": [
+    {
+      "id": "L02-S09",
+      "url": "https://rocm.docs.amd.com/projects/install-on-windows/en/latest/install/install.html",
+      "title": "Install HIP SDK — HIP SDK for Windows 7.2.0 documentation",
+      "publisher": "AMD",
+      "publishedAt": "2026-07-31",
+      "version": "HIP SDK for Windows 7.2.0（HIP SDK Core 7.2.0）",
+      "accessedAt": "2026-10-28",
+      "kind": "official-doc",
+      "excerpt": "Download the installer from the HIP SDK download page. The installer requires Windows Administrator privileges. HIP SDK Core 7.2.0; HIP Libraries / HIP Runtime Compiler / HIP Ray Tracing / Visual Studio Plugin (VS 2017, 2019, 2022) / AMD ROCm Debugger 可选 Full/Partial/None. The HIP SDK installer bundles an AMD Radeon Software PRO 25.30 installer. A Factory Reset will remove all prior versions of AMD HIP SDK and drivers. You will not be able to roll back to previously installed drivers."
+    },
+    {
+      "id": "L02-S01",
+      "url": "https://rocm.docs.amd.com/projects/radeon-ryzen/en/latest/docs/compatibility/compatibilityrad/windows/windows_compatibility.html",
+      "title": "Windows support matrices by ROCm version — Use ROCm on Radeon and Ryzen",
+      "publisher": "AMD",
+      "publishedAt": null,
+      "version": "页面版本未标明；矩阵内容对应 ROCm 7.2.1",
+      "accessedAt": "2026-10-28",
+      "kind": "official-doc",
+      "excerpt": "GPU support matrix: ROCm Version 7.2.1*; Supported Architectures gfx1201, gfx1200, gfx1100, gfx1101; Supported AMD Radeon Hardware: RX 9070, RX 9070 XT, AI PRO R9700, RX 9060 XT, RX 7900 XTX, PRO W7900, PRO W7900 Dual Slot, RX 7700. PyTorch+ROCm: PyTorch 2.9 / ROCm 7.2.1 / Python 3.12; FP16, FP8 only on RDNA4. *Pytorch on Windows includes ROCm 7.2.1 components; however, the entire ROCm stack is not yet supported on Windows."
+    },
+    {
+      "id": "L02-S02",
+      "url": "https://rocm.docs.amd.com/projects/radeon-ryzen/en/latest/docs/install/installrad/windows/install-pytorch.html",
+      "title": "Install PyTorch for Radeon GPUs (Windows, PIP) — Use ROCm on Radeon and Ryzen",
+      "publisher": "AMD",
+      "publishedAt": null,
+      "version": "对应 ROCm 7.2.1 / PyTorch 2.9.1 轮子；页面版本未标明",
+      "accessedAt": "2026-10-28",
+      "kind": "official-doc",
+      "excerpt": "To install the following wheels, Python 3.12 must be installed. Prerequisites: For the 7.2.1 PyTorch on Windows release, the 26.2.2 graphics driver must be installed. pip install ... https://repo.radeon.com/rocm/windows/rocm-rel-7.2.1/torch-2.9.1%2Brocm7.2.1-cp312-cp312-win_amd64.whl ... Example result: PyTorch version: 2.9.1+rocm7.2.1, ROCM used to build PyTorch: 7.2.53211-158bd99533, OS: Windows 11 Pro (10.0.26200), GPU: AMD Radeon AI PRO R9700 (gfx1201), HIP runtime version 7.2.53211."
+    },
+    {
+      "id": "L02-S03",
+      "url": "https://rocm.docs.amd.com/projects/radeon-ryzen/en/latest/docs/limitations/limitationsrad.html",
+      "title": "Radeon Limitations and recommended settings — Use ROCm on Radeon and Ryzen",
+      "publisher": "AMD",
+      "publishedAt": null,
+      "version": "7.2.1 release known issues 章节；适用 7.2 release",
+      "accessedAt": "2026-10-28",
+      "kind": "official-doc",
+      "excerpt": "Windows: The following Windows known issues and limitations are applicable to the 7.2 release. Only Pytorch is currently available on Windows - the rest of the ROCm stack is only supported on Linux."
+    },
+    {
+      "id": "L02-S10",
+      "url": "https://rocm.docs.amd.com/projects/radeon-ryzen/en/latest/docs/limitations/limitationsrad.html",
+      "title": "Radeon Limitations and recommended settings（Windows Limitations 小节）— Use ROCm on Radeon and Ryzen",
+      "publisher": "AMD",
+      "publishedAt": null,
+      "version": "适用 7.2 release",
+      "accessedAt": "2026-10-28",
+      "kind": "official-doc",
+      "excerpt": "Limitations: No ML training support. / Only Python 3.12 is supported. / On Windows, only LLM batch sizes of 1 are officially supported. / On Windows, the latest version of transformers should be installed ... Some older versions of transformers (<4.55.5) might not be supported."
+    },
+    {
+      "id": "L02-S11",
+      "url": "https://rocm.docs.amd.com/projects/radeon-ryzen/en/latest/docs/limitations/limitationsrad.html",
+      "title": "Radeon Limitations and recommended settings（Windows 环境提示小节）— Use ROCm on Radeon and Ryzen",
+      "publisher": "AMD",
+      "publishedAt": null,
+      "version": "适用 7.2 release",
+      "accessedAt": "2026-10-28",
+      "kind": "official-doc",
+      "excerpt": "Known issues: Disable the following Windows security features as they can interfere with ROCm functionality: Turn off WDAG (Windows Defender Application Guard) ... Turn off SAC (Smart App Control) ... If you encounter errors related to missing .dll libraries, install Visual C++ 2015-2022 Redistributables."
+    },
+    {
+      "id": "L02-S04",
+      "url": "https://rocm.docs.amd.com/projects/install-on-windows/en/latest/reference/system-requirements.html",
+      "title": "System requirements for Windows — HIP SDK for Windows 7.2.0 documentation",
+      "publisher": "AMD",
+      "publishedAt": "2026-07-31",
+      "version": "HIP SDK for Windows 7.2.0",
+      "accessedAt": "2026-10-28",
+      "kind": "official-doc",
+      "excerpt": "Supported OSes: Windows 11, x86-64, validated update 22H2 (GA). Radeon desktop supported（Runtime+HIP SDK 均为支持）: RX 9070 XT / RX 9070 / RX 9070 GRE (gfx1201), RX 9060 XT / RX 9060 (gfx1200), RX 7900 XTX / 7900 XT (gfx1100), RX 7800 XT / 7700 XT (gfx1101), RX 7650 GRE / 7600 XT / 7600 (gfx1102). APUs: Ryzen AI Max 300/400 (gfx1151), Ryzen AI 300 / AI 9 400 (gfx1150)."
+    },
+    {
+      "id": "L02-S12",
+      "url": "https://rocm.docs.amd.com/projects/install-on-windows/en/latest/reference/system-requirements.html",
+      "title": "System requirements for Windows（不支持名单小节）— HIP SDK for Windows 7.2.0",
+      "publisher": "AMD",
+      "publishedAt": "2026-07-31",
+      "version": "HIP SDK for Windows 7.2.0",
+      "accessedAt": "2026-10-28",
+      "kind": "official-doc",
+      "excerpt": "Radeon 不支持项（Runtime/HIP SDK/Debugger 均为不支持）：RX 6950 XT, RX 6900 XT, RX 6800 XT, RX 6800, RX 6750 XT, RX 6700 XT, RX 6700, RX 6650 XT, RX 6600 XT, RX 6600 (RDNA2, gfx103x); PRO W6800, W6600 (RDNA2), W5500 (RDNA1), Radeon PRO VII (GCN5.1) 原文脚注：Unsupported - The current HIP SDK release does not support this hardware."
+    },
+    {
+      "id": "L02-S05",
+      "url": "https://rocm.docs.amd.com/projects/install-on-windows/en/latest/conceptual/component-support.html",
+      "title": "ROCm components supported in HIP SDK — HIP SDK for Windows 7.2.0 documentation",
+      "publisher": "AMD",
+      "publishedAt": "2026-08-20",
+      "version": "HIP SDK for Windows 7.2.0",
+      "accessedAt": "2026-10-28",
+      "kind": "official-doc",
+      "excerpt": "Communication Libraries: Linux Supported / Windows Not available. AI Libraries: Linux MIOpen, MIGraphX / Windows Not available. AI Frameworks: Linux PyTorch, TensorFlow, etc. / Windows Not available. CMake HIP Language: Enabled / Unsupported. Runtime: HIP (open sourced) / HIP (closed source). HIPBlasLT is now available for Windows users in HIP SDK version 6.4.2 and later, supported on gfx1101."
+    },
+    {
+      "id": "L02-S06",
+      "url": "https://rocm.docs.amd.com/projects/install-on-windows/en/latest/about/releasenotes.html",
+      "title": "AMD HIP SDK for Windows 7.2.0 — Release Notes",
+      "publisher": "AMD",
+      "publishedAt": "2026-07-31",
+      "version": "7.2.0",
+      "accessedAt": "2026-10-28",
+      "kind": "release-note",
+      "excerpt": "What's new: Support for ROCm 7.2.0; Support for AMD Ryzen AI 300 Series, Ryzen AI 400 Series, Ryzen AI Max 400 Series and Max+ 400 Series. ROCm Debugger on Windows limitations: Architecture support: Windows is currently supported on the AMD Radeon RX 9000 series graphics products. Multi-GPU: Configurations with more than one AMD GPU are not supported with AMD ROCm Debugger for Windows."
+    },
+    {
+      "id": "L02-S07",
+      "url": "https://repo.radeon.com/rocm/windows/rocm-rel-7.2.1/",
+      "title": "Index of /rocm/windows/rocm-rel-7.2.1 (AMD repo.radeon.com)",
+      "publisher": "AMD",
+      "publishedAt": null,
+      "version": "rocm-rel-7.2.1",
+      "accessedAt": "2026-10-28",
+      "kind": "official-doc",
+      "excerpt": "目录实际列出：rocm-7.2.1.tar.gz, rocm_sdk_core-7.2.1-py3-none-win_amd64.whl, rocm_sdk_devel-7.2.1-py3-none-win_amd64.whl, rocm_sdk_libraries_custom-7.2.1-py3-none-win_amd64.whl, torch-2.9.1+rocm7.2.1-cp312-cp312-win_amd64.whl, torchaudio-2.9.1+rocm7.2.1-cp312-cp312-win_amd64.whl, torchvision-0.24.1+rocm7.2.1-cp312-cp312-win_amd64.whl"
+    },
+    {
+      "id": "L02-S08",
+      "url": "https://rocm.docs.amd.com/projects/radeon-ryzen/en/latest/docs/advanced/advancedrad/windows/comfyui/installcomfyui.html",
+      "title": "Install ComfyUI (Radeon, Windows) — Use ROCm on Radeon and Ryzen",
+      "publisher": "AMD",
+      "publishedAt": null,
+      "version": "页面版本未标明；对应 ROCm 7.2.1 流程",
+      "accessedAt": "2026-10-28",
+      "kind": "official-doc",
+      "excerpt": "Install PyTorch (ROCm) wheels. ... git clone https://github.com/comfyanonymous/ComfyUI.git ... pip install -r requirements.txt ... python main.py. After running the above command, ensure that the Pytorch version seen in the terminal is the ROCm 7.2.1 specific one. If running on low-memory configs, try adding the --lowvram and --disable-pinned-memory parameters. （同目录 LLM 页注明：Radeon GPUs do not support vLLM usecases on Windows OS.）"
+    }
+  ],
+  "claims": [
+    {
+      "id": "L02-C01",
+      "claim": "AMD 官方 PyTorch Windows 版当前支持矩阵（ROCm 7.2.1）仅覆盖 gfx1201/gfx1200/gfx1100/gfx1101 四种架构",
+      "status": "official-supported",
+      "hardware": [
+        "AMD Radeon RX 9070",
+        "AMD Radeon RX 9070 XT",
+        "AMD Radeon AI PRO R9700",
+        "AMD Radeon RX 9060 XT",
+        "AMD Radeon RX 7900 XTX",
+        "AMD Radeon PRO W7900",
+        "AMD Radeon PRO W7900 Dual Slot",
+        "AMD Radeon RX 7700（原文如此，未写 XT）"
+      ],
+      "os": ["Windows 11"],
+      "software": "PyTorch 2.9 + ROCm 7.2.1 + Python 3.12",
+      "sourceIds": ["L02-S01"],
+      "limits": "仅是官方支持名单，gfx1102（RX 7600 系）及 RDNA2 未列入该名单，不能证明不可用，也不能证明名单外卡的任何能力"
+    },
+    {
+      "id": "L02-C02",
+      "claim": "官方 PyTorch Windows 安装路径为 pip 安装 repo.radeon.com 的 ROCm 7.2.1 win_amd64 轮子：torch-2.9.1+rocm7.2.1、torchvision-0.24.1+rocm7.2.1、torchaudio-2.9.1+rocm7.2.1，均为 cp312",
+      "status": "official-supported",
+      "hardware": ["L02-S01 名单中的卡"],
+      "os": ["Windows 11"],
+      "software": "Python 3.12 + PyTorch 2.9.1+rocm7.2.1 + ROCm SDK 7.2.1 wheel",
+      "sourceIds": ["L02-S02", "L02-S07"],
+      "limits": "页面只验证 import torch / cuda.is_available / get_device_name；未验证具体模型、算子或插件"
+    },
+    {
+      "id": "L02-C03",
+      "claim": "官方要求 7.2.1 PyTorch Windows 版必须先安装 26.2.2 图形驱动，且 Python 必须 3.12",
+      "status": "official-supported",
+      "hardware": ["L02-S01 名单中的卡"],
+      "os": ["Windows 11"],
+      "software": "图形驱动 26.2.2 + Python 3.12",
+      "sourceIds": ["L02-S02"],
+      "limits": "页面仅给出驱动号；本轮未核驱动发布说明和各卡最低驱动差异"
+    },
+    {
+      "id": "L02-C04",
+      "claim": "原生 Windows 上 AMD 官方明确：只有 PyTorch 可用，其余 ROCm 栈仅 Linux 支持；且官方不提供机器学习训练支持",
+      "status": "official-unsupported",
+      "hardware": ["全部 Radeon 桌面卡"],
+      "os": ["Windows"],
+      "software": "ROCm 7.2 / 7.2.1",
+      "sourceIds": ["L02-S03", "L02-S10", "L02-S01"],
+      "limits": "指该版本官方不提供机器学习训练支持，不能据此断言所有社区训练方案都无法运行；推理路径仍可用。未列举具体缺失算子清单"
+    },
+    {
+      "id": "L02-C05",
+      "claim": "Windows 官方限制还包括：仅支持 Python 3.12、LLM 官方仅支持 batch size 1、transformers 旧版本(<4.55.5)可能不受支持、需关闭 WDAG 与 Smart App Control",
+      "status": "version-limited",
+      "hardware": ["全部 Radeon 桌面卡"],
+      "os": ["Windows"],
+      "software": "ROCm 7.2 / 7.2.1 + transformers(pip)",
+      "sourceIds": ["L02-S10", "L02-S11"],
+      "limits": "来自 7.2 release 限制章节，未来版本可能变化"
+    },
+    {
+      "id": "L02-C06",
+      "claim": "HIP SDK for Windows 7.2.0 支持的 GPU 名单比 PyTorch Windows 矩阵更宽：额外含 RX 7900 XT、RX 7800 XT、RX 7700 XT、RX 7650 GRE、RX 7600 XT、RX 7600（gfx1102）、PRO W7800/W7700，以及 Ryzen AI Max/AI 300/400 APU（gfx1150/1151）",
+      "status": "official-supported",
+      "hardware": [
+        "AMD Radeon RX 7900 XT",
+        "AMD Radeon RX 7800 XT",
+        "AMD Radeon RX 7700 XT",
+        "AMD Radeon RX 7650 GRE",
+        "AMD Radeon RX 7600 XT",
+        "AMD Radeon RX 7600",
+        "AMD Radeon PRO W7800",
+        "AMD Radeon PRO W7700",
+        "AMD Ryzen AI Max 300/400 系列",
+        "AMD Ryzen AI 300/400 系列"
+      ],
+      "os": ["Windows 11 (22H2 GA, x86-64)"],
+      "software": "HIP SDK for Windows 7.2.0",
+      "sourceIds": ["L02-S04"],
+      "limits": "HIP SDK 支持 ≠ PyTorch Windows 轮子支持；gfx1102 与 APU 未列入 ROCm 7.2.1 的 PyTorch Windows 矩阵，不能反推能跑官方 PyTorch"
+    },
+    {
+      "id": "L02-C07",
+      "claim": "HIP SDK 7.2.0 明确不支持 RDNA2 及更早桌面卡（RX 6950/6900/6800/6750/6700/6650/6600 XT 及非 XT、PRO W6800/W6600/W5500、Radeon PRO VII）",
+      "status": "official-unsupported",
+      "hardware": [
+        "AMD Radeon RX 6000 系列 (gfx1030/1031/1032)",
+        "AMD Radeon PRO W6800/W6600",
+        "AMD Radeon PRO W5500",
+        "AMD Radeon PRO VII"
+      ],
+      "os": ["Windows"],
+      "software": "HIP SDK for Windows 7.2.0",
+      "sourceIds": ["L02-S04", "L02-S12"],
+      "limits": "仅指 HIP SDK 官方支持；不代表社区方案（另路）在这些卡上的可用性"
+    },
+    {
+      "id": "L02-C08",
+      "claim": "HIP SDK 组件对照表明：Windows 版无 AI 框架、无 MIOpen/MIGraphX 等 AI 库、无通信库（RCCL）、CMake HIP Language 不支持、HIP 运行时为闭源",
+      "status": "official-unsupported",
+      "hardware": ["全部 AMD GPU"],
+      "os": ["Windows"],
+      "software": "HIP SDK for Windows 7.2.0",
+      "sourceIds": ["L02-S05"],
+      "limits": "指 HIP SDK 发行版内容；PyTorch Windows 轮子另由 Radeon 文档发布，两者不可互相推导"
+    },
+    {
+      "id": "L02-C09",
+      "claim": "ROCm Debugger for Windows 仅支持 RX 9000 系 RDNA4 桌面卡（gfx1100/1101 卡该列为不支持），且不支持多 GPU 配置",
+      "status": "version-limited",
+      "hardware": [
+        "AMD Radeon RX 9070/9070 XT/9070 GRE/9060 XT/9060",
+        "AMD Radeon AI PRO R9700"
+      ],
+      "os": ["Windows 11"],
+      "software": "HIP SDK 7.2.0 ROCm Debugger",
+      "sourceIds": ["L02-S04", "L02-S12", "L02-S06"],
+      "limits": "只是调试器组件的限制，不代表 PyTorch/HIP SDK 其他组件"
+    },
+    {
+      "id": "L02-C10",
+      "claim": "官方 FP8 支持仅限 RDNA4 GPU；FP16 全名单可用",
+      "status": "official-supported",
+      "hardware": ["RDNA4: RX 9070/9070 XT/AI PRO R9700/RX 9060 XT"],
+      "os": ["Windows 11"],
+      "software": "PyTorch 2.9 + ROCm 7.2.1",
+      "sourceIds": ["L02-S01"],
+      "limits": "仅 AI 数据类型层面；不等于全部算子已实现 FP8"
+    },
+    {
+      "id": "L02-C11",
+      "claim": "ComfyUI 官方 Windows 路径 = 先装 ROCm 7.2.1 PyTorch 轮子，再 clone ComfyUI、pip install -r requirements.txt、python main.py；低显存建议 --lowvram --disable-pinned-memory",
+      "status": "official-supported",
+      "hardware": ["L02-S01 名单中的卡"],
+      "os": ["Windows 11"],
+      "software": "PyTorch 2.9.1+rocm7.2.1 (Python 3.12) + ComfyUI(main 分支)",
+      "sourceIds": ["L02-S08", "L02-S10"],
+      "limits": "文档只演示 SDXL Turbo 一个模板；未声明全部自定义节点/模型可用"
+    },
+    {
+      "id": "L02-C12",
+      "claim": "Radeon GPU 在 Windows 上不支持 vLLM 用例",
+      "status": "official-unsupported",
+      "hardware": ["全部 AMD Radeon 桌面卡"],
+      "os": ["Windows"],
+      "software": "vLLM",
+      "sourceIds": ["L02-S08"],
+      "limits": "Radeon Usecases LLM 页一句话声明，未给版本范围"
+    },
+    {
+      "id": "L02-C13",
+      "claim": "可直接核对的组合：Radeon RX 7900 XTX (gfx1100) + Windows 11 + Python 3.12 + torch-2.9.1+rocm7.2.1 cp312 win_amd64 pip 轮子 + 26.2.2 图形驱动，属官方 PyTorch Windows 支持矩阵内",
+      "status": "official-supported",
+      "hardware": ["AMD Radeon RX 7900 XTX (gfx1100)"],
+      "os": ["Windows 11"],
+      "software": "Python 3.12 + PyTorch 2.9.1+rocm7.2.1 + ROCm 7.2.1 轮子 + 驱动 26.2.2",
+      "sourceIds": ["L02-S01", "L02-S02", "L02-S07"],
+      "limits": "官方只验证到 torch.cuda.is_available 与设备名；该版本官方不提供训练支持、LLM batch=1、算子完整性未承诺"
+    },
+    {
+      "id": "L02-C14",
+      "claim": "两套官方文档版本不同步：Radeon 文档为 ROCm 7.2.1（含 PyTorch 轮子），HIP SDK 文档为 7.2.0，且 /projects/radeon/ 链接现 302 跳转到 /projects/radeon-ryzen/",
+      "status": "not-established",
+      "hardware": [],
+      "os": ["Windows"],
+      "software": "ROCm 7.2.1 / HIP SDK 7.2.0",
+      "sourceIds": ["L02-S01", "L02-S06"],
+      "limits": "版本对应关系（7.2.0 与 7.2.1 是否同一分支）官方未说明"
+    }
+  ],
+  "gaps": [
+    "矩阵中 'AMD Radeon RX 7700' 未写 XT，是否指 RX 7700 XT 或某地区型号：未知",
+    "未核驱动发布说明和最低驱动差异：页面仅给出 26.2.2 驱动号，本轮未查正式发布说明，也未核各卡最低驱动差异",
+    "Windows 10 是否被官方明确排除：矩阵只列 Windows 11=Yes，未见 Windows 10 条目，属未列入名单",
+    "7.2.1 之前各 ROCm 版本（如 7.1/6.4.x）的 Windows PyTorch 回滚矩阵：需逐版本点 Version List，本轮未核",
+    "Windows PyTorch 轮子的具体缺失算子清单：官方只写 No ML training support，未逐算子列明；该声明仅指官方层面，不等同于所有社区方案物理上不能运行",
+    "Radeon 文档各页未标明页面发布日期与 docs 版本号，仅能以内容中的 7.2.1/7.2.0 为准"
+  ]
+}

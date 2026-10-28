@@ -1,0 +1,286 @@
+{
+  "lane": "05",
+  "checkedAt": "2026-10-28",
+  "scope": "Ollama 官方对 AMD 显卡的硬件名单、Windows/Linux 路线、Vulkan 入口及成熟度（docs.ollama.com 与 ollama/ollama 官方仓库/release；不由 llama.cpp 支持推断）",
+  "sources": [
+    {
+      "id": "L05-S01",
+      "url": "https://docs.ollama.com/gpu",
+      "title": "Hardware support — Ollama Documentation",
+      "publisher": "Ollama",
+      "publishedAt": "2026-10-27",
+      "version": "页面 dateModified 2026-10-27T15:47:31Z，对应仓库 docs/gpu.mdx（main）",
+      "accessedAt": "2026-10-28",
+      "kind": "official-doc",
+      "excerpt": "Ollama requires the AMD ROCm v7 driver on Linux. … AMD Radeon RX: 9070 XT 9070 GRE 9070 9060 XT 9060 XT LP 9060 7900 XTX 7900 XT 7900 GRE 7800 XT 7700 XT 7700 7600 XT 7600 6950 XT 6900 XTX 6900XT 6800 XT 6800 … Ollama requires an AMD ROCm v7 / HIP7-capable driver stack on Windows. … AMD Radeon RX: 7900 XTX 7900 XT 7900 GRE 7800 XT 7700 XT 7600 XT 7600; AMD Radeon PRO: W7900 W7800 W7700 W7600 W7500 … NOTE: Additional AMD GPU support is provided by the Vulkan Library - see below."
+    },
+    {
+      "id": "L05-S02",
+      "url": "https://github.com/ollama/ollama/blob/main/docs/gpu.mdx",
+      "title": "ollama/ollama docs/gpu.mdx (main)",
+      "publisher": "Ollama（GitHub 仓库）",
+      "publishedAt": null,
+      "version": "main 分支；该文件最近一次相关提交 6d02a43a75cd3364b3c230e9070f1413e60f0d02（2025-10-28，docs: rename to mdx to setup docs site #12804）",
+      "accessedAt": "2026-10-28",
+      "kind": "official-repo",
+      "excerpt": "Ollama leverages the AMD ROCm library, which does not support all AMD GPUs. In some cases you can force the system to try to use a similar LLVM target that is close. … You can use the environment variable HSA_OVERRIDE_GFX_VERSION with x.y.z syntax. … If you have an unsupported AMD GPU you can experiment using the list of supported types below. （小节标题为 Overrides on Linux；LLVM targets 表含 gfx1030/gfx1100/gfx1101/gfx1102/gfx1150/gfx1151/gfx1200/gfx1201 等，不含 gfx1032）"
+    },
+    {
+      "id": "L05-S03",
+      "url": "https://docs.ollama.com/windows",
+      "title": "Windows — Ollama Documentation",
+      "publisher": "Ollama",
+      "publishedAt": null,
+      "version": "未标明；抓取于 2026-10-28",
+      "accessedAt": "2026-10-28",
+      "kind": "official-doc",
+      "excerpt": "System Requirements: Windows 10 22H2 or newer, Home or Pro; AMD ROCm v7 / HIP7-capable driver stack for ROCm acceleration, or a Vulkan-capable AMD Radeon driver for Vulkan acceleration. NOTE: Some RDNA2 / Radeon RX 6000 systems, including RX 6800-class cards, may not expose ROCm v7 on current Windows AMD drivers. Vulkan is enabled by default and is the recommended fallback for those systems. … AMD GPU: ollama-windows-amd64-rocm.zip"
+    },
+    {
+      "id": "L05-S04",
+      "url": "https://docs.ollama.com/linux",
+      "title": "Linux — Ollama Documentation",
+      "publisher": "Ollama",
+      "publishedAt": null,
+      "version": "未标明；抓取于 2026-10-28",
+      "accessedAt": "2026-10-28",
+      "kind": "official-doc",
+      "excerpt": "AMD GPU install: If you have an AMD GPU, also download and extract the additional ROCm package: curl -fsSL https://ollama.com/download/ollama-linux-amd64-rocm.tar.zst | sudo tar x -C /ur … Install AMD ROCm drivers (optional): Download and Install ROCm v7. … While AMD has contributed the amdgpu driver upstream to the official linux kernel source, the version is older and may not support all ROCm features."
+    },
+    {
+      "id": "L05-S05",
+      "url": "https://github.com/ollama/ollama/releases/tag/v0.12.6",
+      "title": "Release v0.12.6 — ollama/ollama",
+      "publisher": "Ollama（GitHub release）",
+      "publishedAt": "2025-10-15",
+      "version": "v0.12.6",
+      "accessedAt": "2026-10-28",
+      "kind": "release-note",
+      "excerpt": "## Experimental Vulkan Support: Experimental support for Vulkan is now available when you build locally from source. This will enable additional GPUs from AMD, and Intel which are not currently supported by Ollama. To build locally, install the Vulkan SDK … In a future release, Vulkan support will be included in the binary release as well. Please file issues if you run into any problems."
+    },
+    {
+      "id": "L05-S06",
+      "url": "https://github.com/ollama/ollama/issues/4464",
+      "title": "Support RX6600 (gfx1032) on windows (gfx override works on linux) — issue #4464",
+      "publisher": "ollama/ollama issue tracker（社区用户报告）",
+      "publishedAt": "2024-05-16",
+      "version": "issue 正文提及 Ollama 0.1.32-0.1.38；已关闭",
+      "accessedAt": "2026-10-28",
+      "kind": "community",
+      "excerpt": "标题：Support RX6600 (gfx1032) on windows (gfx override works on linux)。正文：Ollama(0.1.32) is working awesome with Zluda using AMD RX6600 on windows 10. But … versions from 0.1.33 to 0.1.38 Ollama is not working with Zluda. It gives error 0xc000001d"
+    },
+    {
+      "id": "L05-S07",
+      "url": "https://github.com/ollama/ollama/releases/tag/v0.40.12",
+      "title": "Release v0.40.12 — ollama/ollama",
+      "publisher": "Ollama（GitHub release）",
+      "publishedAt": "2026-10-27",
+      "version": "v0.40.12（截至核验日最新正式 release）",
+      "accessedAt": "2026-10-28",
+      "kind": "release-note",
+      "excerpt": "资产列表（节选）：install.ps1、install.sh、ollama-linux-amd64-rocm.tar.zst、ollama-linux-amd64.tar.zst、ollama-windows-amd64-rocm.zip、ollama-windows-amd64.zip、OllamaSetup.exe、sha256sum.txt。（未提供单独的 Vulkan 安装包；release 正文未提及 ROCm/Vulkan 版本号）"
+    },
+    {
+      "id": "L05-S08",
+      "url": "https://docs.ollama.com/troubleshooting",
+      "title": "Troubleshooting — Ollama Documentation",
+      "publisher": "Ollama",
+      "publishedAt": null,
+      "version": "未标明；抓取于 2026-10-28",
+      "accessedAt": "2026-10-28",
+      "kind": "official-doc",
+      "excerpt": "### AMD Driver Version Mismatch: This typically means the system's AMD GPU driver is too old. Ollama bundles ROCm 7 linux libraries which require a compatible ROCm 7 kernel driver. If the system is running an older driver (ROCm 6.x or earlier), GPU initialization will hang during device discovery and eventually time out, causing Ollama to fall back to CPU. To resolve this, upgrade to the ROCm v7 driver using the amdgpu-install utility."
+    },
+    {
+      "id": "L05-S09",
+      "url": "https://github.com/ollama/ollama/blob/v0.12.6/docs/gpu.md",
+      "title": "ollama/ollama docs/gpu.md（v0.12.6 tag）",
+      "publisher": "Ollama（GitHub 仓库）",
+      "publishedAt": "2025-10-15",
+      "version": "v0.12.6",
+      "accessedAt": "2026-10-28",
+      "kind": "official-repo",
+      "excerpt": "### Windows Support: With ROCm v6.2, the following GPUs are supported on Windows. AMD Radeon RX: 7900 XTX 7900 XT 7900 GRE 7800 XT 7700 XT 7600 XT 7600 6950 XT 6900 XTX 6900XT 6800 XT 6800；AMD Radeon PRO: W7900 W7800 W7700 W7600 W7500 W6900X W6800X Duo W6800X W6800 V620。Linux 表同卡并另含 MI 系。"
+    }
+  ],
+  "claims": [
+    {
+      "id": "L05-C01",
+      "claim": "起点 URL github.com/ollama/ollama/blob/main/docs/gpu.md 已失效：本轮实测返回 HTTP 404；文件已在提交 6d02a43（2025-10-28）改名为 docs/gpu.mdx，最终有效官方页为 docs.ollama.com/gpu，其正文与仓库 docs/gpu.mdx 一致",
+      "status": "official-supported",
+      "hardware": [],
+      "os": [],
+      "software": "Ollama main 分支文档（对应 docs.ollama.com/gpu，dateModified 2026-10-27）",
+      "sourceIds": ["L05-S01", "L05-S02"],
+      "limits": "404 状态是 2026-10-28 实测结果；若仓库后续恢复旧路径则此结论过期。改名提交时间取自 GitHub API 返回的该文件提交记录。"
+    },
+    {
+      "id": "L05-C02",
+      "claim": "Linux 官方 ROCm 支持名单（要求 AMD ROCm v7 驱动）包含：RX 9070 XT/9070 GRE/9070/9060 XT/9060 XT LP/9060、7900 XTX/7900 XT/7900 GRE、7800 XT、7700 XT/7700、7600 XT/7600、6950 XT/6900 XTX/6900XT/6800 XT/6800，以及 Radeon AI PRO R9700/R9600D、PRO W7900-W6800 系、Ryzen AI 系与 Instinct MI 系",
+      "status": "official-supported",
+      "hardware": [
+        "AMD Radeon RX 9070 XT",
+        "AMD Radeon RX 9070 GRE",
+        "AMD Radeon RX 9070",
+        "AMD Radeon RX 9060 XT",
+        "AMD Radeon RX 9060 XT LP",
+        "AMD Radeon RX 9060",
+        "AMD Radeon RX 7900 XTX",
+        "AMD Radeon RX 7900 XT",
+        "AMD Radeon RX 7900 GRE",
+        "AMD Radeon RX 7800 XT",
+        "AMD Radeon RX 7700 XT",
+        "AMD Radeon RX 7700",
+        "AMD Radeon RX 7600 XT",
+        "AMD Radeon RX 7600",
+        "AMD Radeon RX 6950 XT",
+        "AMD Radeon RX 6900 XTX",
+        "AMD Radeon RX 6900 XT",
+        "AMD Radeon RX 6800 XT",
+        "AMD Radeon RX 6800",
+        "Radeon AI PRO R9700",
+        "Radeon AI PRO R9600D",
+        "Radeon PRO W7900",
+        "Ryzen AI Max+ 395",
+        "AMD Instinct MI300X"
+      ],
+      "os": ["Linux（ROCm v7 驱动）"],
+      "software": "Ollama 当前文档（dateModified 2026-10-27）",
+      "sourceIds": ["L05-S01", "L05-S02"],
+      "limits": "仅指进入官方名单，不含速度/稳定性结论，也不含所有模型与量化格式的验证；名单随版本变动，见 L05-C09 的历史版本对比。"
+    },
+    {
+      "id": "L05-C03",
+      "claim": "Windows 官方 ROCm 支持名单（要求 AMD ROCm v7 / HIP7-capable driver stack）仅包含 RX 7900 XTX/7900 XT/7900 GRE、7800 XT、7700 XT、7600 XT/7600 与 PRO W7900/W7800/W7700/W7600/W7500；RDNA2（6000 系）与 RDNA4（9000 系）桌面卡均未列入该名单",
+      "status": "official-supported",
+      "hardware": [
+        "AMD Radeon RX 7900 XTX",
+        "AMD Radeon RX 7900 XT",
+        "AMD Radeon RX 7900 GRE",
+        "AMD Radeon RX 7800 XT",
+        "AMD Radeon RX 7700 XT",
+        "AMD Radeon RX 7600 XT",
+        "AMD Radeon RX 7600",
+        "Radeon PRO W7900",
+        "Radeon PRO W7800",
+        "Radeon PRO W7700",
+        "Radeon PRO W7600",
+        "Radeon PRO W7500"
+      ],
+      "os": ["Windows（Windows 10 22H2 或更新，Home/Pro）"],
+      "software": "Ollama 当前文档（dateModified 2026-10-27）",
+      "sourceIds": ["L05-S01", "L05-S03"],
+      "limits": "\"未列入名单\"不等于官方声明不支持；9000/6000 系在 Windows 上的入口是 Vulkan（见 L05-C06）或 Linux 路线。"
+    },
+    {
+      "id": "L05-C04",
+      "claim": "RX 6600（gfx1032）在 Ollama 当前 Linux 与 Windows 两份 ROCm 官方名单中均未列名；gfx1032 也不在官方\"known supported LLVM targets\"表中（表中 RDNA2 仅 gfx1030，示例卡为 Radeon PRO V620）",
+      "status": "not-established",
+      "hardware": ["AMD Radeon RX 6600"],
+      "os": ["Linux", "Windows"],
+      "software": "Ollama 当前文档（dateModified 2026-10-27）",
+      "sourceIds": ["L05-S01", "L05-S02"],
+      "limits": "只能写\"未列入该版本的官方支持名单\"；issue #4464 标题声称 Linux gfx override 可用但正文无 Linux 环境/日志/版本佐证，本轮未核实（L05-C08）；Windows 仅有 ZLUDA 路径的历史社区记录；均非官方承诺。官方 Linux override 小节的\"可试验\"事实（L05-C07）另计，与该个案证据强度不同。"
+    },
+    {
+      "id": "L05-C05",
+      "claim": "RX 6800/6800 XT/6950 XT/6900 XT 在 Linux 名单内（gfx1030 在 LLVM targets 表中），但在 Windows ROCm 名单外；官方 Windows 文档点名 \"Some RDNA2 / Radeon RX 6000 systems, including RX 6800-class cards, may not expose ROCm v7 on current Windows AMD drivers\"，并推荐 Vulkan 作为兜底",
+      "status": "version-limited",
+      "hardware": [
+        "AMD Radeon RX 6800",
+        "AMD Radeon RX 6800 XT",
+        "AMD Radeon RX 6900 XT",
+        "AMD Radeon RX 6950 XT"
+      ],
+      "os": ["Linux（ROCm v7）", "Windows"],
+      "software": "Ollama 当前文档 + Windows 安装页",
+      "sourceIds": ["L05-S01", "L05-S03"],
+      "limits": "同一张卡两个系统结论不同；官方措辞是\"some ... systems may not expose\"，非全体 RDNA2 必然失败的断言。"
+    },
+    {
+      "id": "L05-C06",
+      "claim": "v0.12.6（2025-10-15）release note 将 Vulkan 标为 Experimental、需本地从源码构建；当前官方文档写 \"Vulkan is enabled by default when the backend is installed\"。现有证据只能建立\"当前文档默认启用已安装的 Vulkan 后端\"这一点；不称转正、不推断稳定级别，也不把默认启用等同为全部 AMD 卡测试通过",
+      "status": "official-supported",
+      "hardware": [],
+      "os": ["Windows", "Linux"],
+      "software": "v0.12.6 → 当前版本（v0.40.12 时代文档）",
+      "sourceIds": ["L05-S01", "L05-S05"],
+      "limits": "官方同页写明 Linux 需额外 Vulkan 组件/可能要加 render 组、混合 iGPU 场景 iGPU 可能不稳、VRAM 上报需 root 或 cap_perfmon 否则调度退化为近似估计；\"实验\"标签何时撤销、是否对全部 AMD 卡验证过，本轮均未查到（见 gaps）。"
+    },
+    {
+      "id": "L05-C07",
+      "claim": "HSA_OVERRIDE_GFX_VERSION 的官方语境是小节 \"Overrides on Linux\"：ROCm 并非支持所有 AMD GPU，某些情况下可强制使用相近 LLVM target 试运行，官方用词是 \"force the system to try\" 与 \"you can experiment\"；多卡可用 HSA_OVERRIDE_GFX_VERSION_0/_1 分开设置",
+      "status": "official-supported",
+      "hardware": [
+        "不在官方名单的 AMD GPU（如 Radeon RX 5400，gfx1034→伪装 gfx1030）"
+      ],
+      "os": ["Linux"],
+      "software": "Ollama 当前文档",
+      "sourceIds": ["L05-S01", "L05-S02"],
+      "limits": "官方原文将其限定在 Linux；无任何成功保证；目标 gfx 必须在官方 LLVM targets 列表内（gfx1032 不在）。issue #3107 显示 Windows 上设置后仍报 rocBLAS gfx1032 库缺失错误。"
+    },
+    {
+      "id": "L05-C08",
+      "claim": "社区记录：issue #4464（2024-05）标题为 \"Support RX6600 (gfx1032) on windows (gfx override works on linux)\"。正文仅确认 Windows 10 + RX6600 上 0.1.32 配 ZLUDA 可用而 0.1.33-0.1.38 报 0xc000001d；\"Linux 可用\"仅出现在标题，正文无 Linux 运行环境、日志或应用版本，本轮未核实。标题声称不是成功验证，也不代表原生 ROCm 路径的表现（该记录走 ZLUDA）",
+      "status": "community-reported",
+      "hardware": ["AMD Radeon RX 6600"],
+      "os": ["Windows 10"],
+      "software": "Ollama 0.1.32-0.1.38 + ZLUDA（非官方、非原生 ROCm 路径）",
+      "sourceIds": ["L05-S06"],
+      "limits": "版本陈旧（2024 年）、依赖第三方 ZLUDA、与当前 ROCm 7 路线无关；不能据此推断当前版本行为，也不能推断原生 ROCm 路径的成败；标题中的 Linux 声称未经核实。"
+    },
+    {
+      "id": "L05-C09",
+      "claim": "Windows ROCm 名单存在版本收缩：v0.12.6 时代（ROCm v6.2）Windows 名单包含 6950 XT/6900 XTX/6900XT/6800 XT/6800 及 PRO W6800 系；当前文档（ROCm v7/HIP7）已不再列 6000 系与 W6800 系",
+      "status": "version-limited",
+      "hardware": [
+        "AMD Radeon RX 6800",
+        "AMD Radeon RX 6800 XT",
+        "AMD Radeon RX 6950 XT",
+        "AMD Radeon RX 6900 XT",
+        "Radeon PRO W6800"
+      ],
+      "os": ["Windows"],
+      "software": "v0.12.6（ROCm v6.2）→ 当前（ROCm v7）",
+      "sourceIds": ["L05-S01", "L05-S09"],
+      "limits": "两版出处均保留；收缩原因（驱动能力变化）官方未解释；老版本可用不代表新版本可用，反之亦然。"
+    },
+    {
+      "id": "L05-C10",
+      "claim": "Linux 上 Ollama 自带 ROCm 7 用户态库，要求系统内核驱动兼容 ROCm 7；若系统装的是 ROCm 6.x 或更早，GPU 初始化会在 discovery 阶段挂起约 30 秒超时并回退 CPU，官方解法是用 amdgpu-install 升级到 ROCm v7",
+      "status": "official-supported",
+      "hardware": [],
+      "os": ["Linux"],
+      "software": "Ollama 自带 ROCm 7 Linux 库 + 系统 ROCm v7 内核驱动",
+      "sourceIds": ["L05-S08", "L05-S04"],
+      "limits": "仅针对文档所述超时/回退症状；内核 amdgpu 上游版本偏旧、功能不全的提醒同页存在。具体 ROCm 小版本号官方未写。"
+    },
+    {
+      "id": "L05-C11",
+      "claim": "安装入口：Windows 常规用 OllamaSetup.exe，独立部署另有 ollama-windows-amd64-rocm.zip；Linux 手动安装需在基础包之外追加解压 ollama-linux-amd64-rocm.tar.zst；v0.40.12（2026-10-27）release 资产中两者均在列，且没有单独的 Vulkan 安装包",
+      "status": "official-supported",
+      "hardware": [],
+      "os": ["Windows", "Linux"],
+      "software": "v0.40.12",
+      "sourceIds": ["L05-S03", "L05-S04", "L05-S07"],
+      "limits": "仅记录原文，未执行；\"无单独 Vulkan 包\"是资产列表观察，Vulkan 后端包含关系官方未逐字说明。"
+    },
+    {
+      "id": "L05-C12",
+      "claim": "多卡与 Vulkan 控制变量（官方原文）：ROCm 路线用 ROCR_VISIBLE_DEVICES（多卡优先 Uuid，rocminfo 查看）；Vulkan 路线用 GGML_VK_VISIBLE_DEVICES 选卡，OLLAMA_VULKAN=0 或 GGML_VK_VISIBLE_DEVICES=-1 可整体关闭 Vulkan；混合 iGPU/dGPU 系统若 Vulkan iGPU 不稳，保留 Vulkan 并把变量指到独显序号",
+      "status": "official-supported",
+      "hardware": [],
+      "os": ["Windows", "Linux"],
+      "software": "Ollama 当前文档",
+      "sourceIds": ["L05-S01"],
+      "limits": "仅为配置说明，不构成对任何具体卡的可用性保证；变量名沿用 llama.cpp 系命名（GGML_VK_*），不能反推 llama.cpp 支持即 Ollama 支持。"
+    }
+  ],
+  "gaps": [
+    "官方包捆绑的具体 ROCm 小版本号（7.x.y）未在文档/release 中找到，未核实。",
+    "Vulkan 从\"实验/需自建\"到\"当前文档默认启用\"之间：实验标签何时撤销、是否对全部 AMD 卡测试通过均未查到，转折版本未核实（搜索被中止）。",
+    "RX 9060 XT / Radeon AI PRO R9600D 等 RDNA4 卡在 Windows 上 Vulkan 路线的官方表态：文档未点名，未核实。",
+    "issue #3107（Windows HSA_OVERRIDE 不生效）仅取正文报错片段，未逐条核对其后续评论与关闭原因。",
+    "docs.ollama.com 各页面未标注文档自身版本号，Markdown 版与文档站正文已比对一致，但无法钉死某一份 Ollama 安装包对应的具体文档版本。"
+  ]
+}

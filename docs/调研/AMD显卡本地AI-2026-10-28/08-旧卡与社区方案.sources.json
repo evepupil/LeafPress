@@ -1,0 +1,316 @@
+{
+  "lane": "08",
+  "checkedAt": "2026-10-28",
+  "scope": "RX 580/590、Vega 56/64、Radeon VII、RX 5700/5700 XT、RX 6600/6700 XT 的 DirectML、ZLUDA 与 Windows ROCm/ComfyUI 社区方案",
+  "sources": [
+    {
+      "id": "L08-S01",
+      "url": "https://github.com/microsoft/DirectML/blob/master/README.md",
+      "title": "DirectML README",
+      "publisher": "Microsoft",
+      "publishedAt": null,
+      "version": "master，未固定提交",
+      "accessedAt": "2026-10-28",
+      "kind": "official-repo",
+      "excerpt": "DirectML is now in maintenance mode."
+    },
+    {
+      "id": "L08-S02",
+      "url": "https://github.com/microsoft/DirectML/tree/master/PyTorch",
+      "title": "DirectML PyTorch README",
+      "publisher": "Microsoft",
+      "publishedAt": null,
+      "version": "master，未固定提交；README 列 Python 3.8–3.12",
+      "accessedAt": "2026-10-28",
+      "kind": "official-repo",
+      "excerpt": "torch-directml is a plugin for PyTorch that provides an implementation of the PyTorch backend for DirectML."
+    },
+    {
+      "id": "L08-S03",
+      "url": "https://github.com/microsoft/DirectML/releases/tag/torch-directml-0.2.4.dev240815",
+      "title": "torch-directml 0.2.4.dev240815",
+      "publisher": "Microsoft",
+      "publishedAt": "2024-08-19",
+      "version": "torch-directml 0.2.4.dev240815",
+      "accessedAt": "2026-10-28",
+      "kind": "release-note",
+      "excerpt": "0.2.4.dev240815 adds avg_pool3d and upsample_bicubic2d operator support."
+    },
+    {
+      "id": "L08-S04",
+      "url": "https://raw.githubusercontent.com/vosen/ZLUDA/master/docs/src/faq.md",
+      "title": "ZLUDA FAQ",
+      "publisher": "ZLUDA project",
+      "publishedAt": null,
+      "version": "浮动 master；未固定提交；2026-10-28 核验原文",
+      "accessedAt": "2026-10-28",
+      "kind": "official-doc",
+      "excerpt": "Currently, only AMD Radeon RX 5000 series and newer are supported. Older consumer GPUs (Polaris, Vega, etc.) are not supported."
+    },
+    {
+      "id": "L08-S05",
+      "url": "https://zluda.readthedocs.io/en/latest/quick_start.html",
+      "title": "ZLUDA Quick Start",
+      "publisher": "ZLUDA project",
+      "publishedAt": null,
+      "version": "ReadTheDocs 链接本轮未复核；内容不作为安装保证",
+      "accessedAt": "2026-10-28",
+      "kind": "official-doc",
+      "excerpt": "This project is under heavy development and it's possible that the application you want to run might not work."
+    },
+    {
+      "id": "L08-S06",
+      "url": "https://github.com/vosen/ZLUDA/releases/tag/v7-preview.19",
+      "title": "v7-preview.19",
+      "publisher": "ZLUDA project",
+      "publishedAt": "2026-10-26",
+      "version": "v7-preview.19",
+      "accessedAt": "2026-10-28",
+      "kind": "release-note",
+      "excerpt": "v7-preview.19"
+    },
+    {
+      "id": "L08-S07",
+      "url": "https://github.com/patientx/ComfyUI-Zluda",
+      "title": "ComfyUI-Zluda README",
+      "publisher": "patientx 社区仓库",
+      "publishedAt": null,
+      "version": "README 页面；旧卡段落列 HIP 5.7.1，2026-03-19 更新段提到 ZLUDA 3.9.5 nightly；ComfyUI 版本未标明",
+      "accessedAt": "2026-10-28",
+      "kind": "community",
+      "excerpt": "RX400-500 Series (HIP 5.7.1)"
+    },
+    {
+      "id": "L08-S08",
+      "url": "https://github.com/patientx-cfz/comfyui-rocm",
+      "title": "comfyui-rocm README",
+      "publisher": "patientx-cfz 社区仓库",
+      "publishedAt": null,
+      "version": "README 页面，未固定提交",
+      "accessedAt": "2026-10-28",
+      "kind": "community",
+      "excerpt": "AMD GCN5/Vega * RDNA1 * RDNA2 * RDNA3 * RDNA4"
+    },
+    {
+      "id": "L08-S09",
+      "url": "https://github.com/patientx-cfz/comfyui-rocm/releases/tag/101026",
+      "title": "comfyui-rocm 101026 release",
+      "publisher": "patientx-cfz 社区仓库",
+      "publishedAt": "2026-10-10",
+      "version": "101026",
+      "accessedAt": "2026-10-28",
+      "kind": "release-note",
+      "excerpt": "101026"
+    },
+    {
+      "id": "L08-S10",
+      "url": "https://github.com/patientx-cfz/comfyui-rocm/issues/33",
+      "title": "performance issue with comfyui-rocm on RX 5700XT",
+      "publisher": "comfyui-rocm 社区 issue 作者",
+      "publishedAt": "2026-04-24",
+      "version": "ComfyUI 0.19.3; PyTorch 2.13.0a0+rocm7.13.0a20260423; ROCm 7.13.26162",
+      "accessedAt": "2026-10-28",
+      "kind": "community",
+      "excerpt": "AMD Radeon RX 5700 XT; ComfyUI version: 0.19.3; pytorch version: 2.13.0a0+rocm7.13.0a20260423; Prompt executed in 115.65 seconds."
+    },
+    {
+      "id": "L08-S11",
+      "url": "https://github.com/patientx-cfz/comfyui-rocm/issues/69",
+      "title": "Installation fails on RX Vega 56",
+      "publisher": "comfyui-rocm 社区 issue 作者",
+      "publishedAt": "2026-06-19",
+      "version": "Windows 10 Pro；ComfyUI/PyTorch 版本未给出",
+      "accessedAt": "2026-10-28",
+      "kind": "community",
+      "excerpt": "Installation is failing because it says it can't detect the GPU."
+    },
+    {
+      "id": "L08-S12",
+      "url": "https://github.com/patientx-cfz/comfyui-rocm/issues/109",
+      "title": "Radeon RX Vega 64 / gfx900 detected by installer but HIP reports no ROCm-capable device on Windows",
+      "publisher": "comfyui-rocm 社区 issue 作者",
+      "publishedAt": "2026-08-15",
+      "version": "Windows；PyTorch 2.13.0+rocm10.1.0a20260815；驱动为用户自报 31.0.21925.1001",
+      "accessedAt": "2026-10-28",
+      "kind": "community",
+      "excerpt": "Radeon RX Vega 64; Status: SUPPORTED; torch.cuda.is_available(): False; no ROCm-capable device is detected."
+    },
+    {
+      "id": "L08-S13",
+      "url": "https://github.com/patientx-cfz/comfyui-rocm/issues/3",
+      "title": "First bug report on the latest update Detected GPU architecture: Error detecting GPU",
+      "publisher": "comfyui-rocm 社区 issue 作者",
+      "publishedAt": "2026-04-02",
+      "version": "RX 6600；ComfyUI/PyTorch 版本未给出",
+      "accessedAt": "2026-10-28",
+      "kind": "community",
+      "excerpt": "My rig: ... Amd RX 6600 ... Detected GPU architecture: Error detecting GPU: [WinError 2]"
+    },
+    {
+      "id": "L08-S14",
+      "url": "https://github.com/patientx-cfz/comfyui-rocm/issues/47",
+      "title": "Peformance reduction after long usage",
+      "publisher": "comfyui-rocm 社区 issue 作者",
+      "publishedAt": "2026-05-14",
+      "version": "RX 6700 XT；ComfyUI 0.20.1；PyTorch 2.11.0+rocm7.13.0a20260509；ROCm 7.13",
+      "accessedAt": "2026-10-28",
+      "kind": "community",
+      "excerpt": "Device: cuda:0 AMD Radeon RX 6700 XT : native; ComfyUI version: 0.20.1; performance decrease after long usage."
+    },
+    {
+      "id": "L08-S15",
+      "url": "https://github.com/patientx-cfz/comfyui-rocm/issues/12",
+      "title": "RX 6700XT (gfx1031) Reported as NOT YET SUPPORTED",
+      "publisher": "comfyui-rocm 社区 issue 作者",
+      "publishedAt": "2026-04-06",
+      "version": "RX 6700 XT；ComfyUI/PyTorch 版本未给出",
+      "accessedAt": "2026-10-28",
+      "kind": "community",
+      "excerpt": "Changing the value False to True ... solves the problem and installation completes ... I've tried some image generations."
+    }
+  ],
+  "claims": [
+    {
+      "id": "L08-C01",
+      "claim": "DirectML 是 DirectX 12 机器学习库，torch-directml 是 PyTorch 插件；项目 README 明示 maintenance mode。现有原文没有 RX 580/590、Vega 56/64、Radeon VII、RX 5700/5700 XT、RX 6600/6700 XT 与具体 AI 应用版本的配对支持证据。",
+      "status": "not-established",
+      "hardware": [
+        "RX 580",
+        "RX 590",
+        "Vega 56",
+        "Vega 64",
+        "Radeon VII",
+        "RX 5700",
+        "RX 5700 XT",
+        "RX 6600",
+        "RX 6700 XT"
+      ],
+      "os": ["Windows", "WSL（PyTorch README 的安装范围）"],
+      "software": "DirectML / torch-directml；已见 release 为 0.2.4.dev240815；未证实特定 AI 应用版本",
+      "sourceIds": ["L08-S01", "L08-S02", "L08-S03"],
+      "limits": "DirectX 12 或 PyTorch 插件入口不等于特定显卡驱动、ComfyUI、模型、插件或算子兼容。"
+    },
+    {
+      "id": "L08-C02",
+      "claim": "ZLUDA 上游 FAQ 明确将 Vega 列为不支持的较旧消费级 GPU；因此 RX Vega 56 与 RX Vega 64 在该 FAQ 的运行时范围内为明确排除。",
+      "status": "official-unsupported",
+      "hardware": [
+        "Radeon RX Vega 56",
+        "Radeon RX Vega 64",
+        "Vega 消费级 GPU（FAQ 家族范围）"
+      ],
+      "os": ["FAQ 未限定"],
+      "software": "ZLUDA 上游 FAQ；未指定 ComfyUI 或其他应用版本",
+      "sourceIds": ["L08-S04"],
+      "limits": "只代表 ZLUDA FAQ 的运行时声明；不代表 DirectML、ROCm 或其它 fork。"
+    },
+    {
+      "id": "L08-C03",
+      "claim": "ZLUDA 上游 FAQ 的正向范围文字是 AMD Radeon RX 5000 series and newer；该系列级表述不能单独证明 RX 5700、RX 5700 XT、RX 6600 或 RX 6700 XT 的某个 ComfyUI 版本可用。",
+      "status": "version-limited",
+      "hardware": ["RX 5700", "RX 5700 XT", "RX 6600", "RX 6700 XT"],
+      "os": ["未由 FAQ 精确限定"],
+      "software": "ZLUDA FAQ；截至检查日期可见 release v7-preview.19；应用版本未指定",
+      "sourceIds": ["L08-S04", "L08-S06"],
+      "limits": "系列级项目声明，不是逐型号硬件实测、驱动支持表或应用认证。"
+    },
+    {
+      "id": "L08-C04",
+      "claim": "patientx/ComfyUI-Zluda README 留有 RX 400–500 Series 的 HIP 5.7.1 旧路线，且更新段提到 ZLUDA 3.9.5 nightly；没有给出 RX 580/590 逐型号且带 ComfyUI 版本的成功矩阵。",
+      "status": "version-limited",
+      "hardware": ["RX 400–500 Series（README 泛称；RX 580/590 未单列）"],
+      "os": ["Windows（该仓库的安装语境）"],
+      "software": "ComfyUI-Zluda README；HIP 5.7.1；ZLUDA 3.9.5 nightly；ComfyUI 版本未标明",
+      "sourceIds": ["L08-S07"],
+      "limits": "社区旧安装说明，不等于当前 ZLUDA 上游支持，也不是目标型号和应用版本的验证。"
+    },
+    {
+      "id": "L08-C05",
+      "claim": "comfyui-rocm 社区 README 将自身范围列为 GCN5/Vega、RDNA1、RDNA2、RDNA3、RDNA4；页面所见 release 101026 发布于 2026-10-10。",
+      "status": "community-reported",
+      "hardware": ["README 声明的 GCN5/Vega、RDNA1、RDNA2、RDNA3、RDNA4 家族"],
+      "os": ["Windows（仓库安装器语境）"],
+      "software": "comfyui-rocm release 101026；README 未在该范围声明中固定 ComfyUI/PyTorch 版本",
+      "sourceIds": ["L08-S08", "L08-S09"],
+      "limits": "社区仓库自己的架构范围，不是 AMD 官方 ROCm 支持表；逐卡表现以对应版本案例为准。"
+    },
+    {
+      "id": "L08-C06",
+      "claim": "社区 issue #33 的日志记录 AMD Radeon RX 5700 XT 在 Windows comfyui-rocm 上运行 ComfyUI 0.19.3、PyTorch 2.13.0a0+rocm7.13.0a20260423，并记录一次提示任务完成。",
+      "status": "community-reported",
+      "hardware": ["AMD Radeon RX 5700 XT"],
+      "os": ["Windows"],
+      "software": "comfyui-rocm；ComfyUI 0.19.3；PyTorch 2.13.0a0+rocm7.13.0a20260423；ROCm 7.13.26162",
+      "sourceIds": ["L08-S10"],
+      "limits": "单一用户报告和工作流，不是官方支持或广泛模型/算子兼容证明；报告中的耗时不作性能结论。"
+    },
+    {
+      "id": "L08-C07",
+      "claim": "社区 issue #69 报告 RX Vega 56 在 comfyui-rocm Windows 安装过程中 GPU 检测失败。",
+      "status": "community-reported",
+      "hardware": ["RX Vega 56"],
+      "os": ["Windows 10 Pro"],
+      "software": "comfyui-rocm 安装器；ComfyUI/PyTorch 版本未提供",
+      "sourceIds": ["L08-S11"],
+      "limits": "单次安装器检测失败不能证明显卡或所有 ROCm 版本均不支持。"
+    },
+    {
+      "id": "L08-C08",
+      "claim": "社区 issue #109 报告 RX Vega 64 安装器标签为 SUPPORTED，但 PyTorch 2.13.0+rocm10.1.0a20260815 在 Windows 下 torch.cuda.is_available() 为 False，HIP 报告没有 ROCm-capable device。",
+      "status": "community-reported",
+      "hardware": ["Radeon RX Vega 64 / gfx900"],
+      "os": ["Windows"],
+      "software": "comfyui-rocm 当前安装器；PyTorch 2.13.0+rocm10.1.0a20260815；用户自报驱动 31.0.21925.1001",
+      "sourceIds": ["L08-S12"],
+      "limits": "这是社区故障报告，不是 AMD 驱动认证；用户自报驱动号不能证明受支持。"
+    },
+    {
+      "id": "L08-C09",
+      "claim": "社区 issue #3 的 RX 6600 用户报告 comfyui-rocm 安装器出现 GPU architecture 检测错误；未提供完成安装或成功生成记录。",
+      "status": "community-reported",
+      "hardware": ["AMD RX 6600"],
+      "os": ["Windows 安装器语境"],
+      "software": "comfyui-rocm install.bat；ComfyUI/PyTorch 版本未提供",
+      "sourceIds": ["L08-S13"],
+      "limits": "检测器失败不等于 AMD 官方不支持，也不能用 RX 6600 XT 案例替代本型号证据。"
+    },
+    {
+      "id": "L08-C10",
+      "claim": "社区 issue #47 的 RX 6700 XT 日志记录 ComfyUI 0.20.1 与 PyTorch 2.11.0+rocm7.13.0a20260509，并报告长时间使用后性能下降；记录不能据以判定稳定或普遍可用。",
+      "status": "community-reported",
+      "hardware": ["AMD Radeon RX 6700 XT"],
+      "os": ["Windows"],
+      "software": "comfyui-rocm；ComfyUI 0.20.1；PyTorch 2.11.0+rocm7.13.0a20260509；ROCm 7.13",
+      "sourceIds": ["L08-S14"],
+      "limits": "具体用户的性能退化报告；日志没有证明完整成功生成，也不是对所有工作流的结论。"
+    },
+    {
+      "id": "L08-C11",
+      "claim": "另一条 RX 6700 XT 社区 issue 报告安装器曾标为 NOT YET SUPPORTED；作者手动修改检测脚本后称安装完成并试过生成，但没有提供 ComfyUI/PyTorch 版本。",
+      "status": "version-limited",
+      "hardware": ["RX 6700 XT / gfx1031"],
+      "os": ["Windows 安装器语境"],
+      "software": "comfyui-rocm 社区安装器；应用与依赖版本未提供；包含手动改检测脚本",
+      "sourceIds": ["L08-S15"],
+      "limits": "手动绕过检测且缺少版本号，不能作为官方支持或可复现的版本化支持结论。"
+    },
+    {
+      "id": "L08-C12",
+      "claim": "RX 580、RX 590、Radeon VII 和非 XT 的 RX 5700 均没有在已打开材料中找到同时具备精确型号、具体 AI 应用及版本的成功记录。",
+      "status": "not-established",
+      "hardware": ["RX 580", "RX 590", "Radeon VII", "RX 5700"],
+      "os": [],
+      "software": "DirectML、ZLUDA、ComfyUI/ROCm 社区材料",
+      "sourceIds": ["L08-S01", "L08-S04", "L08-S07", "L08-S08"],
+      "limits": "未找到证据不等于硬件必然不能运行；AMD 型号级驱动支持也未核实。"
+    }
+  ],
+  "gaps": [
+    "AMD 官方按具体显卡型号、操作系统和版本列出的当前驱动支持页本轮未能打开；九个目标型号的驱动支持均未知。",
+    "AMD ROCm 官方兼容矩阵及 Microsoft Learn 页面未能核实；社区打包器的声明不替代厂商支持表。",
+    "DirectML/torch-directml 缺少九个目标型号与具体 ComfyUI 或其他 AI 应用版本的逐卡成功记录；release 版本也不等同应用支持。",
+    "RX 580、RX 590、Radeon VII、RX 5700 缺少精确型号加应用版本的成功实测；ComfyUI-Zluda 的 RX 400–500 Series 旧说明不足以确定其中某一型号。",
+    "RX 6600 的社区报告为安装检测失败且缺应用版本；RX 6700 XT 案例包括手动修改检测脚本或性能问题，缺少可推广的稳定性证据。",
+    "本轮无硬件实测；所有 issue 是用户报告，不能视为官方认证或可重复基准。"
+  ]
+}
